@@ -1033,6 +1033,150 @@ body::before {
   .nav-btn { width: 28px; height: 28px; }
   .today-btn { padding: 5px 10px; font-size: 0.65rem; }
 }
+
+/* ===== ÉTUDES VIEW ===== */
+.etudes-overlay {
+  display: none; position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+.etudes-overlay.active { display: flex; align-items: center; justify-content: center; }
+.etudes-panel {
+  background: var(--bg-secondary); border-radius: var(--radius);
+  width: 92vw; max-width: 1100px; max-height: 88vh;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+.etudes-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+}
+.etudes-header h2 {
+  font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.15rem;
+  font-weight: 700; color: var(--gph-dark); flex: 1;
+}
+.etudes-header .badge-count {
+  background: var(--gph-yellow); color: var(--gph-dark);
+  font-size: 0.65rem; font-weight: 700; padding: 3px 10px;
+  border-radius: 12px; font-family: 'DM Mono', monospace;
+}
+.etudes-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 22px; border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.etudes-search {
+  flex: 1; padding: 8px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 0.8rem;
+  font-family: 'Space Grotesk', sans-serif; background: var(--bg-secondary);
+  outline: none; transition: var(--transition);
+}
+.etudes-search:focus { border-color: var(--gph-yellow); box-shadow: var(--shadow-glow); }
+.etudes-sync-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--gph-dark);
+  color: #fff; font-size: 0.75rem; font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif; cursor: pointer;
+  transition: var(--transition);
+}
+.etudes-sync-btn:hover { background: #333; }
+.etudes-sync-btn.syncing { opacity: 0.6; pointer-events: none; }
+.etudes-sync-btn svg { animation: none; }
+.etudes-sync-btn.syncing svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.etudes-body {
+  flex: 1; overflow-y: auto; padding: 0;
+}
+.etudes-table {
+  width: 100%; border-collapse: collapse; font-size: 0.78rem;
+}
+.etudes-table thead { position: sticky; top: 0; z-index: 1; }
+.etudes-table th {
+  text-align: left; padding: 10px 14px; font-size: 0.62rem;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted); background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+}
+.etudes-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.etudes-table tr { cursor: pointer; transition: var(--transition); }
+.etudes-table tbody tr:hover { background: var(--bg-card-hover); }
+.etude-ref {
+  font-family: 'DM Mono', monospace; font-weight: 600;
+  color: var(--gph-dark); font-size: 0.82rem;
+}
+.etude-name { font-weight: 500; color: var(--text-primary); }
+.etude-client { color: var(--text-secondary); font-size: 0.75rem; }
+.etude-montant {
+  font-family: 'DM Mono', monospace; font-weight: 600;
+  color: var(--gph-dark); text-align: right;
+}
+.etude-status {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+}
+.etude-status-active { background: rgba(22,163,74,0.1); color: #16A34A; }
+.etude-status-closed { background: rgba(107,114,128,0.1); color: #6B7280; }
+.etude-status-pending { background: rgba(245,197,24,0.15); color: #B8860B; }
+.etude-date { font-size: 0.72rem; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+.etudes-empty {
+  text-align: center; padding: 60px 20px; color: var(--text-muted);
+}
+.etudes-empty svg { margin-bottom: 12px; opacity: 0.3; }
+.etudes-empty p { font-size: 0.85rem; margin-bottom: 6px; }
+.etudes-empty small { font-size: 0.72rem; }
+.etudes-detail-panel {
+  display: none; flex-direction: column; border-left: 1px solid var(--border);
+  width: 380px; min-width: 380px; background: var(--bg-secondary);
+}
+.etudes-detail-panel.open { display: flex; }
+.etudes-detail-header {
+  padding: 16px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.etudes-detail-header h3 {
+  font-family: 'Bricolage Grotesque', sans-serif; font-size: 0.95rem;
+  font-weight: 700; color: var(--gph-dark);
+}
+.etudes-detail-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.etude-detail-field { margin-bottom: 14px; }
+.etude-detail-label {
+  font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 4px;
+}
+.etude-detail-value { font-size: 0.82rem; color: var(--text-primary); }
+.etude-docs-list { list-style: none; }
+.etude-docs-list li {
+  padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-xs); margin-bottom: 6px;
+  font-size: 0.75rem; display: flex; justify-content: space-between;
+}
+.etude-doc-type {
+  font-size: 0.6rem; font-weight: 700; padding: 2px 8px;
+  border-radius: 8px; text-transform: uppercase;
+}
+.etude-doc-devis { background: rgba(37,99,235,0.1); color: #2563EB; }
+.etude-doc-commande { background: rgba(22,163,74,0.1); color: #16A34A; }
+.etude-doc-facture { background: rgba(217,119,6,0.1); color: #D97706; }
+.etude-link-btn {
+  display: block; width: 100%; padding: 10px; margin-top: 16px;
+  background: var(--gph-yellow); color: var(--gph-dark);
+  border: none; border-radius: var(--radius-sm); font-size: 0.78rem;
+  font-weight: 700; font-family: 'Space Grotesk', sans-serif;
+  cursor: pointer; text-align: center; transition: var(--transition);
+}
+.etude-link-btn:hover { filter: brightness(0.95); }
+.etudes-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--gph-dark); color: #fff; padding: 10px 20px;
+  border-radius: var(--radius-sm); font-size: 0.78rem; z-index: 3000;
+  font-family: 'Space Grotesk', sans-serif; box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.3s ease;
+}
 </style>
 </head>
 <body>
@@ -1065,7 +1209,7 @@ body::before {
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Gestion</div>
-      <div class="nav-item" onclick="alert('Module études — à venir')">
+      <div class="nav-item" onclick="openEtudes()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Études / Dossiers
       </div>
@@ -1150,6 +1294,7 @@ body::before {
         <div class="form-group"><label class="form-label">Statut</label>
           <select class="form-select" id="intStatus"><option value="planned">Planifié</option><option value="inprogress">En cours</option><option value="done">Terminé</option></select></div>
       </div>
+      <div class="form-group"><label class="form-label">Étude Akuiteo</label><select class="form-select" id="intEtude" onchange="onEtudeSelect()"><option value="">— Aucune étude —</option></select></div>
       <div class="form-group"><label class="form-label">Intitulé / Étude</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
       <div class="form-group"><label class="form-label">Adresse du site</label><input class="form-input" id="intAddress" placeholder="Ex: 12 rue des Lilas, 44000 Nantes"></div>
       <div class="form-row">
@@ -1177,6 +1322,42 @@ body::before {
   <div class="detail-header"><h2 id="detailTitle"></h2><button class="modal-close" onclick="closeDetail()">×</button></div>
   <div class="detail-body" id="detailBody"></div>
 </div>
+
+<!-- ÉTUDES OVERLAY -->
+<div class="etudes-overlay" id="etudesOverlay" onclick="if(event.target===this)closeEtudes()">
+  <div class="etudes-panel">
+    <div class="etudes-header">
+      <h2>Études — Commandes en cours</h2>
+      <span class="badge-count" id="etudesCount">0</span>
+      <button class="modal-close" onclick="closeEtudes()">×</button>
+    </div>
+    <div class="etudes-toolbar">
+      <input class="etudes-search" id="etudesSearch" placeholder="Rechercher par code, nom, client..." oninput="filterEtudes()">
+      <button class="etudes-sync-btn" id="etudesSyncBtn" onclick="syncEtudes()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Sync Akuiteo
+      </button>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <div class="etudes-body" id="etudesBody" style="flex:1;">
+        <div class="etudes-empty" id="etudesEmpty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <p>Aucune étude chargée</p>
+          <small>Cliquez sur "Sync Akuiteo" pour charger les études depuis Akuiteo.<br>Le proxy doit être lancé : <code>python proxy_akuiteo.py</code></small>
+        </div>
+      </div>
+      <div class="etudes-detail-panel" id="etudesDetailPanel">
+        <div class="etudes-detail-header">
+          <h3 id="etudesDetailTitle">Détail étude</h3>
+          <button class="modal-close" onclick="closeEtudeDetail()" style="font-size:1.2rem;">×</button>
+        </div>
+        <div class="etudes-detail-body" id="etudesDetailBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="etudes-toast" id="etudesToast" style="display:none;"></div>
 
 <script>
 const TECHNICIANS = [
@@ -1525,6 +1706,323 @@ function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFil
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDetail();}});
+
+// ═══ AKUITEO API via proxy local (lancer: python proxy_akuiteo.py) ═══
+const AKUITEO_PROXY = 'http://localhost:8888';
+let etudesData = []; // { ref, nom, client, montant, montant_ttc, date, statut, agence, docs[] }
+let etudesFiltered = [];
+
+async function akuiteoFetch(method, path, body = null) {
+  const opts = { method, headers: { 'Accept': 'application/json' } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(AKUITEO_PROXY + path, opts);
+  console.log(`[Akuiteo] ${method} ${path} → ${r.status}`);
+  if (!r.ok) { const txt = await r.text(); throw new Error(`Akuiteo ${r.status}: ${txt.substring(0, 200)}`); }
+  const text = await r.text();
+  if (!text) return null;
+  try { return JSON.parse(text); }
+  catch (e) {
+    console.warn(`[Akuiteo] JSON invalide (${text.length} chars) sur ${path} — ${e.message}`);
+    throw new Error(`JSON parse error sur ${path} (${text.length} chars)`);
+  }
+}
+
+function etudesMsg(msg) {
+  const el = document.getElementById('etudesToast');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function openEtudes() {
+  closeSidebar();
+  document.getElementById('etudesOverlay').classList.add('active');
+  // Charger le cache localStorage au 1er accès
+  if (etudesData.length === 0) {
+    const cached = localStorage.getItem('geoplan_etudes');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        etudesData = parsed.data || [];
+        etudesFiltered = [...etudesData];
+        const age = Date.now() - (parsed.ts || 0);
+        const ageMin = Math.round(age / 60000);
+        console.log(`[Akuiteo] Cache restauré : ${etudesData.length} études (il y a ${ageMin} min)`);
+        renderEtudesTable();
+        populateEtudeSelect();
+        etudesMsg(`${etudesData.length} études (cache ${ageMin < 60 ? ageMin + ' min' : Math.round(ageMin/60) + 'h'})`);
+        return;
+      } catch (e) { console.warn('[Akuiteo] Cache invalide, ignoré'); }
+    }
+    renderEtudesEmpty();
+  }
+}
+function closeEtudes() { document.getElementById('etudesOverlay').classList.remove('active'); }
+
+// Chargement paginé générique — réduit la page si JSON trop gros
+async function akuiteoFetchAll(path, body, pageSize = 50) {
+  let all = [], offset = 0;
+  while (true) {
+    let batch;
+    try {
+      batch = await akuiteoFetch('POST', `${path}?limit=${pageSize}&offset=${offset}`, body);
+    } catch (e) {
+      // Si JSON parse error, retenter avec une page plus petite
+      if (e.message.includes('JSON parse') && pageSize > 10) {
+        const smaller = Math.max(10, Math.floor(pageSize / 2));
+        console.warn(`[Akuiteo] Réduction pageSize ${pageSize} → ${smaller} pour ${path}`);
+        pageSize = smaller;
+        continue; // retry même offset avec taille réduite
+      }
+      throw e;
+    }
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all = all.concat(batch);
+    console.log(`[Akuiteo] ${path}: ${all.length} résultats (page ${pageSize})`);
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+    if (all.length >= 10000) break;
+  }
+  return all;
+}
+
+function buildEtudesFromDocs(allDocs, customerMap) {
+  const byProject = {};
+  for (const doc of allDocs) {
+    const pid = doc.projectId; if (!pid) continue;
+    if (!byProject[pid]) {
+      byProject[pid] = { ref: pid, nom: '', client: customerMap[doc.customerId] || '', customerId: doc.customerId, montant: 0, montant_ttc: 0, minDate: null, maxDate: null, agence: doc.agence, docs: [] };
+    }
+    const p = byProject[pid];
+    p.montant += Number(doc.amount || 0);
+    p.montant_ttc += Number(doc.amountTTC || 0);
+    if (!p.nom && doc.name) p.nom = doc.name;
+    const dd = doc.date ? doc.date.substring(0, 10) : null;
+    if (dd) { if (!p.minDate || dd < p.minDate) p.minDate = dd; if (!p.maxDate || dd > p.maxDate) p.maxDate = dd; }
+    p.docs.push(doc);
+  }
+  return byProject;
+}
+
+async function syncEtudes() {
+  const btn = document.getElementById('etudesSyncBtn');
+  btn.classList.add('syncing');
+  etudesMsg('Synchronisation Akuiteo en cours...');
+  const t0 = Date.now();
+
+  try {
+    // --- 1. Charger clients + documents EN PARALLÈLE (recherche globale, pas par client) ---
+    etudesMsg('Chargement clients + documents...');
+    console.log('[Akuiteo] === Sync rapide : appels globaux en parallèle ===');
+
+    // Seulement 2 appels : clients + commandes en parallèle
+    const [allCustomers, orders] = await Promise.all([
+      akuiteoFetchAll('/crm/customers/search', { code: { operator: 'LIKE', value: '%' } }, 200),
+      akuiteoFetchAll('/sales/orders/search', { id: { operator: 'IS_NOT', value: '0' } }),
+    ]);
+
+    // Filtrer : garder uniquement les commandes à faire ou en cours (exclure DELIVERED, CANCELLED)
+    const activeOrders = orders.filter(o => o.state !== 'DELIVERED' && o.state !== 'CANCELLED');
+    console.log(`[Akuiteo] ${allCustomers.length} clients, ${orders.length} commandes total, ${activeOrders.length} en cours/à faire`);
+    etudesMsg(`${allCustomers.length} clients, ${activeOrders.length} commandes actives. Construction...`);
+
+    // Index clients
+    const customerMap = {};
+    for (const c of allCustomers) { customerMap[String(c.id)] = c.name || c.legalName || c.code || 'Sans nom'; }
+
+    // --- 2. Transformer les commandes actives ---
+    const allDocs = [];
+    for (const o of activeOrders) {
+      if (o.projectId) allDocs.push({ type: 'commande', projectId: String(o.projectId), customerId: String(o.customerId || ''), ref: o.number || o.id, name: o.name || o.description || '', amount: o.preTaxAmount || 0, amountTTC: o.afterTaxAmount || 0, date: o.date, state: o.state || '', agence: o.entityCode || '', livraison: o.deliveryDate || null });
+    }
+    console.log(`[Akuiteo] ${allDocs.length} commandes actives avec projectId`);
+
+    // --- 3. Regrouper par projectId → études ---
+    const byProject = buildEtudesFromDocs(allDocs, customerMap);
+
+    // --- 4. Enrichir avec l'endpoint projets (optionnel) ---
+    const projectEndpoints = ['/business/projects/search', '/projects/search', '/sales/projects/search'];
+    for (const ep of projectEndpoints) {
+      try {
+        const res = await akuiteoFetch('POST', ep + '?limit=500', { code: { operator: 'LIKE', value: '%' } });
+        if (Array.isArray(res) && res.length > 0) {
+          for (const proj of res) {
+            const pid = String(proj.id || proj.code);
+            if (!byProject[pid]) {
+              byProject[pid] = { ref: pid, nom: proj.name || proj.description || '', client: customerMap[String(proj.customerId)] || '', customerId: String(proj.customerId || ''), montant: 0, montant_ttc: 0, minDate: proj.startDate || null, maxDate: proj.endDate || null, agence: proj.entityCode || '', docs: [] };
+            } else {
+              if (proj.name && !byProject[pid].nom) byProject[pid].nom = proj.name;
+              if (proj.startDate && !byProject[pid].minDate) byProject[pid].minDate = proj.startDate;
+              if (proj.endDate && !byProject[pid].maxDate) byProject[pid].maxDate = proj.endDate;
+            }
+          }
+          console.log(`[Akuiteo] ${res.length} projets via ${ep}`);
+          break;
+        }
+      } catch (e) { console.log(`[Akuiteo] ${ep} non dispo`); }
+    }
+
+    // --- 5. Liste finale + cache ---
+    etudesData = Object.values(byProject).map(p => {
+      const nbCmd = p.docs.length;
+      return { ...p, nbCmd, statut: 'active' };
+    }).sort((a, b) => (b.maxDate || '').localeCompare(a.maxDate || ''));
+
+    etudesFiltered = [...etudesData];
+
+    // Sauvegarder en cache localStorage
+    try { localStorage.setItem('geoplan_etudes', JSON.stringify({ data: etudesData, ts: Date.now() })); }
+    catch (e) { console.warn('[Akuiteo] Cache save failed:', e.message); }
+
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    console.log(`[Akuiteo] ${etudesData.length} études construites en ${elapsed}s`);
+    etudesMsg(`${etudesData.length} études synchronisées en ${elapsed}s`);
+    renderEtudesTable();
+    populateEtudeSelect();
+
+  } catch (e) {
+    console.error('[Akuiteo] Erreur sync:', e);
+    etudesMsg('Erreur : ' + e.message);
+  } finally {
+    btn.classList.remove('syncing');
+  }
+}
+
+function filterEtudes() {
+  const q = document.getElementById('etudesSearch').value.toLowerCase().trim();
+  if (!q) { etudesFiltered = [...etudesData]; }
+  else {
+    etudesFiltered = etudesData.filter(e =>
+      e.ref.toLowerCase().includes(q) ||
+      e.nom.toLowerCase().includes(q) ||
+      e.client.toLowerCase().includes(q) ||
+      e.agence.toLowerCase().includes(q)
+    );
+  }
+  renderEtudesTable();
+}
+
+function renderEtudesEmpty() {
+  document.getElementById('etudesBody').innerHTML = `<div class="etudes-empty">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <p>Aucune étude chargée</p>
+    <small>Cliquez sur "Sync Akuiteo" pour charger les études.<br>Proxy : <code>python proxy_akuiteo.py</code></small>
+  </div>`;
+  document.getElementById('etudesCount').textContent = '0';
+}
+
+function renderEtudesTable() {
+  const body = document.getElementById('etudesBody');
+  document.getElementById('etudesCount').textContent = etudesFiltered.length;
+  if (etudesFiltered.length === 0) { renderEtudesEmpty(); return; }
+
+  const fmt = n => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+
+  let html = `<table class="etudes-table"><thead><tr>
+    <th>Réf.</th><th>Intitulé</th><th>Client</th><th>Agence</th>
+    <th>Statut</th><th style="text-align:right">Montant HT</th>
+    <th>Cmd</th><th>Date</th>
+  </tr></thead><tbody>`;
+
+  for (const e of etudesFiltered) {
+    html += `<tr onclick="showEtudeDetail('${e.ref}')">
+      <td><span class="etude-ref">${e.ref}</span></td>
+      <td><span class="etude-name">${e.nom || '—'}</span></td>
+      <td><span class="etude-client">${e.client}</span></td>
+      <td><span class="etude-client">${e.agence || '—'}</span></td>
+      <td><span class="etude-status etude-status-active">En cours</span></td>
+      <td class="etude-montant">${fmt(e.montant)}</td>
+      <td style="text-align:center">${e.nbCmd}</td>
+      <td><span class="etude-date">${fmtDate(e.maxDate)}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+function showEtudeDetail(ref) {
+  const e = etudesData.find(x => x.ref === ref);
+  if (!e) return;
+  const panel = document.getElementById('etudesDetailPanel');
+  const body = document.getElementById('etudesDetailBody');
+  document.getElementById('etudesDetailTitle').textContent = e.ref;
+
+  const fmt = n => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+
+  body.innerHTML = `
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Intitulé</div>
+      <div class="etude-detail-value" style="font-weight:600;">${e.nom || '—'}</div>
+    </div>
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Client</div>
+      <div class="etude-detail-value">${e.client}</div>
+    </div>
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Agence</div>
+      <div class="etude-detail-value">${e.agence || '—'}</div>
+    </div>
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Statut</div>
+      <div><span class="etude-status etude-status-active">En cours</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;">
+        <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Montant HT</div>
+        <div style="font-family:'DM Mono',monospace;font-size:1.1rem;font-weight:600;color:var(--gph-dark);">${fmt(e.montant)}</div>
+      </div>
+      <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;">
+        <div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Montant TTC</div>
+        <div style="font-family:'DM Mono',monospace;font-size:1.1rem;font-weight:600;color:var(--gph-dark);">${fmt(e.montant_ttc)}</div>
+      </div>
+    </div>
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Période</div>
+      <div class="etude-detail-value">${fmtDate(e.minDate)} — ${fmtDate(e.maxDate)}</div>
+    </div>
+    <div class="etude-detail-field">
+      <div class="etude-detail-label">Commandes (${e.docs.length})</div>
+      <ul class="etude-docs-list">
+        ${e.docs.map(d => `<li>
+          <span><span class="etude-doc-type etude-doc-commande">Cmd</span> ${d.ref}${d.state ? ' <span style="color:var(--text-muted);font-size:0.6rem;">' + d.state + '</span>' : ''}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:0.72rem;">${fmt(d.amount)}</span>
+        </li>`).join('')}
+      </ul>
+    </div>
+    <button class="etude-link-btn" onclick="linkEtudeToIntervention('${e.ref}','${(e.nom||'').replace(/'/g,"\\'")}','${e.client.replace(/'/g,"\\'")}')">
+      Créer une intervention pour cette étude
+    </button>`;
+  panel.classList.add('open');
+}
+
+function closeEtudeDetail() { document.getElementById('etudesDetailPanel').classList.remove('open'); }
+
+function linkEtudeToIntervention(ref, nom, client) {
+  closeEtudes();
+  openModal();
+  document.getElementById('intTitle').value = `${nom} — ${ref}`;
+  document.getElementById('intClient').value = client;
+}
+
+function onEtudeSelect() {
+  const sel = document.getElementById('intEtude');
+  const ref = sel.value;
+  if (!ref) return;
+  const e = etudesData.find(x => x.ref === ref);
+  if (e) {
+    document.getElementById('intTitle').value = `${e.nom || ref} — ${ref}`;
+    document.getElementById('intClient').value = e.client;
+  }
+}
+
+// Populate étude select in intervention form (if études are loaded)
+function populateEtudeSelect() {
+  const sel = document.getElementById('intEtude');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Aucune étude —</option>' +
+    etudesData.map(e => `<option value="${e.ref}">${e.ref} — ${e.nom || e.client}</option>`).join('');
+}
 
 init();
 </script>
