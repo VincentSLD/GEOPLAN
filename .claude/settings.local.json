@@ -5,7 +5,16 @@
       "Bash(gh repo view VincentSLD/GEOPLAN --json visibility,name)",
       "Bash(where gh)",
       "WebFetch(domain:github.com)",
-      "Bash(find c:PROJETS05_CRM -type f -name *.js -o -name *.ts -o -name *.jsx -o -name *.tsx -o -name *.html -o -name *.php -o -name *.py -o -name .env* -o -name *config* -o -name *akuiteo* -o -name *api* -o -name *proxy* -o -name *.json)"
+      "Bash(find c:PROJETS05_CRM -type f -name *.js -o -name *.ts -o -name *.jsx -o -name *.tsx -o -name *.html -o -name *.php -o -name *.py -o -name .env* -o -name *config* -o -name *akuiteo* -o -name *api* -o -name *proxy* -o -name *.json)",
+      "WebFetch(domain:www.webfleet.com)",
+      "WebFetch(domain:media.webfleet.com)",
+      "WebSearch",
+      "WebFetch(domain:manualzz.com)",
+      "WebFetch(domain:docplayer.net)",
+      "WebFetch(domain:flespi.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:community.fabric.microsoft.com)",
+      "WebFetch(domain:portals.webfleet.com)"
     ]
   }
 }

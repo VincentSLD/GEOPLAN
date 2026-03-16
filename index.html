@@ -6,6 +6,8 @@
 <title>GéoPlan' — Planification d'interventions géotechniques</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg-primary: #f5f5f0;
@@ -1034,6 +1036,70 @@ body::before {
   .today-btn { padding: 5px 10px; font-size: 0.65rem; }
 }
 
+/* ===== CARTE FLOTTE (Webfleet) ===== */
+.fleet-overlay {
+  display: none; position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+.fleet-overlay.active { display: flex; align-items: center; justify-content: center; }
+.fleet-panel {
+  background: var(--bg-secondary); border-radius: var(--radius);
+  width: 92vw; max-width: 1200px; height: 85vh;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+  overflow: hidden; animation: slideUp 0.25s ease;
+}
+.fleet-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.fleet-header h2 {
+  font-family: 'Instrument Serif', serif; font-size: 1.3rem; font-weight: 400; flex: 1;
+}
+.fleet-header .badge-count {
+  background: var(--gph-yellow); color: var(--gph-dark);
+  padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+.fleet-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary);
+}
+.fleet-map-container { flex: 1; position: relative; }
+#fleetMap { width: 100%; height: 100%; }
+.fleet-toast {
+  display: none; position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--gph-dark); color: #fff; padding: 8px 18px; border-radius: 20px;
+  font-size: 0.72rem; font-family: 'Space Grotesk', sans-serif; z-index: 10;
+  box-shadow: var(--shadow-lg);
+}
+.fleet-vehicle-list {
+  position: absolute; top: 10px; right: 10px; z-index: 1000;
+  background: var(--bg-secondary); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); max-height: 60vh; overflow-y: auto;
+  width: 260px; font-size: 0.75rem;
+}
+.fleet-vehicle-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: var(--transition);
+}
+.fleet-vehicle-item:hover { background: var(--bg-card-hover); }
+.fleet-vehicle-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.fleet-vehicle-dot.moving { background: #16A34A; }
+.fleet-vehicle-dot.stopped { background: #DC2626; }
+.fleet-vehicle-dot.idle { background: #F59E0B; }
+.fleet-vehicle-name { font-weight: 600; flex: 1; }
+.fleet-vehicle-speed { font-family: 'DM Mono', monospace; color: var(--text-muted); font-size: 0.65rem; }
+.fleet-sync-btn {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-xs);
+  padding: 6px 14px; font-size: 0.7rem; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+  display: flex; align-items: center; gap: 6px; transition: var(--transition);
+}
+.fleet-sync-btn:hover { border-color: var(--gph-yellow); background: var(--gph-yellow-light); }
+.fleet-sync-btn.syncing svg { animation: spin 1s linear infinite; }
+
 /* ===== ÉTUDES VIEW ===== */
 .etudes-overlay {
   display: none; position: fixed; inset: 0; z-index: 2000;
@@ -1197,9 +1263,9 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
         Liste interventions
       </div>
-      <div class="nav-item" onclick="alert('Module carte — à venir')">
+      <div class="nav-item" onclick="openFleet()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        Carte
+        Carte / Flotte
       </div>
       <label class="sidebar-toggle" title="Afficher/masquer les trajets">
         <input type="checkbox" id="showTravelToggle" checked onchange="toggleTravel()">
@@ -1358,6 +1424,29 @@ body::before {
 </div>
 
 <div class="etudes-toast" id="etudesToast" style="display:none;"></div>
+
+<!-- ═══ OVERLAY CARTE FLOTTE (Webfleet) ═══ -->
+<div class="fleet-overlay" id="fleetOverlay" onclick="if(event.target===this)closeFleet()">
+  <div class="fleet-panel">
+    <div class="fleet-header">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <h2>Flotte — Géotechniciens</h2>
+      <span class="badge-count" id="fleetCount">0</span>
+      <button class="fleet-sync-btn" id="fleetSyncBtn" onclick="syncFleet()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Actualiser
+      </button>
+      <button style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--text-muted);padding:4px 8px;" onclick="closeFleet()">&times;</button>
+    </div>
+    <div class="fleet-toolbar">
+      <span style="font-size:0.7rem;color:var(--text-muted);">Positions en temps réel via Webfleet.connect — Proxy : <code>python proxy_webfleet.py</code> (port 8889)</span>
+    </div>
+    <div class="fleet-map-container">
+      <div id="fleetMap"></div>
+      <div class="fleet-toast" id="fleetToast"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 const TECHNICIANS = [
@@ -2022,6 +2111,194 @@ function populateEtudeSelect() {
   if (!sel) return;
   sel.innerHTML = '<option value="">— Aucune étude —</option>' +
     etudesData.map(e => `<option value="${e.ref}">${e.ref} — ${e.nom || e.client}</option>`).join('');
+}
+
+// ═══ WEBFLEET — CARTE FLOTTE EN TEMPS RÉEL ═══
+const WEBFLEET_PROXY = 'http://localhost:8889';
+let fleetMap = null;
+let fleetMarkers = [];
+let fleetData = [];
+
+function fleetMsg(msg) {
+  const el = document.getElementById('fleetToast');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 5000);
+}
+
+function openFleet() {
+  closeSidebar();
+  document.getElementById('fleetOverlay').classList.add('active');
+  // Initialiser la carte Leaflet une seule fois
+  if (!fleetMap) {
+    fleetMap = L.map('fleetMap').setView([46.8, -1.2], 8); // Centre Vendée/Pays de Loire
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19
+    }).addTo(fleetMap);
+    // Forcer le recalcul de taille après l'animation
+    setTimeout(() => fleetMap.invalidateSize(), 300);
+  } else {
+    setTimeout(() => fleetMap.invalidateSize(), 300);
+  }
+  // Charger le cache ou lancer un sync
+  if (fleetData.length === 0) {
+    const cached = localStorage.getItem('geoplan_fleet');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        fleetData = parsed.data || [];
+        const ageMin = Math.round((Date.now() - (parsed.ts || 0)) / 60000);
+        renderFleetMarkers();
+        fleetMsg(`${fleetData.length} véhicules (cache ${ageMin < 60 ? ageMin + ' min' : Math.round(ageMin/60) + 'h'})`);
+        return;
+      } catch(e) {}
+    }
+    syncFleet();
+  }
+}
+
+function closeFleet() {
+  document.getElementById('fleetOverlay').classList.remove('active');
+}
+
+function createVehicleIcon(color, initials) {
+  return L.divIcon({
+    className: 'fleet-marker-icon',
+    html: `<div style="
+      background:${color}; width:32px; height:32px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:10px; font-weight:700; color:#fff;
+      border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      font-family:'Space Grotesk',sans-serif;
+    ">${initials}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18]
+  });
+}
+
+function renderFleetMarkers() {
+  if (!fleetMap) return;
+  // Supprimer les anciens marqueurs
+  fleetMarkers.forEach(m => fleetMap.removeLayer(m));
+  fleetMarkers = [];
+
+  const bounds = [];
+
+  for (const v of fleetData) {
+    if (!v.lat || !v.lng) continue;
+
+    const isMoving = v.speed > 0;
+    const color = isMoving ? '#16A34A' : '#DC2626';
+    const initials = (v.objectname || '??').substring(0, 2).toUpperCase();
+
+    const marker = L.marker([v.lat, v.lng], {
+      icon: createVehicleIcon(color, initials)
+    }).addTo(fleetMap);
+
+    const speedTxt = v.speed > 0 ? `${v.speed} km/h` : 'A l\'arrêt';
+    const timeTxt = v.postime ? new Date(v.postime).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+
+    marker.bindPopup(`
+      <div style="font-family:'Space Grotesk',sans-serif;min-width:180px;">
+        <strong style="font-size:0.85rem;">${v.objectname || v.objectno || 'Véhicule'}</strong>
+        ${v.drivername ? `<br><span style="color:#666;font-size:0.75rem;">Conducteur : ${v.drivername}</span>` : ''}
+        <br><span style="font-size:0.75rem;">${speedTxt}</span>
+        ${v.postext ? `<br><span style="color:#888;font-size:0.7rem;">${v.postext}</span>` : ''}
+        ${timeTxt ? `<br><span style="color:#aaa;font-size:0.65rem;">Dernière pos. : ${timeTxt}</span>` : ''}
+      </div>
+    `);
+
+    fleetMarkers.push(marker);
+    bounds.push([v.lat, v.lng]);
+  }
+
+  document.getElementById('fleetCount').textContent = fleetData.length;
+
+  // Ajuster la vue sur les marqueurs
+  if (bounds.length > 0) {
+    fleetMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+  }
+
+  // Liste latérale des véhicules
+  renderFleetList();
+}
+
+function renderFleetList() {
+  // Supprimer l'ancienne liste si elle existe
+  const existing = document.getElementById('fleetVehicleList');
+  if (existing) existing.remove();
+
+  if (fleetData.length === 0) return;
+
+  const list = document.createElement('div');
+  list.id = 'fleetVehicleList';
+  list.className = 'fleet-vehicle-list';
+
+  list.innerHTML = `<div style="padding:8px 12px;font-weight:700;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);border-bottom:1px solid var(--border);">Véhicules (${fleetData.length})</div>` +
+    fleetData.map((v, i) => {
+      const cls = v.speed > 0 ? 'moving' : (v.speed === 0 ? 'stopped' : 'idle');
+      const speed = v.speed > 0 ? `${v.speed} km/h` : 'Arrêt';
+      return `<div class="fleet-vehicle-item" onclick="focusVehicle(${i})">
+        <div class="fleet-vehicle-dot ${cls}"></div>
+        <span class="fleet-vehicle-name">${v.objectname || v.objectno || '?'}</span>
+        <span class="fleet-vehicle-speed">${speed}</span>
+      </div>`;
+    }).join('');
+
+  document.querySelector('.fleet-map-container').appendChild(list);
+}
+
+function focusVehicle(idx) {
+  const v = fleetData[idx];
+  if (!v || !v.lat || !v.lng) return;
+  fleetMap.setView([v.lat, v.lng], 15);
+  if (fleetMarkers[idx]) fleetMarkers[idx].openPopup();
+}
+
+async function syncFleet() {
+  const btn = document.getElementById('fleetSyncBtn');
+  btn.classList.add('syncing');
+  fleetMsg('Chargement positions Webfleet...');
+
+  try {
+    const r = await fetch(WEBFLEET_PROXY + '/showObjectReportExtern');
+    if (!r.ok) throw new Error(`Webfleet ${r.status}`);
+    const data = await r.json();
+
+    if (data.error) {
+      throw new Error(data.error === 'non-json response' ? `Réponse non-JSON: ${(data.raw || '').substring(0, 100)}` : data.error);
+    }
+
+    // data peut être un tableau d'objets véhicules
+    const vehicles = Array.isArray(data) ? data : (data.objects || data.results || []);
+
+    fleetData = vehicles.map(v => ({
+      objectno: v.objectno || v.objectNo || '',
+      objectname: v.objectname || v.objectName || v.object_name || '',
+      drivername: v.drivername || v.driverName || v.driver_name || '',
+      lat: parseFloat(v.latitude || v.position_latitude || v.lat || 0),
+      lng: parseFloat(v.longitude || v.position_longitude || v.lng || v.lon || 0),
+      speed: parseInt(v.speed || v.position_speed || 0, 10),
+      course: parseInt(v.course || v.position_course || 0, 10),
+      postext: v.postext || v.position_text || v.posText || '',
+      postime: v.postime || v.position_time || v.posTime || '',
+      state: v.objectstate || v.state || '',
+    })).filter(v => v.lat !== 0 && v.lng !== 0);
+
+    // Cache
+    try { localStorage.setItem('geoplan_fleet', JSON.stringify({ data: fleetData, ts: Date.now() })); }
+    catch(e) {}
+
+    renderFleetMarkers();
+    fleetMsg(`${fleetData.length} véhicules localisés`);
+
+  } catch(e) {
+    console.error('[Webfleet] Erreur:', e);
+    fleetMsg('Erreur : ' + e.message);
+  } finally {
+    btn.classList.remove('syncing');
+  }
 }
 
 init();
