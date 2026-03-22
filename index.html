@@ -1280,6 +1280,11 @@ body::before {
         <span class="sidebar-toggle-check"></span>
         <span>Afficher trajets</span>
       </label>
+      <label class="sidebar-toggle" title="Afficher/masquer la météo">
+        <input type="checkbox" id="showWeatherToggle" checked onchange="toggleWeather()">
+        <span class="sidebar-toggle-check"></span>
+        <span>Afficher météo</span>
+      </label>
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Gestion</div>
@@ -1540,6 +1545,7 @@ let interventions = generateInterventions();
 let currentView = 'week', currentDate = new Date(TODAY), editingId = null;
 let selectedTechId = null; // null = all technicians
 let showTravel = true;
+let showWeather = true;
 
 // ===== MÉTÉO (Open-Meteo API) =====
 const LOCATION_COORDS = {
@@ -1640,7 +1646,7 @@ function getWeatherInfo(code) {
 }
 
 function weatherBadgeHTML(weather, size='sm') {
-  if (!weather) return '';
+  if (!weather || !showWeather) return '';
   const info = getWeatherInfo(weather.code);
   if (size === 'lg') {
     return `<div class="weather-badge weather-lg" title="${info.label} · ${weather.tempMin}°/${weather.tempMax}° · Pluie ${weather.precipProb}% · Vent ${weather.windMax}km/h">
@@ -1726,6 +1732,10 @@ function clearTechFilter() {
 }
 function toggleTravel() {
   showTravel = document.getElementById('showTravelToggle').checked;
+  renderCurrentView();
+}
+function toggleWeather() {
+  showWeather = document.getElementById('showWeatherToggle').checked;
   renderCurrentView();
 }
 function getFilteredTechs() {
@@ -1922,7 +1932,7 @@ function openDetail(id){
     <div class="detail-field"><div class="detail-field-label">Géotechnicien</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><div style="background:${tech.color};width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">${tech.initials}</div>${tech.name} <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem;">· ${tech.base}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Date & horaires</div><div class="detail-field-value">${new Date(int.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style="font-family:'DM Mono',monospace;font-size:0.88rem;margin-top:3px;color:var(--gph-dark);font-weight:500;">${int.startTime} – ${int.endTime}</div></div>
     <div class="detail-field"><div class="detail-field-label">Lieu</div><div class="detail-field-value">📍 ${int.location}</div></div>
-    <div class="detail-field"><div class="detail-field-label">Météo sur site</div><div class="detail-field-value" data-weather-int="${int.id}" data-weather-size="lg">${weatherBadgeHTML(getWeatherForInt(int), 'lg') || '<span style="font-size:0.75rem;color:var(--text-muted);font-style:italic;">Chargement...</span>'}</div></div>
+    ${showWeather ? `<div class="detail-field"><div class="detail-field-label">Météo sur site</div><div class="detail-field-value" data-weather-int="${int.id}" data-weather-size="lg">${weatherBadgeHTML(getWeatherForInt(int), 'lg') || '<span style="font-size:0.75rem;color:var(--text-muted);font-style:italic;">Chargement...</span>'}</div></div>` : ''}
     <div class="detail-field"><div class="detail-field-label">Client</div><div class="detail-field-value">🏢 ${int.client}</div></div>
     <div class="detail-field"><div class="detail-field-label">Temps de trajet</div>
       <div style="display:flex;gap:8px;margin-top:6px;">
