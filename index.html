@@ -2766,7 +2766,15 @@ const DEFAULT_INT_TYPES = Object.entries(TYPES).map(([key, val]) => ({
 }));
 
 const DEFAULT_GENERAL = {
-  heureDebut: '07:00', heureFin: '18:00', pauseDebut: '12:00', pauseFin: '13:00',
+  jours: {
+    lundi:    { actif: true, debut: '07:00', fin: '18:00', pauseDebut: '12:00', pauseFin: '13:00' },
+    mardi:    { actif: true, debut: '07:00', fin: '18:00', pauseDebut: '12:00', pauseFin: '13:00' },
+    mercredi: { actif: true, debut: '07:00', fin: '18:00', pauseDebut: '12:00', pauseFin: '13:00' },
+    jeudi:    { actif: true, debut: '07:00', fin: '18:00', pauseDebut: '12:00', pauseFin: '13:00' },
+    vendredi: { actif: true, debut: '07:00', fin: '17:00', pauseDebut: '12:00', pauseFin: '13:00' },
+    samedi:   { actif: false, debut: '08:00', fin: '12:00', pauseDebut: '', pauseFin: '' },
+    dimanche: { actif: false, debut: '', fin: '', pauseDebut: '', pauseFin: '' },
+  },
   rayonMax: 150, vitesseMoyenne: 60,
   agenceNom: 'GPH', agenceAdresse: 'La Roche-sur-Yon', agenceLat: 46.671, agenceLon: -1.427,
 };
@@ -3203,16 +3211,33 @@ function deleteGroup(id) {
 // ======== TAB 5: PARAMÈTRES GÉNÉRAUX ========
 function renderSettingsGeneral() {
   const g = settingsGeneral;
+  // Migration: si ancien format sans jours, convertir
+  if (!g.jours) {
+    g.jours = DEFAULT_GENERAL.jours;
+    if (g.heureDebut) Object.values(g.jours).forEach(j => { j.debut = g.heureDebut; j.fin = g.heureFin || '18:00'; j.pauseDebut = g.pauseDebut || '12:00'; j.pauseFin = g.pauseFin || '13:00'; });
+  }
+  const joursList = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+  const joursLabels = { lundi:'Lundi', mardi:'Mardi', mercredi:'Mercredi', jeudi:'Jeudi', vendredi:'Vendredi', samedi:'Samedi', dimanche:'Dimanche' };
   const c = document.getElementById('settingsGeneral');
+  let joursHtml = `<table class="stg-table" style="font-size:0.78rem;">
+    <thead><tr><th style="width:30px;"></th><th>Jour</th><th>Début</th><th>Fin</th><th>Pause début</th><th>Pause fin</th></tr></thead><tbody>`;
+  joursList.forEach(j => {
+    const d = g.jours[j] || { actif: false, debut: '', fin: '', pauseDebut: '', pauseFin: '' };
+    joursHtml += `<tr style="${!d.actif ? 'opacity:0.4;' : ''}">
+      <td><input type="checkbox" class="stg-jour-actif" data-jour="${j}" ${d.actif ? 'checked' : ''} onchange="document.querySelector('[data-jour-row=${j}]').style.opacity=this.checked?1:0.4"></td>
+      <td><strong>${joursLabels[j]}</strong></td>
+      <td><input type="time" class="stg-jour-debut" data-jour="${j}" value="${d.debut}" style="height:30px;font-size:0.75rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;"></td>
+      <td><input type="time" class="stg-jour-fin" data-jour="${j}" value="${d.fin}" style="height:30px;font-size:0.75rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;"></td>
+      <td><input type="time" class="stg-jour-pdebut" data-jour="${j}" value="${d.pauseDebut}" style="height:30px;font-size:0.75rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;"></td>
+      <td><input type="time" class="stg-jour-pfin" data-jour="${j}" value="${d.pauseFin}" style="height:30px;font-size:0.75rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;"></td>
+    </tr>`;
+  });
+  joursHtml += `</tbody></table>`;
+
   c.innerHTML = `
     <div class="stg-general-section">
-      <h4>Horaires de travail</h4>
-      <div class="stg-general-grid">
-        <div class="stg-general-field"><label>Début de journée</label><input type="time" id="stg-hdebut" value="${g.heureDebut}"></div>
-        <div class="stg-general-field"><label>Fin de journée</label><input type="time" id="stg-hfin" value="${g.heureFin}"></div>
-        <div class="stg-general-field"><label>Début pause déjeuner</label><input type="time" id="stg-pdebut" value="${g.pauseDebut}"></div>
-        <div class="stg-general-field"><label>Fin pause déjeuner</label><input type="time" id="stg-pfin" value="${g.pauseFin}"></div>
-      </div>
+      <h4>Jours et horaires de travail</h4>
+      ${joursHtml}
     </div>
     <div class="stg-general-section">
       <h4>Paramètres de calcul</h4>
@@ -3235,11 +3260,19 @@ function renderSettingsGeneral() {
 }
 
 function saveGeneralSettings() {
+  const joursList = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+  const jours = {};
+  joursList.forEach(j => {
+    jours[j] = {
+      actif: document.querySelector(`.stg-jour-actif[data-jour="${j}"]`).checked,
+      debut: document.querySelector(`.stg-jour-debut[data-jour="${j}"]`).value,
+      fin: document.querySelector(`.stg-jour-fin[data-jour="${j}"]`).value,
+      pauseDebut: document.querySelector(`.stg-jour-pdebut[data-jour="${j}"]`).value,
+      pauseFin: document.querySelector(`.stg-jour-pfin[data-jour="${j}"]`).value,
+    };
+  });
   settingsGeneral = {
-    heureDebut: document.getElementById('stg-hdebut').value,
-    heureFin: document.getElementById('stg-hfin').value,
-    pauseDebut: document.getElementById('stg-pdebut').value,
-    pauseFin: document.getElementById('stg-pfin').value,
+    jours,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
     agenceNom: document.getElementById('stg-agnom').value.trim(),
