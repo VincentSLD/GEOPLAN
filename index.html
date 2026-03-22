@@ -1929,14 +1929,134 @@ function getWeatherForInt(int) {
   return weatherCache[`${coords.lat},${coords.lon},${int.date}`] || null;
 }
 
+// ===== CALCUL DE TRAJETS (OSRM + vol d'oiseau fallback) =====
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function estimateTravelHaversine(lat1, lon1, lat2, lon2) {
+  const dist = haversineDistance(lat1, lon1, lat2, lon2) * 1.35; // road coefficient
+  const speed = (typeof settingsGeneral !== 'undefined' && settingsGeneral.vitesseMoyenne) || 60;
+  return Math.round((dist / speed) * 60); // minutes
+}
+
+const routeCache = {};
+
+async function getOSRMRoute(lat1, lon1, lat2, lon2) {
+  const key = `${lat1},${lon1}-${lat2},${lon2}`;
+  if (routeCache[key]) return routeCache[key];
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('OSRM error');
+    const data = await r.json();
+    if (data.routes && data.routes.length > 0) {
+      const result = {
+        distanceKm: Math.round(data.routes[0].distance / 100) / 10,
+        durationMin: Math.round(data.routes[0].duration / 60),
+      };
+      routeCache[key] = result;
+      return result;
+    }
+    throw new Error('No route');
+  } catch(e) {
+    // Fallback haversine
+    const min = estimateTravelHaversine(lat1, lon1, lat2, lon2);
+    const dist = haversineDistance(lat1, lon1, lat2, lon2) * 1.35;
+    const result = { distanceKm: Math.round(dist * 10) / 10, durationMin: min, fallback: true };
+    routeCache[key] = result;
+    return result;
+  }
+}
+
+function getTechCoords(tech) {
+  // Try settingsTeam GPS first
+  if (typeof settingsTeam !== 'undefined') {
+    const st = settingsTeam.find(t => t.id === tech.id);
+    if (st && st.lat && st.lon) return { lat: st.lat, lon: st.lon };
+  }
+  // Try LOCATION_COORDS from base name
+  if (LOCATION_COORDS[tech.base]) return LOCATION_COORDS[tech.base];
+  for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
+    if (tech.base.includes(key) || key.includes(tech.base)) return coords;
+  }
+  return null;
+}
+
+async function computeTravelForIntervention(int, tech, prevInt) {
+  const intCoords = getCoordsForLocation(int.location);
+  const techCoords = getTechCoords(tech);
+
+  if (!intCoords) return; // can't compute without intervention coords
+
+  // Travel TO: from tech base (or previous intervention) to this intervention
+  if (prevInt) {
+    const prevCoords = getCoordsForLocation(prevInt.location);
+    if (prevCoords) {
+      const route = await getOSRMRoute(prevCoords.lat, prevCoords.lon, intCoords.lat, intCoords.lon);
+      int.travelTo = route.durationMin;
+      int.travelToKm = route.distanceKm;
+      int.travelToFallback = route.fallback || false;
+    }
+  } else if (techCoords) {
+    const route = await getOSRMRoute(techCoords.lat, techCoords.lon, intCoords.lat, intCoords.lon);
+    int.travelTo = route.durationMin;
+    int.travelToKm = route.distanceKm;
+    int.travelToFallback = route.fallback || false;
+  }
+
+  // Travel FROM: last intervention back to tech base (will be overridden if not last)
+  if (techCoords) {
+    const route = await getOSRMRoute(intCoords.lat, intCoords.lon, techCoords.lat, techCoords.lon);
+    int.travelFrom = route.durationMin;
+    int.travelFromKm = route.distanceKm;
+    int.travelFromFallback = route.fallback || false;
+  }
+}
+
+async function computeAllTravel() {
+  const byTech = {};
+  interventions.forEach(int => {
+    if (!byTech[int.techId]) byTech[int.techId] = [];
+    byTech[int.techId].push(int);
+  });
+
+  const promises = [];
+  Object.entries(byTech).forEach(([techId, ints]) => {
+    const tech = TECHNICIANS.find(t => t.id === +techId);
+    if (!tech) return;
+    // Group by date
+    const byDate = {};
+    ints.forEach(i => { if (!byDate[i.date]) byDate[i.date] = []; byDate[i.date].push(i); });
+
+    Object.values(byDate).forEach(dayInts => {
+      dayInts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      dayInts.forEach((int, idx) => {
+        promises.push(computeTravelForIntervention(int, tech, idx > 0 ? dayInts[idx-1] : null));
+      });
+    });
+  });
+
+  await Promise.all(promises);
+  renderCurrentView();
+}
+
 // ===== RENDER HELPERS =====
 function renderTravelAller(int, tech) {
   const dep = minToTime(timeToMin(int.startTime)-int.travelTo);
-  return `<div class="travel-block travel-aller"><span>🚗</span><div class="travel-info"><div class="travel-time">${dep} → ${int.startTime}</div><div class="travel-label">Depuis ${tech.base} · ${int.travelTo} min</div></div></div>`;
+  const km = int.travelToKm ? ` · ${int.travelToKm} km` : '';
+  const fb = int.travelToFallback ? ' ~' : '';
+  return `<div class="travel-block travel-aller"><span>🚗</span><div class="travel-info"><div class="travel-time">${dep} → ${int.startTime}</div><div class="travel-label">Depuis ${tech.base} · ${fb}${int.travelTo} min${km}</div></div></div>`;
 }
 function renderTravelRetour(int, tech) {
   const arr = minToTime(timeToMin(int.endTime)+int.travelFrom);
-  return `<div class="travel-block travel-retour"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.endTime} → ${arr}</div><div class="travel-label">Retour ${tech.base} · ${int.travelFrom} min</div></div></div>`;
+  const km = int.travelFromKm ? ` · ${int.travelFromKm} km` : '';
+  const fb = int.travelFromFallback ? ' ~' : '';
+  return `<div class="travel-block travel-retour"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.endTime} → ${arr}</div><div class="travel-label">Retour ${tech.base} · ${fb}${int.travelFrom} min${km}</div></div></div>`;
 }
 function renderTravelBetween(prev, next) {
   const gap = timeToMin(next.startTime)-timeToMin(prev.endTime);
@@ -1945,7 +2065,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); }
+function init() { populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2161,7 +2281,7 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 function saveIntervention(){
   const data={id:editingId||(Math.max(...interventions.map(i=>i.id),0)+1),title:document.getElementById('intTitle').value||'Nouvelle intervention',type:document.getElementById('intType').value,date:document.getElementById('intDate').value,startTime:document.getElementById('intStart').value,endTime:document.getElementById('intEnd').value,techId:parseInt(document.getElementById('intTech').value),location:document.getElementById('intAddress').value||'Adresse non renseignée',client:document.getElementById('intClient').value||'-',travelTo:parseInt(document.getElementById('intTravel').value)||0,travelFrom:parseInt(document.getElementById('intTravelReturn').value)||0,status:document.getElementById('intStatus').value,notes:document.getElementById('intNotes').value};
   if(editingId){const idx=interventions.findIndex(i=>i.id===editingId);if(idx>=0)interventions[idx]=data;}else interventions.push(data);
-  closeModal();renderCurrentView();updateTodayCount();populateSidebar();
+  closeModal();renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
 }
 
 // ===== DETAIL =====
