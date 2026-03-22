@@ -1273,8 +1273,9 @@ body::before {
 .login-success { color:#2e7d32; font-size:12px; font-weight:700; text-align:center; margin-top:12px; min-height:18px; }
 .login-footer { text-align:center; margin-top:20px; font-size:11px; color:#8a8a80; cursor:pointer; }
 .login-footer b { color:#b8960a; text-decoration:underline; }
-#auth-user-bar { display:none; align-items:center; gap:8px; position:fixed; top:12px; right:16px; z-index:99; }
-#auth-user-bar.visible { display:flex; }
+.auth-inline { display:none; align-items:center; gap:8px; }
+.auth-inline.visible { display:flex; }
+.topbar-separator { width:1px; height:24px; background:var(--border); margin:0 4px; }
 .auth-avatar { width:28px; height:28px; border-radius:50%; background:#f5c518; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#1a1a1a; }
 .auth-logout { background:none; border:1px solid #ccc; border-radius:6px; color:#666; font-size:10px; font-weight:700; padding:4px 10px; cursor:pointer; transition:all 0.2s; font-family:inherit; }
 .auth-logout:hover { border-color:#d32f2f; color:#d32f2f; }
@@ -1348,12 +1349,7 @@ body::before {
   </div>
 </div>
 
-<!-- AUTH USER BAR -->
-<div id="auth-user-bar">
-  <div class="auth-avatar" id="auth-avatar"></div>
-  <button class="admin-btn" id="admin-btn" style="display:none;" onclick="openAdminPanel()">Admin <span class="admin-badge" id="admin-badge"></span></button>
-  <button class="auth-logout" onclick="authLogout()">Déconnexion</button>
-</div>
+<!-- AUTH USER BAR (moved into topbar-right) -->
 
 <!-- ADMIN PANEL -->
 <div id="admin-overlay" onclick="closeAdminPanel()"></div>
@@ -1452,6 +1448,12 @@ body::before {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Nouvelle intervention
       </button>
+      <div class="topbar-separator"></div>
+      <div id="auth-user-bar-inline" class="auth-inline" style="display:none;">
+        <button class="admin-btn" id="admin-btn-inline" style="display:none;" onclick="openAdminPanel()">Admin <span class="admin-badge" id="admin-badge-inline"></span></button>
+        <div class="auth-avatar" id="auth-avatar-inline"></div>
+        <button class="auth-logout" onclick="authLogout()">Déconnexion</button>
+      </div>
     </div>
   </div>
 
@@ -2751,8 +2753,8 @@ function showApp(user) {
   const email = user.email || '';
   const meta = user.user_metadata || {};
   const initials = meta.full_name ? meta.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase();
-  document.getElementById('auth-avatar').textContent = initials;
-  document.getElementById('auth-user-bar').classList.add('visible');
+  document.getElementById('auth-avatar-inline').textContent = initials;
+  document.getElementById('auth-user-bar-inline').classList.add('visible');
   checkAdmin(user);
   init();
 }
@@ -2761,7 +2763,7 @@ function showLogin() {
   currentAuthUser = null;
   document.getElementById('login-screen').classList.remove('hidden');
   document.querySelector('.app').style.display = 'none';
-  document.getElementById('auth-user-bar').classList.remove('visible');
+  document.getElementById('auth-user-bar-inline').classList.remove('visible');
 }
 
 async function authLogout() { await sbAuth.auth.signOut(); showLogin(); }
@@ -2777,7 +2779,7 @@ async function getAuthToken() {
 
 async function checkAdmin(user) {
   if (!ADMIN_EMAILS.includes(user.email)) return;
-  document.getElementById('admin-btn').style.display = '';
+  document.getElementById('admin-btn-inline').style.display = '';
   try {
     const token = await getAuthToken();
     if (!token) return;
@@ -2785,7 +2787,7 @@ async function checkAdmin(user) {
     if (!r.ok) return;
     const { users } = await r.json();
     const pending = users.filter(u => !u.approved).length;
-    const badge = document.getElementById('admin-badge');
+    const badge = document.getElementById('admin-badge-inline');
     if (pending > 0) { badge.textContent = pending; badge.style.display = 'flex'; } else { badge.style.display = 'none'; }
   } catch (e) { console.warn('Admin check failed:', e); }
 }
@@ -2820,7 +2822,7 @@ async function adminAction(userId, action) {
     const r = await fetch('https://geocarto.vercel.app/api/admin-users', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ user_id: userId, action }) });
     if (!r.ok) throw new Error('Erreur');
     if (action === 'approve') { actions.innerHTML = '<span class="admin-approved">Approuvé</span>'; } else { row.remove(); }
-    const badge = document.getElementById('admin-badge');
+    const badge = document.getElementById('admin-badge-inline');
     const pending = document.querySelectorAll('.admin-approve').length;
     if (pending > 0) { badge.textContent = pending; badge.style.display = 'flex'; } else { badge.style.display = 'none'; }
   } catch (e) { actions.innerHTML = '<span style="color:#d32f2f;font-size:11px">Erreur</span>'; }
