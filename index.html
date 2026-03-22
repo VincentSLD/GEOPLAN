@@ -1336,6 +1336,77 @@ body::before {
 .ai-quick-actions { padding:8px 24px 4px; display:flex; flex-wrap:wrap; gap:6px; }
 .ai-quick-btn { padding:5px 12px; border:1px solid var(--border); border-radius:16px; background:var(--bg-card); font-size:0.68rem; font-weight:600; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; font-family:inherit; }
 .ai-quick-btn:hover { border-color:var(--gph-yellow); background:var(--gph-yellow-light); color:var(--gph-dark); }
+
+/* Settings */
+.settings-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:6000; backdrop-filter:blur(2px); }
+.settings-overlay.open { display:block; }
+.settings-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:900px; height:85vh; background:var(--bg-secondary); border-radius:var(--radius); z-index:6001; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden; }
+.settings-panel.open { display:flex; }
+.settings-header { padding:20px 24px 0; display:flex; align-items:center; justify-content:space-between; }
+.settings-header h2 { font-size:1.2rem; font-weight:800; color:var(--gph-dark); }
+.settings-tabs { display:flex; gap:0; padding:16px 24px 0; border-bottom:1px solid var(--border); }
+.settings-tab { padding:10px 20px; border:none; background:none; font-size:0.78rem; font-weight:600; color:var(--text-muted); cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; transition:all 0.2s; }
+.settings-tab:hover { color:var(--text-primary); }
+.settings-tab.active { color:var(--gph-dark); border-bottom-color:var(--gph-yellow); }
+.settings-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.settings-content { display:none; }
+.settings-content.active { display:block; }
+
+.stg-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.stg-toolbar h3 { font-size:0.9rem; font-weight:700; }
+.stg-add-btn { padding:6px 14px; border:none; border-radius:var(--radius-xs); background:var(--gph-dark); color:#fff; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:5px; }
+.stg-add-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+
+.stg-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.stg-table th { text-align:left; padding:8px 10px; font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); border-bottom:2px solid var(--border); }
+.stg-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.stg-table tr:hover td { background:var(--bg-card-hover); }
+.stg-actions { display:flex; gap:4px; }
+.stg-btn-edit, .stg-btn-del { border:none; border-radius:4px; padding:4px 8px; font-size:0.65rem; font-weight:700; cursor:pointer; font-family:inherit; }
+.stg-btn-edit { background:var(--gph-yellow-light); color:var(--gph-dark); border:1px solid rgba(245,197,24,0.3); }
+.stg-btn-edit:hover { background:var(--gph-yellow); }
+.stg-btn-del { background:#fff0f0; color:#DC2626; border:1px solid rgba(220,38,38,0.2); }
+.stg-btn-del:hover { background:#DC2626; color:#fff; }
+
+.stg-color-dot { width:14px; height:14px; border-radius:50%; display:inline-block; vertical-align:middle; border:1px solid rgba(0,0,0,0.1); }
+.stg-badge { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; }
+.stg-status-actif { background:#dcfce7; color:#16a34a; }
+.stg-status-conge { background:#fef3c7; color:#d97706; }
+.stg-status-indispo { background:#fee2e2; color:#dc2626; }
+
+/* Settings form modal (sub-modal) */
+.stg-form-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:7000; }
+.stg-form-overlay.open { display:flex; align-items:center; justify-content:center; }
+.stg-form { background:#fff; border-radius:var(--radius); padding:28px; width:90%; max-width:520px; max-height:80vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,0.25); }
+.stg-form h3 { font-size:1rem; font-weight:800; margin-bottom:20px; color:var(--gph-dark); }
+.stg-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.stg-form-grid.full { grid-template-columns:1fr; }
+.stg-form-field { display:flex; flex-direction:column; gap:4px; }
+.stg-form-field.span2 { grid-column: span 2; }
+.stg-form-field label { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); }
+.stg-form-field input, .stg-form-field select { height:36px; border:1.5px solid var(--border); border-radius:var(--radius-xs); padding:0 10px; font-size:0.8rem; font-family:inherit; color:var(--text-primary); outline:none; }
+.stg-form-field input:focus, .stg-form-field select:focus { border-color:var(--gph-yellow); box-shadow:0 0 0 2px rgba(245,197,24,0.15); }
+.stg-form-field input[type="color"] { padding:2px; height:36px; width:50px; cursor:pointer; }
+.stg-form-actions { display:flex; gap:8px; margin-top:20px; justify-content:flex-end; }
+.stg-form-actions button { padding:8px 20px; border-radius:var(--radius-xs); font-size:0.78rem; font-weight:700; cursor:pointer; font-family:inherit; border:none; }
+.stg-form-save { background:var(--gph-dark); color:#fff; }
+.stg-form-save:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+.stg-form-cancel { background:var(--bg-primary); color:var(--text-secondary); border:1px solid var(--border) !important; }
+
+.stg-general-section { margin-bottom:24px; }
+.stg-general-section h4 { font-size:0.82rem; font-weight:700; margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.stg-general-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.stg-general-field { display:flex; flex-direction:column; gap:4px; }
+.stg-general-field label { font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); }
+.stg-general-field input, .stg-general-field select { height:36px; border:1.5px solid var(--border); border-radius:var(--radius-xs); padding:0 10px; font-size:0.8rem; font-family:inherit; outline:none; }
+.stg-general-field input:focus { border-color:var(--gph-yellow); }
+.stg-save-bar { padding:16px 0; display:flex; justify-content:flex-end; }
+.stg-save-bar button { padding:8px 24px; border:none; border-radius:var(--radius-xs); background:var(--gph-dark); color:#fff; font-size:0.78rem; font-weight:700; cursor:pointer; font-family:inherit; }
+.stg-save-bar button:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+
+.stg-habilitations { display:flex; flex-wrap:wrap; gap:4px; }
+.stg-hab { padding:2px 7px; border-radius:8px; font-size:0.6rem; font-weight:700; background:var(--bg-primary); border:1px solid var(--border); }
+.stg-hab.expired { background:#fee2e2; color:#dc2626; border-color:rgba(220,38,38,0.3); }
 </style>
 </head>
 <body>
@@ -1424,6 +1495,10 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.9 2-2 2h-4a2 2 0 0 1-2-2 4 4 0 0 1 4-4z"/><path d="M8 8v2a4 4 0 0 0 8 0V8"/><path d="M12 14v4"/><path d="M8 18h8"/><circle cx="9" cy="6" r="0.5" fill="currentColor"/><circle cx="15" cy="6" r="0.5" fill="currentColor"/></svg>
         <span style="color:var(--gph-yellow);font-weight:700;">Assistant IA</span>
       </div>
+    </div>
+    <div class="nav-item" onclick="openSettings()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Paramétrage
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Applications</div>
@@ -1609,6 +1684,27 @@ body::before {
   <div class="ai-input-bar">
     <textarea id="aiInput" placeholder="Ex: Optimise les tournées de demain en regroupant par zone..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage();}"></textarea>
     <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">➤</button>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-overlay" class="settings-overlay" onclick="closeSettings()"></div>
+<div id="settings-panel" class="settings-panel">
+  <div class="settings-header">
+    <h2>Paramétrage</h2>
+    <button class="ai-close" onclick="closeSettings()">&times;</button>
+  </div>
+  <div class="settings-tabs">
+    <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
+    <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
+    <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
+    <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
+  </div>
+  <div class="settings-body">
+    <div class="settings-content active" id="settingsTeam"></div>
+    <div class="settings-content" id="settingsVehicles"></div>
+    <div class="settings-content" id="settingsTypes"></div>
+    <div class="settings-content" id="settingsGeneral"></div>
   </div>
 </div>
 
@@ -2631,6 +2727,425 @@ async function syncFleet() {
   } finally {
     btn.classList.remove('syncing');
   }
+}
+
+// ═══ PARAMÉTRAGE ═══
+
+// --- Data persistence ---
+const SETTINGS_KEYS = {
+  team: 'geoplan_team',
+  vehicles: 'geoplan_vehicles',
+  intTypes: 'geoplan_types',
+  general: 'geoplan_general',
+};
+
+function loadSettings(key, defaults) {
+  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : defaults; }
+  catch(e) { return defaults; }
+}
+function saveSettings(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// --- Default data ---
+const DEFAULT_TEAM = TECHNICIANS.map(t => ({
+  id: t.id, nom: t.name.split(' ').slice(1).join(' '), prenom: t.name.split(' ')[0],
+  initials: t.initials, role: t.role, base: t.base, color: t.color,
+  lat: null, lon: null, vehicule: '', telephone: '', email: '',
+  habilitations: [], joursOff: [], heureDebut: '07:00', heureFin: '18:00',
+  statut: 'actif'
+}));
+
+const DEFAULT_VEHICLES = [
+  { id: 1, type: 'Fourgon', marque: 'Renault Master', immat: 'AB-123-CD', ptac: '3.5t', affectation: '', equipements: 'Tarière, Carotteuse', kmActuel: 45200, prochRevision: '2026-06-15', prochCT: '2027-01-10' },
+  { id: 2, type: '4x4', marque: 'Toyota Hilux', immat: 'EF-456-GH', ptac: '2.8t', affectation: '', equipements: 'Pénétromètre dynamique', kmActuel: 32100, prochRevision: '2026-04-20', prochCT: '2026-09-30' },
+];
+
+const DEFAULT_INT_TYPES = Object.entries(TYPES).map(([key, val]) => ({
+  id: key, label: val.label, class: val.class, color: TYPE_RAW[key],
+  dureeDefaut: 120, materielRequis: '', icon: ''
+}));
+
+const DEFAULT_GENERAL = {
+  heureDebut: '07:00', heureFin: '18:00', pauseDebut: '12:00', pauseFin: '13:00',
+  rayonMax: 150, vitesseMoyenne: 60,
+  agenceNom: 'GPH', agenceAdresse: 'La Roche-sur-Yon', agenceLat: 46.671, agenceLon: -1.427,
+};
+
+let settingsTeam = loadSettings(SETTINGS_KEYS.team, DEFAULT_TEAM);
+let settingsVehicles = loadSettings(SETTINGS_KEYS.vehicles, DEFAULT_VEHICLES);
+let settingsIntTypes = loadSettings(SETTINGS_KEYS.intTypes, DEFAULT_INT_TYPES);
+let settingsGeneral = loadSettings(SETTINGS_KEYS.general, DEFAULT_GENERAL);
+
+// --- Open / Close ---
+function openSettings() {
+  document.getElementById('settings-overlay').classList.add('open');
+  document.getElementById('settings-panel').classList.add('open');
+  renderSettingsTeam();
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+  document.getElementById('settings-panel').classList.remove('open');
+  closeStgForm();
+}
+function switchSettingsTab(tab, btn) {
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', general: 'settingsGeneral' };
+  document.getElementById(map[tab]).classList.add('active');
+  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, general: renderSettingsGeneral })[tab]();
+}
+
+// --- Sub-form modal ---
+let stgFormOverlay = null;
+function openStgForm(html) {
+  if (!stgFormOverlay) {
+    stgFormOverlay = document.createElement('div');
+    stgFormOverlay.className = 'stg-form-overlay';
+    document.body.appendChild(stgFormOverlay);
+  }
+  stgFormOverlay.innerHTML = `<div class="stg-form">${html}</div>`;
+  stgFormOverlay.classList.add('open');
+  stgFormOverlay.onclick = (e) => { if (e.target === stgFormOverlay) closeStgForm(); };
+}
+function closeStgForm() {
+  if (stgFormOverlay) stgFormOverlay.classList.remove('open');
+}
+
+// ======== TAB 1: ÉQUIPE ========
+function renderSettingsTeam() {
+  const c = document.getElementById('settingsTeam');
+  let html = `<div class="stg-toolbar"><h3>Géotechniciens (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter</button></div>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Rôle</th><th>Base</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  settingsTeam.forEach(t => {
+    const statusCls = t.statut === 'actif' ? 'stg-status-actif' : t.statut === 'conge' ? 'stg-status-conge' : 'stg-status-indispo';
+    const statusLabel = t.statut === 'actif' ? 'Actif' : t.statut === 'conge' ? 'En congé' : 'Indisponible';
+    const habs = (t.habilitations || []).map(h => {
+      const exp = h.expiration && new Date(h.expiration) < new Date() ? ' expired' : '';
+      return `<span class="stg-hab${exp}" title="${h.nom}${h.expiration ? ' — exp. ' + h.expiration : ''}">${h.nom}</span>`;
+    }).join('');
+    html += `<tr>
+      <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
+      <td><strong>${t.prenom} ${t.nom}</strong></td>
+      <td>${t.role}</td>
+      <td>${t.base}</td>
+      <td>${t.vehicule || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.72rem;">${t.telephone || '—'}</td>
+      <td><div class="stg-habilitations">${habs || '—'}</div></td>
+      <td><span class="stg-badge ${statusCls}">${statusLabel}</span></td>
+      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editTeamMember(${t.id})">Modifier</button><button class="stg-btn-del" onclick="deleteTeamMember(${t.id})">Suppr.</button></div></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  c.innerHTML = html;
+}
+
+function editTeamMember(id) {
+  const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif' };
+  const habsList = ['AIPR', 'H0B0', 'SST', 'CACES', 'Amiante SS4', 'CATEC', 'Travail en hauteur'];
+  const habsChecks = habsList.map(h => {
+    const existing = (t.habilitations || []).find(x => x.nom === h);
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><input type="checkbox" class="hab-check" data-hab="${h}" ${existing ? 'checked' : ''}> ${h} <input type="date" class="hab-exp" data-hab="${h}" value="${existing ? existing.expiration || '' : ''}" style="height:28px;font-size:0.7rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;"></label>`;
+  }).join('');
+
+  openStgForm(`
+    <h3>${id ? 'Modifier' : 'Ajouter'} un géotechnicien</h3>
+    <div class="stg-form-grid">
+      <div class="stg-form-field"><label>Prénom</label><input id="stf-prenom" value="${t.prenom}"></div>
+      <div class="stg-form-field"><label>Nom</label><input id="stf-nom" value="${t.nom}"></div>
+      <div class="stg-form-field"><label>Initiales</label><input id="stf-initials" value="${t.initials}" maxlength="3"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-color" value="${t.color}"></div>
+      <div class="stg-form-field"><label>Rôle / Spécialité</label><select id="stf-role"><option ${t.role==='Sondeur'?'selected':''}>Sondeur</option><option ${t.role==='Chef de mission'?'selected':''}>Chef de mission</option><option ${t.role==='Labo terrain'?'selected':''}>Labo terrain</option><option ${t.role==='Polyvalent'?'selected':''}>Polyvalent</option><option ${t.role==='Ingénieur'?'selected':''}>Ingénieur</option></select></div>
+      <div class="stg-form-field"><label>Statut</label><select id="stf-statut"><option value="actif" ${t.statut==='actif'?'selected':''}>Actif</option><option value="conge" ${t.statut==='conge'?'selected':''}>En congé</option><option value="indispo" ${t.statut==='indispo'?'selected':''}>Indisponible</option></select></div>
+      <div class="stg-form-field span2"><label>Adresse de base (départ)</label><input id="stf-base" value="${t.base}" placeholder="Ex: La Roche-sur-Yon"></div>
+      <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-lat" type="number" step="0.001" value="${t.lat || ''}" placeholder="46.671"></div>
+      <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-lon" type="number" step="0.001" value="${t.lon || ''}" placeholder="-1.427"></div>
+      <div class="stg-form-field"><label>Véhicule</label><input id="stf-vehicule" value="${t.vehicule || ''}" placeholder="Ex: Renault Master AB-123-CD"></div>
+      <div class="stg-form-field"><label>Téléphone</label><input id="stf-tel" value="${t.telephone || ''}" placeholder="06 XX XX XX XX"></div>
+      <div class="stg-form-field span2"><label>Email</label><input id="stf-email" type="email" value="${t.email || ''}"></div>
+      <div class="stg-form-field"><label>Heure début</label><input id="stf-hdebut" type="time" value="${t.heureDebut || '07:00'}"></div>
+      <div class="stg-form-field"><label>Heure fin</label><input id="stf-hfin" type="time" value="${t.heureFin || '18:00'}"></div>
+      <div class="stg-form-field span2"><label>Habilitations</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">${habsChecks}</div></div>
+    </div>
+    <div class="stg-form-actions">
+      <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
+      <button class="stg-form-save" onclick="saveTeamMember(${id || 0})">Enregistrer</button>
+    </div>
+  `);
+}
+
+function saveTeamMember(id) {
+  const prenom = document.getElementById('stf-prenom').value.trim();
+  const nom = document.getElementById('stf-nom').value.trim();
+  if (!prenom || !nom) { alert('Prénom et nom requis'); return; }
+
+  const habs = [];
+  document.querySelectorAll('.hab-check:checked').forEach(cb => {
+    const habName = cb.dataset.hab;
+    const expInput = document.querySelector(`.hab-exp[data-hab="${habName}"]`);
+    habs.push({ nom: habName, expiration: expInput ? expInput.value : '' });
+  });
+
+  const data = {
+    prenom, nom,
+    initials: document.getElementById('stf-initials').value.trim() || (prenom[0] + nom[0]).toUpperCase(),
+    color: document.getElementById('stf-color').value,
+    role: document.getElementById('stf-role').value,
+    statut: document.getElementById('stf-statut').value,
+    base: document.getElementById('stf-base').value.trim(),
+    lat: parseFloat(document.getElementById('stf-lat').value) || null,
+    lon: parseFloat(document.getElementById('stf-lon').value) || null,
+    vehicule: document.getElementById('stf-vehicule').value.trim(),
+    telephone: document.getElementById('stf-tel').value.trim(),
+    email: document.getElementById('stf-email').value.trim(),
+    heureDebut: document.getElementById('stf-hdebut').value,
+    heureFin: document.getElementById('stf-hfin').value,
+    habilitations: habs,
+  };
+
+  if (id) {
+    const idx = settingsTeam.findIndex(x => x.id === id);
+    if (idx >= 0) { data.id = id; settingsTeam[idx] = data; }
+  } else {
+    data.id = settingsTeam.length ? Math.max(...settingsTeam.map(x => x.id)) + 1 : 1;
+    settingsTeam.push(data);
+  }
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  syncTeamToTechnicians();
+  closeStgForm();
+  renderSettingsTeam();
+}
+
+function deleteTeamMember(id) {
+  if (!confirm('Supprimer ce technicien ?')) return;
+  settingsTeam = settingsTeam.filter(x => x.id !== id);
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  syncTeamToTechnicians();
+  renderSettingsTeam();
+}
+
+function syncTeamToTechnicians() {
+  TECHNICIANS.length = 0;
+  settingsTeam.filter(t => t.statut === 'actif').forEach(t => {
+    TECHNICIANS.push({
+      id: t.id, name: t.prenom + ' ' + t.nom, initials: t.initials,
+      role: t.role, base: t.base, color: t.color,
+    });
+  });
+  populateSidebar();
+  populateTechSelect();
+  renderCurrentView();
+}
+
+// ======== TAB 2: VÉHICULES ========
+function renderSettingsVehicles() {
+  const c = document.getElementById('settingsVehicles');
+  let html = `<div class="stg-toolbar"><h3>Parc véhicules (${settingsVehicles.length})</h3><button class="stg-add-btn" onclick="editVehicle(null)">+ Ajouter</button></div>`;
+  html += `<table class="stg-table"><thead><tr><th>Type</th><th>Marque / Modèle</th><th>Immat.</th><th>PTAC</th><th>Affectation</th><th>Équipements</th><th>Km</th><th>Proch. révision</th><th>CT</th><th>Actions</th></tr></thead><tbody>`;
+  settingsVehicles.forEach(v => {
+    const revWarn = v.prochRevision && new Date(v.prochRevision) < new Date(Date.now() + 30*86400000) ? ' style="color:#d97706;font-weight:700;"' : '';
+    const ctWarn = v.prochCT && new Date(v.prochCT) < new Date(Date.now() + 60*86400000) ? ' style="color:#dc2626;font-weight:700;"' : '';
+    html += `<tr>
+      <td><strong>${v.type}</strong></td>
+      <td>${v.marque}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.74rem;">${v.immat}</td>
+      <td>${v.ptac}</td>
+      <td>${v.affectation || '—'}</td>
+      <td style="font-size:0.7rem;">${v.equipements || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;">${v.kmActuel ? v.kmActuel.toLocaleString('fr-FR') : '—'}</td>
+      <td${revWarn}>${v.prochRevision || '—'}</td>
+      <td${ctWarn}>${v.prochCT || '—'}</td>
+      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editVehicle(${v.id})">Modifier</button><button class="stg-btn-del" onclick="deleteVehicle(${v.id})">Suppr.</button></div></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  c.innerHTML = html;
+}
+
+function editVehicle(id) {
+  const v = id ? settingsVehicles.find(x => x.id === id) : { id: 0, type: 'Fourgon', marque: '', immat: '', ptac: '', affectation: '', equipements: '', kmActuel: '', prochRevision: '', prochCT: '' };
+  const teamOpts = settingsTeam.map(t => `<option value="${t.prenom} ${t.nom}" ${v.affectation === t.prenom + ' ' + t.nom ? 'selected' : ''}>${t.prenom} ${t.nom}</option>`).join('');
+  openStgForm(`
+    <h3>${id ? 'Modifier' : 'Ajouter'} un véhicule</h3>
+    <div class="stg-form-grid">
+      <div class="stg-form-field"><label>Type</label><select id="stf-vtype"><option ${v.type==='Fourgon'?'selected':''}>Fourgon</option><option ${v.type==='4x4'?'selected':''}>4x4</option><option ${v.type==='Camion'?'selected':''}>Camion</option><option ${v.type==='Véhicule léger'?'selected':''}>Véhicule léger</option><option ${v.type==='Engin de chantier'?'selected':''}>Engin de chantier</option></select></div>
+      <div class="stg-form-field"><label>Marque / Modèle</label><input id="stf-vmarque" value="${v.marque}"></div>
+      <div class="stg-form-field"><label>Immatriculation</label><input id="stf-vimmat" value="${v.immat}" placeholder="AB-123-CD"></div>
+      <div class="stg-form-field"><label>PTAC</label><input id="stf-vptac" value="${v.ptac}" placeholder="3.5t"></div>
+      <div class="stg-form-field"><label>Affectation</label><select id="stf-vaffect"><option value="">Non affecté</option>${teamOpts}</select></div>
+      <div class="stg-form-field"><label>Kilométrage</label><input id="stf-vkm" type="number" value="${v.kmActuel || ''}"></div>
+      <div class="stg-form-field span2"><label>Équipements embarqués</label><input id="stf-vequip" value="${v.equipements || ''}" placeholder="Tarière, Carotteuse, ..."></div>
+      <div class="stg-form-field"><label>Prochaine révision</label><input id="stf-vrev" type="date" value="${v.prochRevision || ''}"></div>
+      <div class="stg-form-field"><label>Contrôle technique</label><input id="stf-vct" type="date" value="${v.prochCT || ''}"></div>
+    </div>
+    <div class="stg-form-actions">
+      <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
+      <button class="stg-form-save" onclick="saveVehicle(${id || 0})">Enregistrer</button>
+    </div>
+  `);
+}
+
+function saveVehicle(id) {
+  const data = {
+    type: document.getElementById('stf-vtype').value,
+    marque: document.getElementById('stf-vmarque').value.trim(),
+    immat: document.getElementById('stf-vimmat').value.trim(),
+    ptac: document.getElementById('stf-vptac').value.trim(),
+    affectation: document.getElementById('stf-vaffect').value,
+    equipements: document.getElementById('stf-vequip').value.trim(),
+    kmActuel: parseInt(document.getElementById('stf-vkm').value) || 0,
+    prochRevision: document.getElementById('stf-vrev').value,
+    prochCT: document.getElementById('stf-vct').value,
+  };
+  if (id) {
+    const idx = settingsVehicles.findIndex(x => x.id === id);
+    if (idx >= 0) { data.id = id; settingsVehicles[idx] = data; }
+  } else {
+    data.id = settingsVehicles.length ? Math.max(...settingsVehicles.map(x => x.id)) + 1 : 1;
+    settingsVehicles.push(data);
+  }
+  saveSettings(SETTINGS_KEYS.vehicles, settingsVehicles);
+  closeStgForm();
+  renderSettingsVehicles();
+}
+
+function deleteVehicle(id) {
+  if (!confirm('Supprimer ce véhicule ?')) return;
+  settingsVehicles = settingsVehicles.filter(x => x.id !== id);
+  saveSettings(SETTINGS_KEYS.vehicles, settingsVehicles);
+  renderSettingsVehicles();
+}
+
+// ======== TAB 3: TYPES D'INTERVENTION ========
+function renderSettingsTypes() {
+  const c = document.getElementById('settingsTypes');
+  let html = `<div class="stg-toolbar"><h3>Types d'intervention (${settingsIntTypes.length})</h3><button class="stg-add-btn" onclick="editIntType(null)">+ Ajouter</button></div>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Label</th><th>Identifiant</th><th>Durée par défaut</th><th>Matériel requis</th><th>Actions</th></tr></thead><tbody>`;
+  settingsIntTypes.forEach(t => {
+    html += `<tr>
+      <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
+      <td><strong>${t.label}</strong></td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.72rem;">${t.id}</td>
+      <td>${t.dureeDefaut} min</td>
+      <td style="font-size:0.72rem;">${t.materielRequis || '—'}</td>
+      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editIntType('${t.id}')">Modifier</button><button class="stg-btn-del" onclick="deleteIntType('${t.id}')">Suppr.</button></div></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  c.innerHTML = html;
+}
+
+function editIntType(id) {
+  const t = id ? settingsIntTypes.find(x => x.id === id) : { id: '', label: '', color: '#666666', dureeDefaut: 120, materielRequis: '' };
+  openStgForm(`
+    <h3>${id ? 'Modifier' : 'Ajouter'} un type d'intervention</h3>
+    <div class="stg-form-grid">
+      <div class="stg-form-field"><label>Label</label><input id="stf-tlabel" value="${t.label}"></div>
+      <div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-tid" value="${t.id}" ${id ? 'disabled' : ''} placeholder="ex: sondage"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-tcolor" value="${t.color}"></div>
+      <div class="stg-form-field"><label>Durée par défaut (min)</label><input id="stf-tduree" type="number" value="${t.dureeDefaut}"></div>
+      <div class="stg-form-field span2"><label>Matériel requis</label><input id="stf-tmateriel" value="${t.materielRequis || ''}" placeholder="Tarière, pénétromètre, ..."></div>
+    </div>
+    <div class="stg-form-actions">
+      <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
+      <button class="stg-form-save" onclick="saveIntType('${id || ''}')">Enregistrer</button>
+    </div>
+  `);
+}
+
+function saveIntType(id) {
+  const label = document.getElementById('stf-tlabel').value.trim();
+  const newId = id || document.getElementById('stf-tid').value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (!label || !newId) { alert('Label et identifiant requis'); return; }
+  const data = {
+    id: newId, label,
+    color: document.getElementById('stf-tcolor').value,
+    dureeDefaut: parseInt(document.getElementById('stf-tduree').value) || 120,
+    materielRequis: document.getElementById('stf-tmateriel').value.trim(),
+  };
+  if (id) {
+    const idx = settingsIntTypes.findIndex(x => x.id === id);
+    if (idx >= 0) settingsIntTypes[idx] = { ...settingsIntTypes[idx], ...data };
+  } else {
+    if (settingsIntTypes.find(x => x.id === newId)) { alert('Cet identifiant existe déjà'); return; }
+    data.class = 'type-' + newId;
+    settingsIntTypes.push(data);
+  }
+  saveSettings(SETTINGS_KEYS.intTypes, settingsIntTypes);
+  syncTypesToApp();
+  closeStgForm();
+  renderSettingsTypes();
+}
+
+function deleteIntType(id) {
+  if (!confirm('Supprimer ce type ?')) return;
+  settingsIntTypes = settingsIntTypes.filter(x => x.id !== id);
+  saveSettings(SETTINGS_KEYS.intTypes, settingsIntTypes);
+  syncTypesToApp();
+  renderSettingsTypes();
+}
+
+function syncTypesToApp() {
+  // Update TYPES and TYPE_RAW from settings
+  Object.keys(TYPES).forEach(k => { if (!settingsIntTypes.find(x => x.id === k)) delete TYPES[k]; });
+  Object.keys(TYPE_RAW).forEach(k => { if (!settingsIntTypes.find(x => x.id === k)) delete TYPE_RAW[k]; });
+  settingsIntTypes.forEach(t => {
+    TYPES[t.id] = { label: t.label, class: t.class || 'type-' + t.id };
+    TYPE_RAW[t.id] = t.color;
+  });
+  renderCurrentView();
+}
+
+// ======== TAB 4: PARAMÈTRES GÉNÉRAUX ========
+function renderSettingsGeneral() {
+  const g = settingsGeneral;
+  const c = document.getElementById('settingsGeneral');
+  c.innerHTML = `
+    <div class="stg-general-section">
+      <h4>Horaires de travail</h4>
+      <div class="stg-general-grid">
+        <div class="stg-general-field"><label>Début de journée</label><input type="time" id="stg-hdebut" value="${g.heureDebut}"></div>
+        <div class="stg-general-field"><label>Fin de journée</label><input type="time" id="stg-hfin" value="${g.heureFin}"></div>
+        <div class="stg-general-field"><label>Début pause déjeuner</label><input type="time" id="stg-pdebut" value="${g.pauseDebut}"></div>
+        <div class="stg-general-field"><label>Fin pause déjeuner</label><input type="time" id="stg-pfin" value="${g.pauseFin}"></div>
+      </div>
+    </div>
+    <div class="stg-general-section">
+      <h4>Paramètres de calcul</h4>
+      <div class="stg-general-grid">
+        <div class="stg-general-field"><label>Rayon d'intervention max (km)</label><input type="number" id="stg-rayon" value="${g.rayonMax}"></div>
+        <div class="stg-general-field"><label>Vitesse moyenne (km/h)</label><input type="number" id="stg-vitesse" value="${g.vitesseMoyenne}"></div>
+      </div>
+    </div>
+    <div class="stg-general-section">
+      <h4>Agence principale</h4>
+      <div class="stg-general-grid">
+        <div class="stg-general-field"><label>Nom de l'agence</label><input id="stg-agnom" value="${g.agenceNom}"></div>
+        <div class="stg-general-field"><label>Adresse</label><input id="stg-agadresse" value="${g.agenceAdresse}"></div>
+        <div class="stg-general-field"><label>Latitude GPS</label><input type="number" step="0.001" id="stg-aglat" value="${g.agenceLat}"></div>
+        <div class="stg-general-field"><label>Longitude GPS</label><input type="number" step="0.001" id="stg-aglon" value="${g.agenceLon}"></div>
+      </div>
+    </div>
+    <div class="stg-save-bar"><button onclick="saveGeneralSettings()">Enregistrer les paramètres</button></div>
+  `;
+}
+
+function saveGeneralSettings() {
+  settingsGeneral = {
+    heureDebut: document.getElementById('stg-hdebut').value,
+    heureFin: document.getElementById('stg-hfin').value,
+    pauseDebut: document.getElementById('stg-pdebut').value,
+    pauseFin: document.getElementById('stg-pfin').value,
+    rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
+    vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
+    agenceNom: document.getElementById('stg-agnom').value.trim(),
+    agenceAdresse: document.getElementById('stg-agadresse').value.trim(),
+    agenceLat: parseFloat(document.getElementById('stg-aglat').value) || 0,
+    agenceLon: parseFloat(document.getElementById('stg-aglon').value) || 0,
+  };
+  saveSettings(SETTINGS_KEYS.general, settingsGeneral);
+  alert('Paramètres enregistrés !');
 }
 
 // ═══ ASSISTANT IA (Claude API via Vercel serverless) ═══
