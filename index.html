@@ -1407,6 +1407,9 @@ body::before {
 .stg-habilitations { display:flex; flex-wrap:wrap; gap:4px; }
 .stg-hab { padding:2px 7px; border-radius:8px; font-size:0.6rem; font-weight:700; background:var(--bg-primary); border:1px solid var(--border); }
 .stg-hab.expired { background:#fee2e2; color:#dc2626; border-color:rgba(220,38,38,0.3); }
+.stg-group-tag { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; white-space:nowrap; }
+.stg-group-members { display:flex; flex-wrap:wrap; gap:4px; }
+.stg-group-member { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:600; background:var(--bg-primary); border:1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -1698,12 +1701,14 @@ body::before {
     <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
     <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
     <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
+    <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
     <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
   </div>
   <div class="settings-body">
     <div class="settings-content active" id="settingsTeam"></div>
     <div class="settings-content" id="settingsVehicles"></div>
     <div class="settings-content" id="settingsTypes"></div>
+    <div class="settings-content" id="settingsGroups"></div>
     <div class="settings-content" id="settingsGeneral"></div>
   </div>
 </div>
@@ -2737,6 +2742,7 @@ const SETTINGS_KEYS = {
   vehicles: 'geoplan_vehicles',
   intTypes: 'geoplan_types',
   general: 'geoplan_general',
+  groups: 'geoplan_groups',
 };
 
 function loadSettings(key, defaults) {
@@ -2772,10 +2778,19 @@ const DEFAULT_GENERAL = {
   agenceNom: 'GPH', agenceAdresse: 'La Roche-sur-Yon', agenceLat: 46.671, agenceLon: -1.427,
 };
 
+const DEFAULT_GROUPS = [
+  { id: 1, nom: 'Pays de la Loire', couleur: '#2563EB', description: 'Équipe Pays de la Loire' },
+  { id: 2, nom: 'Sud-Ouest', couleur: '#D97706', description: 'Équipe Sud-Ouest' },
+  { id: 3, nom: 'Poitou-Charentes', couleur: '#16A34A', description: 'Équipe Poitou-Charentes' },
+  { id: 4, nom: 'REGAR', couleur: '#7C3AED', description: 'Équipe REGAR' },
+  { id: 5, nom: 'WATSONN', couleur: '#0891B2', description: 'Équipe WATSONN' },
+];
+
 let settingsTeam = loadSettings(SETTINGS_KEYS.team, DEFAULT_TEAM);
 let settingsVehicles = loadSettings(SETTINGS_KEYS.vehicles, DEFAULT_VEHICLES);
 let settingsIntTypes = loadSettings(SETTINGS_KEYS.intTypes, DEFAULT_INT_TYPES);
 let settingsGeneral = loadSettings(SETTINGS_KEYS.general, DEFAULT_GENERAL);
+let settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
 
 // --- Open / Close ---
 function openSettings() {
@@ -2792,9 +2807,9 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
-  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', general: 'settingsGeneral' };
+  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', groups: 'settingsGroups', general: 'settingsGeneral' };
   document.getElementById(map[tab]).classList.add('active');
-  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, general: renderSettingsGeneral })[tab]();
+  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
 }
 
 // --- Sub-form modal ---
@@ -2817,7 +2832,7 @@ function closeStgForm() {
 function renderSettingsTeam() {
   const c = document.getElementById('settingsTeam');
   let html = `<div class="stg-toolbar"><h3>Géotechniciens (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter</button></div>`;
-  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Rôle</th><th>Base</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Rôle</th><th>Base</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
     const statusCls = t.statut === 'actif' ? 'stg-status-actif' : t.statut === 'conge' ? 'stg-status-conge' : 'stg-status-indispo';
     const statusLabel = t.statut === 'actif' ? 'Actif' : t.statut === 'conge' ? 'En congé' : 'Indisponible';
@@ -2825,9 +2840,11 @@ function renderSettingsTeam() {
       const exp = h.expiration && new Date(h.expiration) < new Date() ? ' expired' : '';
       return `<span class="stg-hab${exp}" title="${h.nom}${h.expiration ? ' — exp. ' + h.expiration : ''}">${h.nom}</span>`;
     }).join('');
+    const grp = t.groupeId ? settingsGroups.find(g => g.id === t.groupeId) : null;
     html += `<tr>
       <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
       <td><strong>${t.prenom} ${t.nom}</strong></td>
+      <td>${grp ? `<span class="stg-group-tag" style="background:${grp.couleur}15;color:${grp.couleur};border:1px solid ${grp.couleur}30">${grp.nom}</span>` : '—'}</td>
       <td>${t.role}</td>
       <td>${t.base}</td>
       <td>${t.vehicule || '—'}</td>
@@ -2842,7 +2859,7 @@ function renderSettingsTeam() {
 }
 
 function editTeamMember(id) {
-  const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif' };
+  const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif', groupeId: null };
   const habsList = ['AIPR', 'H0B0', 'SST', 'CACES', 'Amiante SS4', 'CATEC', 'Travail en hauteur'];
   const habsChecks = habsList.map(h => {
     const existing = (t.habilitations || []).find(x => x.nom === h);
@@ -2858,6 +2875,7 @@ function editTeamMember(id) {
       <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-color" value="${t.color}"></div>
       <div class="stg-form-field"><label>Rôle / Spécialité</label><select id="stf-role"><option ${t.role==='Sondeur'?'selected':''}>Sondeur</option><option ${t.role==='Chef de mission'?'selected':''}>Chef de mission</option><option ${t.role==='Labo terrain'?'selected':''}>Labo terrain</option><option ${t.role==='Polyvalent'?'selected':''}>Polyvalent</option><option ${t.role==='Ingénieur'?'selected':''}>Ingénieur</option></select></div>
       <div class="stg-form-field"><label>Statut</label><select id="stf-statut"><option value="actif" ${t.statut==='actif'?'selected':''}>Actif</option><option value="conge" ${t.statut==='conge'?'selected':''}>En congé</option><option value="indispo" ${t.statut==='indispo'?'selected':''}>Indisponible</option></select></div>
+      <div class="stg-form-field"><label>Groupe / Équipe</label><select id="stf-groupe"><option value="">Aucun groupe</option>${settingsGroups.map(g => `<option value="${g.id}" ${t.groupeId==g.id?'selected':''}>${g.nom}</option>`).join('')}</select></div>
       <div class="stg-form-field span2"><label>Adresse de base (départ)</label><input id="stf-base" value="${t.base}" placeholder="Ex: La Roche-sur-Yon"></div>
       <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-lat" type="number" step="0.001" value="${t.lat || ''}" placeholder="46.671"></div>
       <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-lon" type="number" step="0.001" value="${t.lon || ''}" placeholder="-1.427"></div>
@@ -2893,6 +2911,7 @@ function saveTeamMember(id) {
     color: document.getElementById('stf-color').value,
     role: document.getElementById('stf-role').value,
     statut: document.getElementById('stf-statut').value,
+    groupeId: parseInt(document.getElementById('stf-groupe').value) || null,
     base: document.getElementById('stf-base').value.trim(),
     lat: parseFloat(document.getElementById('stf-lat').value) || null,
     lon: parseFloat(document.getElementById('stf-lon').value) || null,
@@ -3097,7 +3116,98 @@ function syncTypesToApp() {
   renderCurrentView();
 }
 
-// ======== TAB 4: PARAMÈTRES GÉNÉRAUX ========
+// ======== TAB 4: GROUPES / ÉQUIPES ========
+function renderSettingsGroups() {
+  const c = document.getElementById('settingsGroups');
+  let html = `<div class="stg-toolbar"><h3>Groupes / Équipes (${settingsGroups.length})</h3><button class="stg-add-btn" onclick="editGroup(null)">+ Ajouter</button></div>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom du groupe</th><th>Description</th><th>Membres</th><th>Actions</th></tr></thead><tbody>`;
+  settingsGroups.forEach(g => {
+    const members = settingsTeam.filter(t => t.groupeId === g.id);
+    const membersHtml = members.length ? members.map(m => `<span class="stg-group-member"><span class="stg-color-dot" style="background:${m.color};width:8px;height:8px;margin-right:4px;"></span>${m.prenom} ${m.nom}</span>`).join('') : '<span style="color:var(--text-muted);font-size:0.72rem;font-style:italic;">Aucun membre</span>';
+    html += `<tr>
+      <td><span class="stg-color-dot" style="background:${g.couleur}"></span></td>
+      <td><strong>${g.nom}</strong></td>
+      <td style="font-size:0.74rem;color:var(--text-secondary);">${g.description || '—'}</td>
+      <td><div class="stg-group-members">${membersHtml}</div></td>
+      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editGroup(${g.id})">Modifier</button><button class="stg-btn-del" onclick="deleteGroup(${g.id})">Suppr.</button></div></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  c.innerHTML = html;
+}
+
+function editGroup(id) {
+  const g = id ? settingsGroups.find(x => x.id === id) : { id: 0, nom: '', couleur: '#2563EB', description: '' };
+  const members = settingsTeam.filter(t => t.groupeId === (id || -1));
+  const allMembers = settingsTeam.map(t => {
+    const inGroup = t.groupeId === id;
+    const inOther = t.groupeId && t.groupeId !== id;
+    const otherGroup = inOther ? settingsGroups.find(x => x.id === t.groupeId) : null;
+    return `<label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;padding:4px 0;${inOther ? 'opacity:0.5;' : ''}">
+      <input type="checkbox" class="grp-member-check" data-tid="${t.id}" ${inGroup ? 'checked' : ''} ${inOther ? 'disabled title="Déjà dans ' + (otherGroup ? otherGroup.nom : 'un autre groupe') + '"' : ''}>
+      <span class="stg-color-dot" style="background:${t.color};width:10px;height:10px;"></span>
+      ${t.prenom} ${t.nom} <span style="color:var(--text-muted);font-size:0.68rem;">(${t.role})</span>
+      ${inOther && otherGroup ? `<span style="font-size:0.6rem;color:${otherGroup.couleur};font-weight:600;">— ${otherGroup.nom}</span>` : ''}
+    </label>`;
+  }).join('');
+
+  openStgForm(`
+    <h3>${id ? 'Modifier' : 'Créer'} un groupe</h3>
+    <div class="stg-form-grid">
+      <div class="stg-form-field"><label>Nom du groupe</label><input id="stf-gnom" value="${g.nom}"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-gcouleur" value="${g.couleur}"></div>
+      <div class="stg-form-field span2"><label>Description</label><input id="stf-gdesc" value="${g.description || ''}" placeholder="Ex: Équipe basée à Nantes"></div>
+      <div class="stg-form-field span2"><label>Membres de l'équipe</label><div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 12px;margin-top:4px;">${allMembers}</div></div>
+    </div>
+    <div class="stg-form-actions">
+      <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
+      <button class="stg-form-save" onclick="saveGroup(${id || 0})">Enregistrer</button>
+    </div>
+  `);
+}
+
+function saveGroup(id) {
+  const nom = document.getElementById('stf-gnom').value.trim();
+  if (!nom) { alert('Nom du groupe requis'); return; }
+  const data = {
+    nom,
+    couleur: document.getElementById('stf-gcouleur').value,
+    description: document.getElementById('stf-gdesc').value.trim(),
+  };
+  if (id) {
+    const idx = settingsGroups.findIndex(x => x.id === id);
+    if (idx >= 0) { data.id = id; settingsGroups[idx] = data; }
+  } else {
+    data.id = settingsGroups.length ? Math.max(...settingsGroups.map(x => x.id)) + 1 : 1;
+    settingsGroups.push(data);
+  }
+  // Update team members group assignments
+  const checkedIds = [];
+  document.querySelectorAll('.grp-member-check:checked:not(:disabled)').forEach(cb => {
+    checkedIds.push(parseInt(cb.dataset.tid));
+  });
+  const groupId = data.id;
+  settingsTeam.forEach(t => {
+    if (checkedIds.includes(t.id)) { t.groupeId = groupId; }
+    else if (t.groupeId === groupId) { t.groupeId = null; }
+  });
+  saveSettings(SETTINGS_KEYS.groups, settingsGroups);
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  syncTeamToTechnicians();
+  closeStgForm();
+  renderSettingsGroups();
+}
+
+function deleteGroup(id) {
+  if (!confirm('Supprimer ce groupe ? Les membres ne seront plus affectés à aucun groupe.')) return;
+  settingsGroups = settingsGroups.filter(x => x.id !== id);
+  settingsTeam.forEach(t => { if (t.groupeId === id) t.groupeId = null; });
+  saveSettings(SETTINGS_KEYS.groups, settingsGroups);
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  renderSettingsGroups();
+}
+
+// ======== TAB 5: PARAMÈTRES GÉNÉRAUX ========
 function renderSettingsGeneral() {
   const g = settingsGeneral;
   const c = document.getElementById('settingsGeneral');
