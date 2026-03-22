@@ -1243,6 +1243,14 @@ body::before {
   font-family: 'Space Grotesk', sans-serif; box-shadow: var(--shadow-lg);
   animation: fadeIn 0.3s ease;
 }
+/* Weather badges */
+.weather-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 0.6rem; white-space: nowrap; }
+.weather-sm { padding: 1px 5px; background: rgba(255,255,255,0.7); border-radius: 10px; font-weight: 600; border: 1px solid var(--border); backdrop-filter: blur(4px); cursor: default; }
+.weather-lg { padding: 8px 14px; background: linear-gradient(135deg, #e8f4fd 0%, #fef9e7 100%); border: 1px solid var(--border); border-radius: var(--radius-sm); gap: 10px; cursor: default; }
+.weather-icon-lg { font-size: 1.6rem; }
+.weather-detail { display: flex; flex-direction: column; }
+.weather-temp { font-family: 'DM Mono', monospace; font-size: 1.1rem; font-weight: 600; color: var(--gph-dark); }
+.weather-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -1533,6 +1541,156 @@ let currentView = 'week', currentDate = new Date(TODAY), editingId = null;
 let selectedTechId = null; // null = all technicians
 let showTravel = true;
 
+// ===== MÉTÉO (Open-Meteo API) =====
+const LOCATION_COORDS = {
+  'Challans': {lat:46.845, lon:-1.878},
+  'Saint-Herblain': {lat:47.213, lon:-1.649},
+  'Nantes': {lat:47.218, lon:-1.554},
+  'Niort': {lat:46.324, lon:-0.459},
+  'Pau': {lat:43.296, lon:-0.370},
+  'La Roche-sur-Yon': {lat:46.671, lon:-1.427},
+  'Saint-Nazaire': {lat:47.274, lon:-2.213},
+  'Pornic': {lat:47.116, lon:-2.102},
+  'La Rochelle': {lat:46.160, lon:-1.152},
+  'Montaigu': {lat:46.973, lon:-1.314},
+};
+
+const weatherCache = {};
+
+const WMO_ICONS = {
+  0: {icon:'☀️', label:'Ensoleillé'},
+  1: {icon:'🌤️', label:'Peu nuageux'},
+  2: {icon:'⛅', label:'Partiellement nuageux'},
+  3: {icon:'☁️', label:'Couvert'},
+  45: {icon:'🌫️', label:'Brouillard'},
+  48: {icon:'🌫️', label:'Brouillard givrant'},
+  51: {icon:'🌦️', label:'Bruine légère'},
+  53: {icon:'🌦️', label:'Bruine modérée'},
+  55: {icon:'🌧️', label:'Bruine dense'},
+  56: {icon:'🌧️', label:'Bruine verglaçante'},
+  57: {icon:'🌧️', label:'Bruine verglaçante'},
+  61: {icon:'🌧️', label:'Pluie légère'},
+  63: {icon:'🌧️', label:'Pluie modérée'},
+  65: {icon:'🌧️', label:'Pluie forte'},
+  66: {icon:'🌧️', label:'Pluie verglaçante'},
+  67: {icon:'🌧️', label:'Pluie verglaçante forte'},
+  71: {icon:'🌨️', label:'Neige légère'},
+  73: {icon:'🌨️', label:'Neige modérée'},
+  75: {icon:'❄️', label:'Neige forte'},
+  77: {icon:'❄️', label:'Grains de neige'},
+  80: {icon:'🌦️', label:'Averses légères'},
+  81: {icon:'🌧️', label:'Averses modérées'},
+  82: {icon:'🌧️', label:'Averses violentes'},
+  85: {icon:'🌨️', label:'Averses de neige'},
+  86: {icon:'🌨️', label:'Averses de neige fortes'},
+  95: {icon:'⛈️', label:'Orage'},
+  96: {icon:'⛈️', label:'Orage avec grêle'},
+  99: {icon:'⛈️', label:'Orage violent avec grêle'},
+};
+
+function getCityFromLocation(location) {
+  if (!location) return null;
+  // Extract city name from address like "15 rue de la Gare, 85300 Challans"
+  const parts = location.split(',');
+  if (parts.length >= 2) {
+    const cityPart = parts[parts.length - 1].trim();
+    // Remove postal code
+    const city = cityPart.replace(/^\d{5}\s*/, '');
+    return city;
+  }
+  return null;
+}
+
+function getCoordsForLocation(location) {
+  const city = getCityFromLocation(location);
+  if (!city) return null;
+  // Try exact match first, then partial
+  if (LOCATION_COORDS[city]) return LOCATION_COORDS[city];
+  for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
+    if (city.includes(key) || key.includes(city)) return coords;
+  }
+  return null;
+}
+
+async function fetchWeatherForDate(lat, lon, date) {
+  const cacheKey = `${lat},${lon},${date}`;
+  if (weatherCache[cacheKey]) return weatherCache[cacheKey];
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=Europe%2FParis&start_date=${date}&end_date=${date}`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (data.daily && data.daily.weather_code && data.daily.weather_code.length > 0) {
+      const result = {
+        code: data.daily.weather_code[0],
+        tempMax: Math.round(data.daily.temperature_2m_max[0]),
+        tempMin: Math.round(data.daily.temperature_2m_min[0]),
+        precipProb: data.daily.precipitation_probability_max[0],
+        windMax: Math.round(data.daily.wind_speed_10m_max[0]),
+      };
+      weatherCache[cacheKey] = result;
+      return result;
+    }
+  } catch(e) { console.warn('[Météo] Erreur:', e); }
+  return null;
+}
+
+function getWeatherInfo(code) {
+  return WMO_ICONS[code] || {icon:'❓', label:'Inconnu'};
+}
+
+function weatherBadgeHTML(weather, size='sm') {
+  if (!weather) return '';
+  const info = getWeatherInfo(weather.code);
+  if (size === 'lg') {
+    return `<div class="weather-badge weather-lg" title="${info.label} · ${weather.tempMin}°/${weather.tempMax}° · Pluie ${weather.precipProb}% · Vent ${weather.windMax}km/h">
+      <span class="weather-icon-lg">${info.icon}</span>
+      <div class="weather-detail">
+        <span class="weather-temp">${weather.tempMax}°</span>
+        <span class="weather-label">${info.label}</span>
+      </div>
+    </div>`;
+  }
+  // compact badge for cards
+  return `<span class="weather-badge weather-sm" title="${info.label} · ${weather.tempMin}°/${weather.tempMax}° · Pluie ${weather.precipProb}%">${info.icon} ${weather.tempMax}°</span>`;
+}
+
+// Batch-fetch weather for visible interventions and re-render badges
+async function loadWeatherForInterventions(ints) {
+  const toFetch = [];
+  for (const int of ints) {
+    const coords = getCoordsForLocation(int.location);
+    if (!coords) continue;
+    const cacheKey = `${coords.lat},${coords.lon},${int.date}`;
+    if (!weatherCache[cacheKey]) {
+      toFetch.push({lat: coords.lat, lon: coords.lon, date: int.date, id: int.id});
+    }
+  }
+  // Deduplicate by cacheKey
+  const unique = {};
+  toFetch.forEach(f => { unique[`${f.lat},${f.lon},${f.date}`] = f; });
+  const fetches = Object.values(unique).map(f => fetchWeatherForDate(f.lat, f.lon, f.date));
+  if (fetches.length > 0) {
+    await Promise.all(fetches);
+    // Update all weather badges in DOM
+    document.querySelectorAll('[data-weather-int]').forEach(el => {
+      const id = parseInt(el.dataset.weatherInt);
+      const int = interventions.find(i => i.id === id);
+      if (!int) return;
+      const coords = getCoordsForLocation(int.location);
+      if (!coords) return;
+      const w = weatherCache[`${coords.lat},${coords.lon},${int.date}`];
+      if (w) el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm');
+    });
+  }
+}
+
+function getWeatherForInt(int) {
+  const coords = getCoordsForLocation(int.location);
+  if (!coords) return null;
+  return weatherCache[`${coords.lat},${coords.lon},${int.date}`] || null;
+}
+
 // ===== RENDER HELPERS =====
 function renderTravelAller(int, tech) {
   const dep = minToTime(timeToMin(int.startTime)-int.travelTo);
@@ -1619,7 +1777,17 @@ function showView(v) {
   closeSidebar();
   switchView(v,document.querySelectorAll('.view-tab')[['week','day','month','list'].indexOf(v)]);
 }
-function renderCurrentView() { ({week:renderWeek,day:renderDay,month:renderMonth,list:renderList})[currentView](); }
+function renderCurrentView() { ({week:renderWeek,day:renderDay,month:renderMonth,list:renderList})[currentView](); loadVisibleWeather(); }
+
+function loadVisibleWeather() {
+  const visibleInts = [];
+  document.querySelectorAll('[data-weather-int]').forEach(el => {
+    const id = parseInt(el.dataset.weatherInt);
+    const int = interventions.find(i => i.id === id);
+    if (int) visibleInts.push(int);
+  });
+  if (visibleInts.length > 0) loadWeatherForInterventions(visibleInts);
+}
 
 // ===== WEEK =====
 function renderWeek() {
@@ -1645,7 +1813,7 @@ function renderWeek() {
         const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
-        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime}</div><div class="int-title">${int.title}</div><div class="int-location">📍 ${int.location.split(',')[0]}</div></div>`;
+        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location">📍 ${int.location.split(',')[0]}</div></div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`;
       });
@@ -1682,7 +1850,7 @@ function renderDay() {
       if(ev.type==='ta') html+=`<div class="day-travel-block travel-aller"><div class="dt-icon">🚗</div><div class="dt-info"><div class="dt-label">Trajet depuis ${ev.from}</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
       else if(ev.type==='ti') html+=`<div class="day-travel-block travel-inter"><div class="dt-icon">🔄</div><div class="dt-info"><div class="dt-label">Trajet inter-site</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
       else if(ev.type==='tr') html+=`<div class="day-travel-block travel-retour"><div class="dt-icon">🏠</div><div class="dt-info"><div class="dt-label">Retour vers ${ev.to}</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
-      else { const tp=TYPES[ev.int.type]; html+=`<div class="day-block" style="border-left-color:${TYPE_RAW[ev.int.type]};background:${TYPE_RAW[ev.int.type]}0A" onclick="openDetail(${ev.int.id})"><div class="day-block-time" style="color:${TYPE_RAW[ev.int.type]}">${ev.int.startTime} – ${ev.int.endTime}</div><div class="day-block-title">${ev.int.title}</div><div class="day-block-tech">👤 ${ev.tech.name} · 📍 ${ev.int.location.split(',')[0]}</div></div>`; }
+      else { const tp=TYPES[ev.int.type]; html+=`<div class="day-block" style="border-left-color:${TYPE_RAW[ev.int.type]};background:${TYPE_RAW[ev.int.type]}0A" onclick="openDetail(${ev.int.id})"><div class="day-block-time" style="color:${TYPE_RAW[ev.int.type]}">${ev.int.startTime} – ${ev.int.endTime} <span data-weather-int="${ev.int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(ev.int))}</span></div><div class="day-block-title">${ev.int.title}</div><div class="day-block-tech">👤 ${ev.tech.name} · 📍 ${ev.int.location.split(',')[0]}</div></div>`; }
     });
     html+=`</div></div>`;
   }
@@ -1717,7 +1885,7 @@ function renderList() {
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
       const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), sl={planned:'Planifié',inprogress:'En cours',done:'Terminé'};
-      html+=`<div class="list-item" onclick="openDetail(${int.id})"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div><div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span class="list-item-status status-${int.status}-badge">${sl[int.status]}</span></div>`;
+      html+=`<div class="list-item" onclick="openDetail(${int.id})"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div><span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span><div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span class="list-item-status status-${int.status}-badge">${sl[int.status]}</span></div>`;
     });
     html+=`</div>`;
   }
@@ -1754,6 +1922,7 @@ function openDetail(id){
     <div class="detail-field"><div class="detail-field-label">Géotechnicien</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><div style="background:${tech.color};width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">${tech.initials}</div>${tech.name} <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem;">· ${tech.base}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Date & horaires</div><div class="detail-field-value">${new Date(int.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style="font-family:'DM Mono',monospace;font-size:0.88rem;margin-top:3px;color:var(--gph-dark);font-weight:500;">${int.startTime} – ${int.endTime}</div></div>
     <div class="detail-field"><div class="detail-field-label">Lieu</div><div class="detail-field-value">📍 ${int.location}</div></div>
+    <div class="detail-field"><div class="detail-field-label">Météo sur site</div><div class="detail-field-value" data-weather-int="${int.id}" data-weather-size="lg">${weatherBadgeHTML(getWeatherForInt(int), 'lg') || '<span style="font-size:0.75rem;color:var(--text-muted);font-style:italic;">Chargement...</span>'}</div></div>
     <div class="detail-field"><div class="detail-field-label">Client</div><div class="detail-field-value">🏢 ${int.client}</div></div>
     <div class="detail-field"><div class="detail-field-label">Temps de trajet</div>
       <div style="display:flex;gap:8px;margin-top:6px;">
