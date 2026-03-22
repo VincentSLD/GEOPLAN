@@ -190,27 +190,30 @@ body::before {
 
 /* TOPBAR */
 .topbar {
-  padding: 12px 24px;
+  padding: 8px 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   box-shadow: var(--shadow-sm);
   z-index: 10;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 .view-tabs {
   display: flex;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 3px;
-  gap: 2px;
+  padding: 2px;
+  gap: 1px;
+  flex-shrink: 0;
 }
 .view-tab {
-  padding: 6px 15px;
+  padding: 5px 10px;
   border-radius: var(--radius-xs);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   color: var(--text-muted);
@@ -218,6 +221,7 @@ body::before {
   border: none;
   background: none;
   font-family: inherit;
+  white-space: nowrap;
 }
 .view-tab:hover { color: var(--text-primary); }
 .view-tab.active {
@@ -229,11 +233,13 @@ body::before {
 .topbar-center {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 16px;
+  gap: 6px;
+  margin-left: 8px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .nav-btn {
-  width: 32px; height: 32px;
+  width: 28px; height: 28px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
@@ -241,42 +247,51 @@ body::before {
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all var(--transition);
+  flex-shrink: 0;
 }
 .nav-btn:hover { border-color: var(--gph-yellow); color: var(--gph-primary); background: var(--gph-yellow-light); }
 .topbar-date {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  min-width: 250px;
+  min-width: 0;
   text-align: center;
   color: var(--gph-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .today-btn {
-  padding: 6px 14px;
+  padding: 5px 10px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   transition: all var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .today-btn:hover { border-color: var(--gph-yellow); background: var(--gph-yellow-light); }
 
-.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.btn-label-compact { display: none; }
+@media (max-width: 1280px) { .btn-label-desktop { display: none; } .btn-label-compact { display: inline; } }
 .btn {
-  padding: 8px 18px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
   border: none;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   transition: all var(--transition);
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
   letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 .btn-primary {
   background: linear-gradient(135deg, var(--gph-primary) 0%, #333 100%);
@@ -1274,13 +1289,13 @@ body::before {
 .login-success { color:#2e7d32; font-size:12px; font-weight:700; text-align:center; margin-top:12px; min-height:18px; }
 .login-footer { text-align:center; margin-top:20px; font-size:11px; color:#8a8a80; cursor:pointer; }
 .login-footer b { color:#b8960a; text-decoration:underline; }
-.auth-inline { display:none; align-items:center; gap:8px; }
+.auth-inline { display:none; align-items:center; gap:6px; }
 .auth-inline.visible { display:flex; }
-.topbar-separator { width:1px; height:24px; background:var(--border); margin:0 4px; }
-.auth-avatar { width:28px; height:28px; border-radius:50%; background:#f5c518; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#1a1a1a; }
-.auth-logout { background:none; border:1px solid #ccc; border-radius:6px; color:#666; font-size:10px; font-weight:700; padding:4px 10px; cursor:pointer; transition:all 0.2s; font-family:inherit; }
+.topbar-separator { width:1px; height:20px; background:var(--border); margin:0 2px; }
+.auth-avatar { width:24px; height:24px; border-radius:50%; background:#f5c518; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:#1a1a1a; flex-shrink:0; }
+.auth-logout { background:none; border:1px solid #ccc; border-radius:5px; color:#666; font-size:9px; font-weight:700; padding:3px 8px; cursor:pointer; transition:all 0.2s; font-family:inherit; white-space:nowrap; }
 .auth-logout:hover { border-color:#d32f2f; color:#d32f2f; }
-.admin-btn { background:none; border:1px solid #f5c518; border-radius:6px; color:#f5c518; font-size:10px; font-weight:700; padding:4px 10px; cursor:pointer; font-family:inherit; position:relative; }
+.admin-btn { background:none; border:1px solid #f5c518; border-radius:5px; color:#f5c518; font-size:9px; font-weight:700; padding:3px 8px; cursor:pointer; font-family:inherit; position:relative; white-space:nowrap; }
 .admin-badge { display:none; align-items:center; justify-content:center; position:absolute; top:-5px; right:-5px; background:#d32f2f; color:#fff; font-size:8px; font-weight:900; width:16px; height:16px; border-radius:50%; }
 #admin-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; cursor:pointer; }
 #admin-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; color:#1A1A1A; border-radius:16px; padding:24px; width:90%; max-width:480px; max-height:80vh; overflow-y:auto; z-index:10001; box-shadow:0 16px 64px rgba(0,0,0,0.5); }
@@ -1447,7 +1462,7 @@ body::before {
       </button>
       <button class="btn btn-primary" onclick="openModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nouvelle intervention
+        <span class="btn-label-desktop">Nouvelle intervention</span><span class="btn-label-compact">Nouveau</span>
       </button>
       <div class="topbar-separator"></div>
       <div id="auth-user-bar-inline" class="auth-inline">
