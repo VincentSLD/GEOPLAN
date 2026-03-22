@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --bg-primary: #f5f5f0;
@@ -1251,10 +1252,87 @@ body::before {
 .weather-detail { display: flex; flex-direction: column; }
 .weather-temp { font-family: 'DM Mono', monospace; font-size: 1.1rem; font-weight: 600; color: var(--gph-dark); }
 .weather-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; }
+
+/* Login screen */
+#login-screen { display:flex; align-items:center; justify-content:center; height:100dvh; width:100vw; background:#1a1a1a; position:relative; overflow:hidden; }
+#login-screen::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(ellipse at 60% 40%, rgba(245,197,24,0.08) 0%, transparent 60%); pointer-events:none; }
+#login-screen.hidden { display:none; }
+.login-card { background:#fff; border-radius:16px; padding:40px 36px; width:90%; max-width:380px; box-shadow:0 16px 64px rgba(0,0,0,0.4); border-top:4px solid #f5c518; position:relative; z-index:1; }
+.login-card .logo-login { text-align:center; margin-bottom:28px; }
+.login-card .logo-login h1 { font-family:'Playfair Display', serif; font-size:2rem; font-weight:700; color:#1a1a1a; letter-spacing:-0.02em; }
+.login-card .logo-login h1 span { color:#f5c518; }
+.login-card .logo-login p { font-size:11px; color:#8a8a80; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; margin-top:4px; }
+.login-field { margin-bottom:16px; }
+.login-field label { display:block; font-size:11px; font-weight:800; color:#8a8a80; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+.login-field input { width:100%; height:44px; border:2px solid #e0ddd5; border-radius:8px; padding:0 14px; font-size:14px; font-family:inherit; color:#1a1a1a; outline:none; transition:border-color 0.2s; }
+.login-field input:focus { border-color:#f5c518; box-shadow:0 0 0 3px rgba(245,197,24,0.15); }
+.login-btn { width:100%; height:46px; border:none; border-radius:8px; background:#f5c518; color:#1a1a1a; font-size:14px; font-weight:800; cursor:pointer; transition:all 0.2s; margin-top:8px; font-family:inherit; letter-spacing:0.02em; }
+.login-btn:hover { background:#f0be00; box-shadow:0 4px 16px rgba(245,197,24,0.3); }
+.login-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.login-error { color:#d32f2f; font-size:12px; font-weight:700; text-align:center; margin-top:12px; min-height:18px; }
+.login-success { color:#2e7d32; font-size:12px; font-weight:700; text-align:center; margin-top:12px; min-height:18px; }
+.login-footer { text-align:center; margin-top:20px; font-size:11px; color:#8a8a80; cursor:pointer; }
+.login-footer b { color:#b8960a; text-decoration:underline; }
+#auth-user-bar { display:none; align-items:center; gap:8px; position:fixed; top:12px; right:16px; z-index:99; }
+#auth-user-bar.visible { display:flex; }
+.auth-avatar { width:28px; height:28px; border-radius:50%; background:#f5c518; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#1a1a1a; }
+.auth-logout { background:none; border:1px solid #ccc; border-radius:6px; color:#666; font-size:10px; font-weight:700; padding:4px 10px; cursor:pointer; transition:all 0.2s; font-family:inherit; }
+.auth-logout:hover { border-color:#d32f2f; color:#d32f2f; }
+.admin-btn { background:none; border:1px solid #f5c518; border-radius:6px; color:#f5c518; font-size:10px; font-weight:700; padding:4px 10px; cursor:pointer; font-family:inherit; position:relative; }
+.admin-badge { display:none; align-items:center; justify-content:center; position:absolute; top:-5px; right:-5px; background:#d32f2f; color:#fff; font-size:8px; font-weight:900; width:16px; height:16px; border-radius:50%; }
+#admin-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; cursor:pointer; }
+#admin-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; color:#1A1A1A; border-radius:16px; padding:24px; width:90%; max-width:480px; max-height:80vh; overflow-y:auto; z-index:10001; box-shadow:0 16px 64px rgba(0,0,0,0.5); }
+.admin-title { font-size:16px; font-weight:900; margin:0 0 16px; text-transform:uppercase; letter-spacing:0.05em; }
+.admin-user { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; }
+.admin-user-info .name { font-size:13px; font-weight:700; }
+.admin-user-info .email { font-size:11px; color:#888; }
+.admin-approve { background:#4CAF50; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:700; cursor:pointer; margin-right:4px; }
+.admin-reject { background:#d32f2f; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:700; cursor:pointer; }
+.admin-approved { color:#4CAF50; font-size:11px; font-weight:700; }
 </style>
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo-login">
+      <h1>GéoPlan'<span>by GPH</span></h1>
+      <p>Planification d'interventions géotechniques</p>
+    </div>
+    <form id="login-form">
+      <div class="login-field"><label>Email</label><input type="email" id="login-email" required></div>
+      <div class="login-field"><label>Mot de passe</label><input type="password" id="login-password" required></div>
+      <button type="submit" id="login-submit" class="login-btn">Se connecter</button>
+      <div id="login-error" class="login-error"></div>
+    </form>
+    <form id="signup-form" style="display:none;">
+      <div class="login-field"><label>Nom complet</label><input type="text" id="signup-name" required></div>
+      <div class="login-field"><label>Email</label><input type="email" id="signup-email" required></div>
+      <div class="login-field"><label>Mot de passe</label><input type="password" id="signup-password" required></div>
+      <button type="submit" id="signup-submit" class="login-btn">Créer mon compte</button>
+      <div id="signup-error" class="login-error"></div>
+      <div id="signup-success" class="login-success"></div>
+    </form>
+    <div class="login-footer" id="toggle-signup">Pas encore de compte ? <b>S'inscrire</b></div>
+  </div>
+</div>
+
+<!-- AUTH USER BAR -->
+<div id="auth-user-bar">
+  <div class="auth-avatar" id="auth-avatar"></div>
+  <button class="admin-btn" id="admin-btn" style="display:none;" onclick="openAdminPanel()">Admin <span class="admin-badge" id="admin-badge"></span></button>
+  <button class="auth-logout" onclick="authLogout()">Déconnexion</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-overlay" onclick="closeAdminPanel()"></div>
+<div id="admin-panel">
+  <div class="admin-title">Gestion des utilisateurs</div>
+  <div id="admin-list"></div>
+</div>
+
+<div class="app" style="display:none;width:100%;height:100vh;">
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <h1 class="logo-inline">Géo<span class="hl">Plan'</span></h1>
@@ -1460,6 +1538,7 @@ body::before {
     </div>
   </div>
 </div>
+</div><!-- .app -->
 
 <script>
 const TECHNICIANS = [
@@ -2480,7 +2559,166 @@ async function syncFleet() {
   }
 }
 
-init();
+// ═══ AUTHENTIFICATION SUPABASE (même base que GéoCarto) ═══
+const SUPABASE_URL = 'https://asuccniyofzvwgooxjah.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzdWNjbml5b2Z6dndnb294amFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MDQyNjgsImV4cCI6MjA4ODQ4MDI2OH0.dPerW1BApAxe26xzv9i7oWIubgGuzO5RibMvs-MFm88';
+const sbAuth = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentAuthUser = null;
+
+async function checkGeocartoAccess(userId) {
+  const { data, error } = await sbAuth.from('geocarto_access').select('id, approved').eq('user_id', userId).maybeSingle();
+  if (error) { console.error('Erreur geocarto_access:', error); return false; }
+  return data?.approved === true;
+}
+
+function showApp(user) {
+  currentAuthUser = user;
+  document.getElementById('login-screen').classList.add('hidden');
+  document.querySelector('.app').style.display = 'flex';
+  const email = user.email || '';
+  const meta = user.user_metadata || {};
+  const initials = meta.full_name ? meta.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase();
+  document.getElementById('auth-avatar').textContent = initials;
+  document.getElementById('auth-user-bar').classList.add('visible');
+  checkAdmin(user);
+  init();
+}
+
+function showLogin() {
+  currentAuthUser = null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.querySelector('.app').style.display = 'none';
+  document.getElementById('auth-user-bar').classList.remove('visible');
+}
+
+async function authLogout() { await sbAuth.auth.signOut(); showLogin(); }
+
+const ADMIN_EMAILS = ['vsalaud@be-gph.fr'];
+
+async function getAuthToken() {
+  const { data } = await sbAuth.auth.getSession();
+  if (data.session?.access_token) return data.session.access_token;
+  const { data: refreshed } = await sbAuth.auth.refreshSession();
+  return refreshed.session?.access_token || null;
+}
+
+async function checkAdmin(user) {
+  if (!ADMIN_EMAILS.includes(user.email)) return;
+  document.getElementById('admin-btn').style.display = '';
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    const r = await fetch('https://geocarto.vercel.app/api/admin-users', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return;
+    const { users } = await r.json();
+    const pending = users.filter(u => !u.approved).length;
+    const badge = document.getElementById('admin-badge');
+    if (pending > 0) { badge.textContent = pending; badge.style.display = 'flex'; } else { badge.style.display = 'none'; }
+  } catch (e) { console.warn('Admin check failed:', e); }
+}
+
+function openAdminPanel() {
+  document.getElementById('admin-overlay').style.display = 'block';
+  document.getElementById('admin-panel').style.display = 'block';
+  document.getElementById('admin-list').innerHTML = '<div style="text-align:center;color:#888;font-size:12px;">Chargement...</div>';
+  loadAdminUsers();
+}
+function closeAdminPanel() { document.getElementById('admin-overlay').style.display = 'none'; document.getElementById('admin-panel').style.display = 'none'; }
+
+async function loadAdminUsers() {
+  try {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Session expirée');
+    const r = await fetch('https://geocarto.vercel.app/api/admin-users', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const { users } = await r.json();
+    const list = document.getElementById('admin-list');
+    if (!users.length) { list.innerHTML = '<div style="text-align:center;color:#888;font-size:12px;">Aucun utilisateur</div>'; return; }
+    list.innerHTML = users.map(u => `<div class="admin-user" id="admin-row-${u.user_id}"><div class="admin-user-info"><div class="name">${u.name || 'Sans nom'}</div><div class="email">${u.email}</div></div><div class="admin-user-actions">${u.approved ? '<span class="admin-approved">Approuvé</span>' : `<button class="admin-approve" onclick="adminAction('${u.user_id}','approve')">Approuver</button><button class="admin-reject" onclick="adminAction('${u.user_id}','reject')">Refuser</button>`}</div></div>`).join('');
+  } catch (e) { document.getElementById('admin-list').innerHTML = '<div style="text-align:center;color:#d32f2f;font-size:12px;">Erreur: ' + e.message + '</div>'; }
+}
+
+async function adminAction(userId, action) {
+  const row = document.getElementById('admin-row-' + userId);
+  const actions = row.querySelector('.admin-user-actions');
+  actions.innerHTML = '<span style="color:#888;font-size:11px">...</span>';
+  try {
+    const token = await getAuthToken();
+    const r = await fetch('https://geocarto.vercel.app/api/admin-users', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ user_id: userId, action }) });
+    if (!r.ok) throw new Error('Erreur');
+    if (action === 'approve') { actions.innerHTML = '<span class="admin-approved">Approuvé</span>'; } else { row.remove(); }
+    const badge = document.getElementById('admin-badge');
+    const pending = document.querySelectorAll('.admin-approve').length;
+    if (pending > 0) { badge.textContent = pending; badge.style.display = 'flex'; } else { badge.style.display = 'none'; }
+  } catch (e) { actions.innerHTML = '<span style="color:#d32f2f;font-size:11px">Erreur</span>'; }
+}
+
+function toggleAuthMode() {
+  const lf = document.getElementById('login-form'), sf = document.getElementById('signup-form'), tg = document.getElementById('toggle-signup');
+  const isLogin = lf.style.display !== 'none';
+  lf.style.display = isLogin ? 'none' : 'block';
+  sf.style.display = isLogin ? 'block' : 'none';
+  tg.innerHTML = isLogin ? 'Déjà un compte ? <b>Se connecter</b>' : 'Pas encore de compte ? <b>S\'inscrire</b>';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('signup-error').textContent = '';
+  document.getElementById('signup-success').textContent = '';
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit');
+  errorEl.textContent = ''; btn.disabled = true; btn.textContent = 'Connexion...';
+  try {
+    const { data, error } = await sbAuth.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    const hasAccess = await checkGeocartoAccess(data.user.id);
+    if (!hasAccess) { await sbAuth.auth.signOut(); throw new Error('Votre accès n\'a pas encore été approuvé par un administrateur.'); }
+    showApp(data.user);
+  } catch (err) {
+    errorEl.textContent = err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : err.message || 'Erreur de connexion.';
+  } finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
+});
+
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const errorEl = document.getElementById('signup-error'), successEl = document.getElementById('signup-success');
+  const btn = document.getElementById('signup-submit');
+  errorEl.textContent = ''; successEl.textContent = ''; btn.disabled = true; btn.textContent = 'Création...';
+  try {
+    const { data, error } = await sbAuth.auth.signUp({ email, password, options: { data: { full_name: name } } });
+    if (error) throw error;
+    const userId = data.user.id;
+    const notifyRes = await fetch('https://geocarto.vercel.app/api/notify-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_email: email, user_name: name }) });
+    if (!notifyRes.ok) console.warn('Notification admin échouée:', notifyRes.status);
+    successEl.textContent = 'Compte créé ! Un administrateur a été notifié. Vous recevrez l\'accès sous peu.';
+    await sbAuth.auth.signOut();
+  } catch (err) {
+    errorEl.textContent = err.message === 'User already registered' ? 'Un compte existe déjà avec cet email.' : err.message || 'Erreur lors de la création.';
+  } finally { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
+});
+
+document.getElementById('toggle-signup').addEventListener('click', toggleAuthMode);
+
+sbAuth.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT') showLogin(); });
+
+// ═══ AUTO-LOGIN ═══
+(async () => {
+  const { data: { session } } = await sbAuth.auth.getSession();
+  if (session?.user) {
+    try {
+      const hasAccess = await checkGeocartoAccess(session.user.id);
+      if (hasAccess) { showApp(session.user); return; }
+    } catch (e) { if (!navigator.onLine) { showApp(session.user); return; } }
+    await sbAuth.auth.signOut();
+  }
+  showLogin();
+})();
 </script>
 </body>
 </html>
