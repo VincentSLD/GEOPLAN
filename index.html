@@ -146,59 +146,21 @@ body::before {
 }
 
 .sidebar-groups {
-  padding: 10px 12px 4px;
+  padding: 10px 12px 10px;
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 .sidebar-groups h3 {
   font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.14em; color: rgba(255,255,255,0.2); margin-bottom: 8px; padding: 0 6px;
+  letter-spacing: 0.14em; color: rgba(255,255,255,0.2); margin-bottom: 6px; padding: 0 6px;
 }
-.sidebar-groups-list { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 2px; }
-.sidebar-group-btn {
-  padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
-  background: transparent; color: rgba(255,255,255,0.45); font-size: 0.62rem;
-  font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap;
+.sidebar-group-select {
+  width: 100%; padding: 7px 10px; border-radius: var(--radius-xs);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.75); font-size: 0.75rem; font-weight: 600;
+  font-family: inherit; cursor: pointer; outline: none; appearance: auto;
 }
-.sidebar-group-btn:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.7); }
-.sidebar-group-btn.active { background: rgba(245,197,24,0.15); border-color: rgba(245,197,24,0.35); color: var(--gph-yellow); }
-.sidebar-team {
-  padding: 8px 12px 14px;
-}
-.sidebar-team h3 {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: rgba(255,255,255,0.2);
-  margin-bottom: 10px;
-  padding: 0 6px;
-}
-.team-member {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 6px;
-  cursor: pointer;
-  border-radius: var(--radius-xs);
-  transition: background var(--transition);
-}
-.team-member:hover { background: rgba(255,255,255,0.06); }
-.team-member.team-active {
-  background: rgba(245,197,24,0.12);
-  border: 1px solid rgba(245,197,24,0.25);
-}
-.team-member.team-active .team-member-name { color: var(--gph-yellow); }
-.team-avatar {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-.team-member-name { font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.75); }
-.team-member-status { font-size: 0.62rem; color: rgba(255,255,255,0.3); }
+.sidebar-group-select:focus { border-color: rgba(245,197,24,0.4); }
+.sidebar-group-select option { background: var(--gph-dark); color: #fff; }
 
 /* ========== MAIN ========== */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; margin-top: 4px; }
@@ -1527,7 +1489,6 @@ body::before {
     </div>
   </nav>
   <div class="sidebar-groups" id="sidebarGroups"></div>
-  <div class="sidebar-team" id="sidebarTeam"></div>
 </aside>
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -1986,42 +1947,29 @@ function renderTravelBetween(prev, next) {
 // ===== INIT =====
 function init() { populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); }
 function populateSidebar() {
-  // Groups bar
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
-  let grpHtml = `<h3>Groupes</h3><div class="sidebar-groups-list">`;
-  grpHtml += `<button class="sidebar-group-btn ${!selectedGroupId ? 'active' : ''}" onclick="toggleGroupFilter(null)">Tous</button>`;
+  let html = `<h3>Groupe / Équipe</h3>`;
+  html += `<select class="sidebar-group-select" onchange="toggleGroupFilter(this.value ? parseInt(this.value) : null)">`;
+  html += `<option value="">Tous les groupes</option>`;
   grps.forEach(g => {
-    grpHtml += `<button class="sidebar-group-btn ${selectedGroupId === g.id ? 'active' : ''}" style="${selectedGroupId === g.id ? 'background:' + g.couleur + '20;border-color:' + g.couleur + '50;color:' + g.couleur : ''}" onclick="toggleGroupFilter(${g.id})">${g.nom}</button>`;
+    html += `<option value="${g.id}" ${selectedGroupId === g.id ? 'selected' : ''}>${g.nom}</option>`;
   });
-  grpHtml += `</div>`;
-  grpEl.innerHTML = grpHtml;
-
-  // Team list (filtered by group)
-  const el=document.getElementById('sidebarTeam');
-  let filteredTechs = TECHNICIANS;
-  if (selectedGroupId && typeof settingsTeam !== 'undefined') {
-    const groupMemberIds = settingsTeam.filter(t => t.groupeId === selectedGroupId).map(t => t.id);
-    filteredTechs = TECHNICIANS.filter(t => groupMemberIds.includes(t.id));
-  }
-  el.innerHTML=`<h3>Équipe (${filteredTechs.length})${selectedTechId?` <span style="font-size:0.55rem;font-weight:500;text-transform:none;letter-spacing:0;color:var(--gph-yellow);cursor:pointer;" onclick="clearTechFilter()">✕ Voir tous</span>`:''}</h3>`+filteredTechs.map(t=>{
-    const c=interventions.filter(i=>i.techId===t.id&&i.date===TODAY.toISOString().split('T')[0]).length;
-    const isActive=selectedTechId===t.id;
-    return `<div class="team-member ${isActive?'team-active':''}" onclick="toggleTechFilter(${t.id})"><div class="team-avatar" style="background:${t.color}">${t.initials}</div><div><div class="team-member-name">${t.name}</div><div class="team-member-status">${c} int. · ${t.base}</div></div></div>`;
-  }).join('');
+  html += `</select>`;
+  grpEl.innerHTML = html;
 }
 function toggleTechFilter(id) {
   selectedTechId = selectedTechId===id ? null : id;
-  populateSidebar(); renderCurrentView();
+  renderCurrentView();
 }
 function clearTechFilter() {
   selectedTechId = null;
-  populateSidebar(); renderCurrentView();
+  renderCurrentView();
 }
 function toggleGroupFilter(id) {
-  selectedGroupId = selectedGroupId === id ? null : id;
-  selectedTechId = null; // reset individual filter when switching group
-  populateSidebar(); renderCurrentView();
+  selectedGroupId = id;
+  selectedTechId = null;
+  renderCurrentView();
 }
 function toggleTravel() {
   showTravel = document.getElementById('showTravelToggle').checked;
