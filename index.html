@@ -1289,6 +1289,36 @@ body::before {
 .admin-approve { background:#4CAF50; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:700; cursor:pointer; margin-right:4px; }
 .admin-reject { background:#d32f2f; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:700; cursor:pointer; }
 .admin-approved { color:#4CAF50; font-size:11px; font-weight:700; }
+
+/* AI Panel */
+#ai-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:5000; backdrop-filter:blur(2px); }
+#ai-panel { display:none; position:fixed; top:0; right:0; width:440px; max-width:100vw; height:100vh; background:var(--bg-secondary); z-index:5001; box-shadow:-8px 0 40px rgba(0,0,0,0.15); flex-direction:column; animation:aiSlideIn 0.25s ease; }
+@keyframes aiSlideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+#ai-panel.open { display:flex; }
+#ai-overlay.open { display:block; }
+.ai-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.ai-header-title { display:flex; align-items:center; gap:10px; }
+.ai-header-title h3 { font-size:1rem; font-weight:800; color:var(--gph-dark); }
+.ai-header-icon { width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,#f5c518,#e8b206); display:flex; align-items:center; justify-content:center; font-size:16px; }
+.ai-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); padding:4px; line-height:1; }
+.ai-close:hover { color:var(--text-primary); }
+.ai-messages { flex:1; overflow-y:auto; padding:16px 24px; display:flex; flex-direction:column; gap:12px; }
+.ai-msg { max-width:92%; padding:12px 16px; border-radius:14px; font-size:0.82rem; line-height:1.55; word-wrap:break-word; white-space:pre-wrap; }
+.ai-msg-user { align-self:flex-end; background:var(--gph-dark); color:#fff; border-bottom-right-radius:4px; }
+.ai-msg-ai { align-self:flex-start; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border); border-bottom-left-radius:4px; }
+.ai-msg-ai strong, .ai-msg-ai b { color:var(--gph-dark); }
+.ai-msg-system { align-self:center; background:var(--gph-yellow-light); color:var(--text-secondary); font-size:0.72rem; font-weight:600; border-radius:20px; padding:6px 16px; border:1px solid rgba(245,197,24,0.2); }
+.ai-typing { align-self:flex-start; padding:12px 16px; font-size:0.8rem; color:var(--text-muted); font-style:italic; }
+.ai-input-bar { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:8px; background:var(--bg-secondary); }
+.ai-input-bar textarea { flex:1; resize:none; border:2px solid var(--border); border-radius:10px; padding:10px 14px; font-size:0.82rem; font-family:inherit; color:var(--text-primary); outline:none; min-height:42px; max-height:120px; transition:border-color 0.2s; }
+.ai-input-bar textarea:focus { border-color:var(--gph-yellow); }
+.ai-input-bar textarea::placeholder { color:var(--text-muted); }
+.ai-send-btn { width:42px; height:42px; border:none; border-radius:10px; background:var(--gph-dark); color:#fff; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
+.ai-send-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+.ai-send-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.ai-quick-actions { padding:8px 24px 4px; display:flex; flex-wrap:wrap; gap:6px; }
+.ai-quick-btn { padding:5px 12px; border:1px solid var(--border); border-radius:16px; background:var(--bg-card); font-size:0.68rem; font-weight:600; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.ai-quick-btn:hover { border-color:var(--gph-yellow); background:var(--gph-yellow-light); color:var(--gph-dark); }
 </style>
 </head>
 <body>
@@ -1377,6 +1407,10 @@ body::before {
       <div class="nav-item" onclick="alert('Module matériel — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
         Matériel / Engins
+      </div>
+      <div class="nav-item" onclick="openAIPanel()" style="background:linear-gradient(135deg,rgba(245,197,24,0.12),rgba(245,197,24,0.03));">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.9 2-2 2h-4a2 2 0 0 1-2-2 4 4 0 0 1 4-4z"/><path d="M8 8v2a4 4 0 0 0 8 0V8"/><path d="M12 14v4"/><path d="M8 18h8"/><circle cx="9" cy="6" r="0.5" fill="currentColor"/><circle cx="15" cy="6" r="0.5" fill="currentColor"/></svg>
+        <span style="color:var(--gph-yellow);font-weight:700;">Assistant IA</span>
       </div>
     </div>
     <div class="nav-section">
@@ -1538,6 +1572,28 @@ body::before {
     </div>
   </div>
 </div>
+<!-- AI PANEL -->
+<div id="ai-overlay" onclick="closeAIPanel()"></div>
+<div id="ai-panel">
+  <div class="ai-header">
+    <div class="ai-header-title"><div class="ai-header-icon">🤖</div><h3>Assistant Planification</h3></div>
+    <button class="ai-close" onclick="closeAIPanel()">&times;</button>
+  </div>
+  <div class="ai-quick-actions">
+    <button class="ai-quick-btn" onclick="aiQuick('optimise')">Optimiser les tournées du jour</button>
+    <button class="ai-quick-btn" onclick="aiQuick('charge')">Analyser la charge de travail</button>
+    <button class="ai-quick-btn" onclick="aiQuick('suggestion')">Suggestions de la semaine</button>
+    <button class="ai-quick-btn" onclick="aiQuick('urgent')">Caser une urgence</button>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+    <div class="ai-msg-system">Assistant IA propulsé par Claude — spécialisé en planification de tournées géotechniques</div>
+  </div>
+  <div class="ai-input-bar">
+    <textarea id="aiInput" placeholder="Ex: Optimise les tournées de demain en regroupant par zone..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage();}"></textarea>
+    <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">➤</button>
+  </div>
+</div>
+
 </div><!-- .app -->
 
 <script>
@@ -2558,6 +2614,123 @@ async function syncFleet() {
     btn.classList.remove('syncing');
   }
 }
+
+// ═══ ASSISTANT IA (Claude API via Vercel serverless) ═══
+let aiConversation = [];
+
+function openAIPanel() {
+  document.getElementById('ai-panel').classList.add('open');
+  document.getElementById('ai-overlay').classList.add('open');
+  document.getElementById('aiInput').focus();
+}
+function closeAIPanel() {
+  document.getElementById('ai-panel').classList.remove('open');
+  document.getElementById('ai-overlay').classList.remove('open');
+}
+
+function buildPlanningContext() {
+  const todayStr = TODAY.toISOString().split('T')[0];
+  const mon = getMonday(currentDate);
+  const weekInts = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(mon); d.setDate(mon.getDate() + i);
+    const ds = d.toISOString().split('T')[0];
+    const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    dayInts.forEach(int => {
+      const tech = TECHNICIANS.find(t => t.id === int.techId);
+      weekInts.push(`${ds} | ${int.startTime}-${int.endTime} | ${tech ? tech.name : '?'} (base: ${tech ? tech.base : '?'}) | ${int.title} [${int.type}] | ${int.location} | Client: ${int.client} | Trajet aller: ${int.travelTo}min, retour: ${int.travelFrom}min | Statut: ${int.status}`);
+    });
+  }
+  const techList = TECHNICIANS.map(t => `- ${t.name} (${t.role}) — base: ${t.base}, spécialité: ${t.role}`).join('\n');
+  return `DATE ACTUELLE: ${todayStr}
+SEMAINE AFFICHÉE: ${mon.toISOString().split('T')[0]} → 7 jours
+
+TECHNICIENS:
+${techList}
+
+INTERVENTIONS DE LA SEMAINE (${weekInts.length} au total):
+${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
+}
+
+function aiQuick(type) {
+  const prompts = {
+    optimise: "Analyse les tournées d'aujourd'hui pour chaque technicien. Propose une réorganisation pour minimiser les temps de trajet en regroupant les interventions par zone géographique.",
+    charge: "Analyse la charge de travail de chaque technicien cette semaine. Qui est surchargé ? Qui a de la disponibilité ? Propose un rééquilibrage.",
+    suggestion: "Donne-moi un résumé de la semaine et tes suggestions d'amélioration : regroupements possibles, créneaux perdus, optimisations de trajets.",
+    urgent: "J'ai une intervention urgente à caser aujourd'hui. Quel technicien a le plus de disponibilité et le créneau le plus adapté ? Tiens compte des zones géographiques."
+  };
+  document.getElementById('aiInput').value = prompts[type];
+  sendAIMessage();
+}
+
+async function sendAIMessage() {
+  const input = document.getElementById('aiInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  const btn = document.getElementById('aiSendBtn');
+  btn.disabled = true;
+
+  // Add user message
+  aiConversation.push({ role: 'user', content: msg });
+  appendAIMessage('user', msg);
+
+  // Show typing
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-typing';
+  typingEl.textContent = 'Réflexion en cours...';
+  document.getElementById('aiMessages').appendChild(typingEl);
+  scrollAI();
+
+  try {
+    const context = buildPlanningContext();
+    const r = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: aiConversation, context }),
+    });
+
+    typingEl.remove();
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: 'Erreur serveur' }));
+      appendAIMessage('ai', '⚠️ Erreur : ' + (err.error || 'Impossible de contacter l\'assistant.'));
+      aiConversation.pop(); // remove failed user msg from context
+    } else {
+      const data = await r.json();
+      aiConversation.push({ role: 'assistant', content: data.content });
+      appendAIMessage('ai', data.content);
+    }
+  } catch (e) {
+    typingEl.remove();
+    appendAIMessage('ai', '⚠️ Erreur de connexion : ' + e.message);
+    aiConversation.pop();
+  } finally {
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+function appendAIMessage(role, text) {
+  const el = document.createElement('div');
+  el.className = `ai-msg ai-msg-${role}`;
+  el.textContent = text;
+  document.getElementById('aiMessages').appendChild(el);
+  scrollAI();
+}
+
+function scrollAI() {
+  const c = document.getElementById('aiMessages');
+  c.scrollTop = c.scrollHeight;
+}
+
+// Auto-resize textarea
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('aiInput');
+  if (ta) ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
+});
 
 // ═══ AUTHENTIFICATION SUPABASE (même base que GéoCarto) ═══
 const SUPABASE_URL = 'https://asuccniyofzvwgooxjah.supabase.co';
