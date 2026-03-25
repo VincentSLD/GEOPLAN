@@ -1315,6 +1315,17 @@ body::before {
 .ai-quick-actions { padding:8px 24px 4px; display:flex; flex-wrap:wrap; gap:6px; }
 .ai-quick-btn { padding:5px 12px; border:1px solid var(--border); border-radius:16px; background:var(--bg-card); font-size:0.68rem; font-weight:600; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; font-family:inherit; }
 .ai-quick-btn:hover { border-color:var(--gph-yellow); background:var(--gph-yellow-light); color:var(--gph-dark); }
+.ai-action-block { margin:10px 0; border:2px solid var(--gph-yellow); border-radius:10px; overflow:hidden; background:var(--bg-card); }
+.ai-action-header { padding:8px 12px; background:var(--gph-yellow-light); font-size:0.75rem; font-weight:800; color:var(--gph-dark); border-bottom:1px solid rgba(245,197,24,0.3); }
+.ai-action-item { display:flex; align-items:center; justify-content:space-between; padding:7px 12px; border-bottom:1px solid var(--border); gap:8px; }
+.ai-action-item.applied { opacity:0.5; }
+.ai-action-label { font-size:0.75rem; font-weight:500; color:var(--text-primary); flex:1; }
+.ai-action-apply-btn { padding:4px 12px; border:1px solid var(--gph-yellow); border-radius:6px; background:var(--bg-card); color:var(--gph-dark); font-size:0.68rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+.ai-action-apply-btn:hover { background:var(--gph-yellow); }
+.ai-action-apply-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.ai-action-apply-all-btn { display:block; width:100%; padding:8px; border:none; background:linear-gradient(135deg,var(--gph-primary),#333); color:var(--gph-yellow); font-size:0.75rem; font-weight:800; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+.ai-action-apply-all-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+.ai-action-apply-all-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
 /* Settings */
 .settings-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:6000; backdrop-filter:blur(2px); }
@@ -3591,6 +3602,14 @@ async function sendAIMessage() {
 }
 
 function renderMarkdown(text) {
+  // Extract action blocks before escaping HTML
+  const actionBlocks = [];
+  text = text.replace(/~~~actions\s*\n([\s\S]*?)\n~~~/g, (match, json) => {
+    const placeholder = `%%ACTION_BLOCK_${actionBlocks.length}%%`;
+    actionBlocks.push(json);
+    return placeholder;
+  });
+
   let html = text
     // Escape HTML
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -3645,6 +3664,29 @@ function renderMarkdown(text) {
   html = html.replace(/\n\n/g, '</p><p style="margin:6px 0;">');
   html = html.replace(/\n/g, '<br>');
 
+  // Re-inject action blocks as clickable UI
+  actionBlocks.forEach((json, i) => {
+    try {
+      const actions = JSON.parse(json);
+      if (!Array.isArray(actions) || actions.length === 0) return;
+      const actionsId = 'ai-actions-' + Date.now() + '-' + i;
+      let actHtml = `<div class="ai-action-block" id="${actionsId}">`;
+      actHtml += `<div class="ai-action-header">📋 Modifications proposées</div>`;
+      actions.forEach((a, j) => {
+        const icon = a.action === 'create' ? '➕' : a.action === 'delete' ? '🗑️' : '🔄';
+        actHtml += `<div class="ai-action-item" id="${actionsId}-item-${j}">
+          <span class="ai-action-label">${icon} ${a.label || 'Action ' + (j+1)}</span>
+          <button class="ai-action-apply-btn" onclick="applyAIAction(${JSON.stringify(a).replace(/"/g, '&quot;')}, '${actionsId}-item-${j}')">Appliquer</button>
+        </div>`;
+      });
+      actHtml += `<button class="ai-action-apply-all-btn" onclick="applyAllAIActions(${JSON.stringify(actions).replace(/"/g, '&quot;')}, '${actionsId}')">✅ Tout appliquer</button>`;
+      actHtml += `</div>`;
+      html = html.replace(`%%ACTION_BLOCK_${i}%%`, actHtml);
+    } catch(e) {
+      html = html.replace(`%%ACTION_BLOCK_${i}%%`, '<em style="color:var(--text-muted);">(bloc d\'actions invalide)</em>');
+    }
+  });
+
   return html;
 }
 
@@ -3670,6 +3712,65 @@ document.addEventListener('DOMContentLoaded', () => {
   const ta = document.getElementById('aiInput');
   if (ta) ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
 });
+
+// ═══ ACTIONS IA APPLICABLES ═══
+function applyAIAction(action, itemId) {
+  const itemEl = document.getElementById(itemId);
+  const btn = itemEl ? itemEl.querySelector('.ai-action-apply-btn') : null;
+
+  if (action.action === 'move') {
+    const int = interventions.find(i => i.id === action.id);
+    if (!int) { if (btn) btn.textContent = '❌ Introuvable'; return; }
+    if (action.date) int.date = action.date;
+    if (action.startTime) int.startTime = action.startTime;
+    if (action.endTime) int.endTime = action.endTime;
+    if (action.techId) int.techId = action.techId;
+    if (action.location) int.location = action.location;
+  } else if (action.action === 'create') {
+    const newId = Math.max(...interventions.map(i => i.id), 0) + 1;
+    interventions.push({
+      id: newId,
+      title: action.title || 'Nouvelle intervention',
+      type: action.type || 'sondage',
+      date: action.date,
+      startTime: action.startTime || '08:00',
+      endTime: action.endTime || '12:00',
+      techId: action.techId,
+      location: action.location || '',
+      client: action.client || '-',
+      travelTo: 30, travelFrom: 30,
+      status: 'planned',
+      notes: action.notes || '',
+    });
+  } else if (action.action === 'delete') {
+    const idx = interventions.findIndex(i => i.id === action.id);
+    if (idx < 0) { if (btn) btn.textContent = '❌ Introuvable'; return; }
+    interventions.splice(idx, 1);
+  }
+
+  // Visual feedback
+  if (itemEl) {
+    itemEl.classList.add('applied');
+    if (btn) { btn.textContent = '✓ Appliqué'; btn.disabled = true; }
+  }
+
+  renderCurrentView();
+  updateTodayCount();
+  populateSidebar();
+  computeAllTravel();
+}
+
+function applyAllAIActions(actions, blockId) {
+  actions.forEach((a, j) => {
+    const itemId = blockId + '-item-' + j;
+    const itemEl = document.getElementById(itemId);
+    if (itemEl && !itemEl.classList.contains('applied')) {
+      applyAIAction(a, itemId);
+    }
+  });
+  const allBtn = document.querySelector(`#${blockId} .ai-action-apply-all-btn`);
+  if (allBtn) { allBtn.textContent = '✅ Toutes les modifications appliquées'; allBtn.disabled = true; }
+}
 
 // ═══ AUTHENTIFICATION SUPABASE (même base que GéoCarto) ═══
 const SUPABASE_URL = 'https://asuccniyofzvwgooxjah.supabase.co';

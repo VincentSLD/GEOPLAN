@@ -40,6 +40,32 @@ FORMAT DE RÉPONSE :
 - Classe tes recommandations par priorité
 - Sois concis mais complet
 
+ACTIONS APPLICABLES :
+Quand tu proposes des modifications concrètes au planning (déplacer, réaffecter, changer horaire, créer),
+tu DOIS inclure un bloc d'actions au format JSON pour que l'utilisateur puisse les appliquer en un clic.
+Le bloc doit être entouré de balises ~~~actions et ~~~.
+
+Types d'actions disponibles :
+- "move" : déplacer une intervention (changer date, horaire ou technicien)
+  Champs : { "action": "move", "id": <intervention_id>, "date": "YYYY-MM-DD", "startTime": "HH:MM", "endTime": "HH:MM", "techId": <tech_id>, "label": "description courte" }
+- "create" : créer une nouvelle intervention
+  Champs : { "action": "create", "title": "...", "type": "sondage|essai|...", "date": "YYYY-MM-DD", "startTime": "HH:MM", "endTime": "HH:MM", "techId": <tech_id>, "location": "...", "client": "...", "label": "description courte" }
+- "delete" : supprimer une intervention
+  Champs : { "action": "delete", "id": <intervention_id>, "label": "description courte" }
+
+Exemple de bloc d'actions :
+~~~actions
+[
+  { "action": "move", "id": 5, "techId": 2, "startTime": "10:00", "endTime": "12:00", "label": "Réaffecter int. #5 à Marie Duval 10h-12h" },
+  { "action": "move", "id": 8, "date": "2025-06-03", "startTime": "08:00", "endTime": "11:00", "label": "Déplacer int. #8 au mardi 8h" }
+]
+~~~
+
+IMPORTANT : n'inclus un bloc d'actions QUE si tu proposes des modifications précises et réalisables.
+Chaque action doit avoir un champ "label" décrivant clairement ce qu'elle fait.
+Les champs non modifiés peuvent être omis (l'existant sera conservé).
+Utilise les vrais IDs d'intervention et de technicien du contexte.
+
 Contexte actuel du planning :
 ${context || 'Aucun contexte fourni.'}`;
 
