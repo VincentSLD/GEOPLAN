@@ -1867,27 +1867,43 @@ function getCoordsForLocation(location) {
   return null;
 }
 
+const weatherBulkCache = {}; // key: "lat,lon" → { fetched, dates: { date: result } }
+
 async function fetchWeatherForDate(lat, lon, date) {
   const cacheKey = `${lat},${lon},${date}`;
   if (weatherCache[cacheKey]) return weatherCache[cacheKey];
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=Europe%2FParis&start_date=${date}&end_date=${date}`;
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const data = await r.json();
-    if (data.daily && data.daily.weather_code && data.daily.weather_code.length > 0) {
-      const result = {
-        code: data.daily.weather_code[0],
-        tempMax: Math.round(data.daily.temperature_2m_max[0]),
-        tempMin: Math.round(data.daily.temperature_2m_min[0]),
-        precipProb: data.daily.precipitation_probability_max[0],
-        windMax: Math.round(data.daily.wind_speed_10m_max[0]),
-      };
-      weatherCache[cacheKey] = result;
-      return result;
-    }
-  } catch(e) { console.warn('[Météo] Erreur:', e); }
-  return null;
+
+  // Bulk fetch: request 7 days at once for this location to avoid many requests
+  const bulkKey = `${lat},${lon}`;
+  if (!weatherBulkCache[bulkKey]) {
+    weatherBulkCache[bulkKey] = true;
+    try {
+      const mon = getMonday(currentDate);
+      const startDate = new Date(mon); startDate.setDate(startDate.getDate() - 2);
+      const endDate = new Date(mon); endDate.setDate(endDate.getDate() + 13);
+      const sd = startDate.toISOString().split('T')[0];
+      const ed = endDate.toISOString().split('T')[0];
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${sd}&end_date=${ed}`;
+      const r = await fetch(url);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.daily && data.daily.time) {
+          data.daily.time.forEach((d, i) => {
+            weatherCache[`${lat},${lon},${d}`] = {
+              code: data.daily.weather_code[i],
+              tempMax: Math.round(data.daily.temperature_2m_max[i]),
+              tempMin: Math.round(data.daily.temperature_2m_min[i]),
+              precipProb: data.daily.precipitation_probability_max[i],
+              windMax: Math.round(data.daily.wind_speed_10m_max[i]),
+            };
+          });
+          // Also store full data for AI context
+          weatherCache[bulkKey] = data;
+        }
+      }
+    } catch(e) { console.warn('[Météo] Erreur bulk fetch:', e); }
+  }
+  return weatherCache[cacheKey] || null;
 }
 
 function getWeatherInfo(code) {
@@ -1924,9 +1940,13 @@ async function loadWeatherForInterventions(ints) {
   // Deduplicate by cacheKey
   const unique = {};
   toFetch.forEach(f => { unique[`${f.lat},${f.lon},${f.date}`] = f; });
-  const fetches = Object.values(unique).map(f => fetchWeatherForDate(f.lat, f.lon, f.date));
-  if (fetches.length > 0) {
-    await Promise.all(fetches);
+  const items = Object.values(unique);
+  // Sequential fetch with small delay to avoid 429 rate limiting
+  for (let i = 0; i < items.length; i++) {
+    await fetchWeatherForDate(items[i].lat, items[i].lon, items[i].date);
+    if (i < items.length - 1) await new Promise(r => setTimeout(r, 150));
+  }
+  if (items.length > 0) {
     // Update all weather badges in DOM
     document.querySelectorAll('[data-weather-int]').forEach(el => {
       const id = parseInt(el.dataset.weatherInt);
@@ -1992,8 +2012,8 @@ async function getOSRMRoute(lat1, lon1, lat2, lon2) {
   } catch(e) {
     // After first timeout/failure, disable OSRM for this session to avoid flooding
     if (e.name === 'AbortError' || e.message === 'OSRM error') {
+      if (osrmAvailable) console.warn('[Routing] OSRM indisponible, bascule en calcul vol d\'oiseau pour cette session');
       osrmAvailable = false;
-      console.warn('[Routing] OSRM indisponible, bascule en calcul vol d\'oiseau pour cette session');
     }
     return haversineFallback(lat1, lon1, lat2, lon2);
   }
@@ -2060,23 +2080,25 @@ async function computeAllTravel() {
     byTech[int.techId].push(int);
   });
 
-  const promises = [];
+  // Build ordered list of tasks
+  const tasks = [];
   Object.entries(byTech).forEach(([techId, ints]) => {
     const tech = TECHNICIANS.find(t => t.id === +techId);
     if (!tech) return;
-    // Group by date
     const byDate = {};
     ints.forEach(i => { if (!byDate[i.date]) byDate[i.date] = []; byDate[i.date].push(i); });
-
     Object.values(byDate).forEach(dayInts => {
       dayInts.sort((a, b) => a.startTime.localeCompare(b.startTime));
       dayInts.forEach((int, idx) => {
-        promises.push(computeTravelForIntervention(int, tech, idx > 0 ? dayInts[idx-1] : null));
+        tasks.push({ int, tech, prev: idx > 0 ? dayInts[idx-1] : null });
       });
     });
   });
 
-  await Promise.all(promises);
+  // Sequential: allows osrmAvailable flag to work after first failure
+  for (const t of tasks) {
+    await computeTravelForIntervention(t.int, t.tech, t.prev);
+  }
   renderCurrentView();
 }
 
