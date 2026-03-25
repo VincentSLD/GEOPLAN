@@ -12,7 +12,16 @@ export default async function handler(req, res) {
 
   const { WEBFLEET_ACCOUNT, WEBFLEET_USERNAME, WEBFLEET_PASSWORD, WEBFLEET_APIKEY } = process.env;
   if (!WEBFLEET_ACCOUNT || !WEBFLEET_APIKEY) {
-    return res.status(500).json({ error: 'Webfleet credentials not configured' });
+    return res.status(500).json({
+      error: 'Webfleet credentials not configured',
+      hint: 'Add WEBFLEET_ACCOUNT, WEBFLEET_USERNAME, WEBFLEET_PASSWORD, WEBFLEET_APIKEY to Vercel env vars',
+      configured: {
+        WEBFLEET_ACCOUNT: !!WEBFLEET_ACCOUNT,
+        WEBFLEET_USERNAME: !!WEBFLEET_USERNAME,
+        WEBFLEET_PASSWORD: !!WEBFLEET_PASSWORD,
+        WEBFLEET_APIKEY: !!WEBFLEET_APIKEY,
+      }
+    });
   }
 
   // action from query param or default
@@ -35,7 +44,13 @@ export default async function handler(req, res) {
   const url = `https://csv.telematics.tomtom.com/extern?${params}`;
 
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    // AbortController for timeout (compatible all Node.js versions)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    const r = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
     const text = await r.text();
 
     // Try to return as JSON, wrap if not valid JSON
@@ -47,6 +62,10 @@ export default async function handler(req, res) {
       return res.status(r.status).json({ raw: text, error: 'non-json response' });
     }
   } catch (e) {
-    return res.status(502).json({ error: e.message || 'Webfleet request failed' });
+    const isTimeout = e.name === 'AbortError';
+    return res.status(502).json({
+      error: isTimeout ? 'Webfleet API timeout (25s)' : (e.message || 'Webfleet request failed'),
+      details: e.name,
+    });
   }
 }

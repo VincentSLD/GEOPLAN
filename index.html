@@ -1963,12 +1963,21 @@ function estimateTravelHaversine(lat1, lon1, lat2, lon2) {
 
 const routeCache = {};
 
+let osrmAvailable = true; // disable OSRM after repeated failures
+
 async function getOSRMRoute(lat1, lon1, lat2, lon2) {
   const key = `${lat1},${lon1}-${lat2},${lon2}`;
   if (routeCache[key]) return routeCache[key];
+
+  // Fast fallback if OSRM is known to be down
+  if (!osrmAvailable) return haversineFallback(lat1, lon1, lat2, lon2);
+
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5s max
     const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!r.ok) throw new Error('OSRM error');
     const data = await r.json();
     if (data.routes && data.routes.length > 0) {
@@ -1981,13 +1990,22 @@ async function getOSRMRoute(lat1, lon1, lat2, lon2) {
     }
     throw new Error('No route');
   } catch(e) {
-    // Fallback haversine
-    const min = estimateTravelHaversine(lat1, lon1, lat2, lon2);
-    const dist = haversineDistance(lat1, lon1, lat2, lon2) * 1.35;
-    const result = { distanceKm: Math.round(dist * 10) / 10, durationMin: min, fallback: true };
-    routeCache[key] = result;
-    return result;
+    // After first timeout/failure, disable OSRM for this session to avoid flooding
+    if (e.name === 'AbortError' || e.message === 'OSRM error') {
+      osrmAvailable = false;
+      console.warn('[Routing] OSRM indisponible, bascule en calcul vol d\'oiseau pour cette session');
+    }
+    return haversineFallback(lat1, lon1, lat2, lon2);
   }
+}
+
+function haversineFallback(lat1, lon1, lat2, lon2) {
+  const key = `${lat1},${lon1}-${lat2},${lon2}`;
+  const min = estimateTravelHaversine(lat1, lon1, lat2, lon2);
+  const dist = haversineDistance(lat1, lon1, lat2, lon2) * 1.35;
+  const result = { distanceKm: Math.round(dist * 10) / 10, durationMin: min, fallback: true };
+  routeCache[key] = result;
+  return result;
 }
 
 function getTechCoords(tech) {
