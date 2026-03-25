@@ -1,9 +1,6 @@
-/**
- * Vercel Serverless — Proxy Webfleet.connect API
- * Variables d'environnement requises :
- *   WEBFLEET_ACCOUNT, WEBFLEET_USERNAME, WEBFLEET_PASSWORD, WEBFLEET_APIKEY
- */
-export default async function handler(req, res) {
+const https = require('https');
+
+module.exports = function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -14,7 +11,6 @@ export default async function handler(req, res) {
   if (!WEBFLEET_ACCOUNT || !WEBFLEET_APIKEY) {
     return res.status(500).json({
       error: 'Webfleet credentials not configured',
-      hint: 'Add WEBFLEET_ACCOUNT, WEBFLEET_USERNAME, WEBFLEET_PASSWORD, WEBFLEET_APIKEY to Vercel env vars',
       configured: {
         WEBFLEET_ACCOUNT: !!WEBFLEET_ACCOUNT,
         WEBFLEET_USERNAME: !!WEBFLEET_USERNAME,
@@ -24,10 +20,8 @@ export default async function handler(req, res) {
     });
   }
 
-  // action from query param or default
   const action = req.query.action || 'showObjectReportExtern';
 
-  // Build params — forward any extra query params from the frontend
   const params = new URLSearchParams({
     ...req.query,
     action,
@@ -43,29 +37,26 @@ export default async function handler(req, res) {
 
   const url = `https://csv.telematics.tomtom.com/extern?${params}`;
 
-  try {
-    // AbortController for timeout (compatible all Node.js versions)
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
-
-    const r = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    const text = await r.text();
-
-    // Try to return as JSON, wrap if not valid JSON
-    try {
-      JSON.parse(text);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      return res.status(r.status).send(text);
-    } catch {
-      return res.status(r.status).json({ raw: text, error: 'non-json response' });
-    }
-  } catch (e) {
-    const isTimeout = e.name === 'AbortError';
-    return res.status(502).json({
-      error: isTimeout ? 'Webfleet API timeout (25s)' : (e.message || 'Webfleet request failed'),
-      details: e.name,
+  const request = https.get(url, { timeout: 25000 }, (response) => {
+    let body = '';
+    response.on('data', (chunk) => { body += chunk; });
+    response.on('end', () => {
+      try {
+        JSON.parse(body);
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.status(response.statusCode).send(body);
+      } catch {
+        return res.status(response.statusCode).json({ raw: body, error: 'non-json response' });
+      }
     });
-  }
-}
+  });
+
+  request.on('error', (e) => {
+    return res.status(502).json({ error: e.message || 'Webfleet request failed' });
+  });
+
+  request.on('timeout', () => {
+    request.destroy();
+    return res.status(502).json({ error: 'Webfleet API timeout (25s)' });
+  });
+};

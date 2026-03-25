@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+const https = require('https');
+
+module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -8,10 +10,9 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  try {
-    const { messages, context } = req.body;
+  const { messages, context } = req.body;
 
-    const systemPrompt = `Tu es l'assistant IA de GéoPlan', l'outil de planification d'interventions géotechniques du bureau d'études GPH.
+  const systemPrompt = `Tu es l'assistant IA de GéoPlan', l'outil de planification d'interventions géotechniques du bureau d'études GPH.
 
 TON RÔLE :
 Tu es un expert en optimisation de tournées et en planification terrain. Tu aides les planificateurs à :
@@ -69,29 +70,51 @@ Utilise les vrais IDs d'intervention et de technicien du contexte.
 Contexte actuel du planning :
 ${context || 'Aucun contexte fourni.'}`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages,
-      }),
+  const postData = JSON.stringify({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages,
+  });
+
+  const options = {
+    hostname: 'api.anthropic.com',
+    path: '/v1/messages',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Length': Buffer.byteLength(postData),
+    },
+    timeout: 60000,
+  };
+
+  const request = https.request(options, (response) => {
+    let body = '';
+    response.on('data', (chunk) => { body += chunk; });
+    response.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        if (response.statusCode !== 200) {
+          return res.status(response.statusCode).json({ error: body });
+        }
+        return res.status(200).json({ content: data.content[0].text });
+      } catch (e) {
+        return res.status(500).json({ error: 'Invalid response from Claude API', raw: body });
+      }
     });
+  });
 
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-
-    const data = await response.json();
-    return res.status(200).json({ content: data.content[0].text });
-  } catch (e) {
+  request.on('error', (e) => {
     return res.status(500).json({ error: e.message });
-  }
-}
+  });
+
+  request.on('timeout', () => {
+    request.destroy();
+    return res.status(504).json({ error: 'Claude API timeout (60s)' });
+  });
+
+  request.write(postData);
+  request.end();
+};
