@@ -2795,23 +2795,26 @@ function renderFleetMarkers() {
     if (!v.lat || !v.lng) continue;
 
     const isMoving = v.speed > 0;
-    const color = isMoving ? '#16A34A' : '#DC2626';
+    const isIgnOn = v.ignition === 1;
+    const color = isMoving ? '#16A34A' : (isIgnOn ? '#D97706' : '#DC2626');
     const initials = (v.objectname || '??').substring(0, 2).toUpperCase();
 
     const marker = L.marker([v.lat, v.lng], {
       icon: createVehicleIcon(color, initials)
     }).addTo(fleetMap);
 
-    const speedTxt = v.speed > 0 ? `${v.speed} km/h` : 'A l\'arrêt';
+    const isIgnOn = v.ignition === 1;
+    const statusTxt = v.speed > 0 ? `🟢 En route · ${v.speed} km/h` : (isIgnOn ? '🟡 Contact allumé' : (v.standstill ? '🔴 A l\'arrêt' : '⚫ Hors ligne'));
     const timeTxt = v.postime ? new Date(v.postime).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+    const odomTxt = v.odometer ? `${Math.round(v.odometer)} km` : '';
 
     marker.bindPopup(`
-      <div style="font-family:'Space Grotesk',sans-serif;min-width:180px;">
+      <div style="font-family:'Space Grotesk',sans-serif;min-width:200px;">
         <strong style="font-size:0.85rem;">${v.objectname || v.objectno || 'Véhicule'}</strong>
-        ${v.drivername ? `<br><span style="color:#666;font-size:0.75rem;">Conducteur : ${v.drivername}</span>` : ''}
-        <br><span style="font-size:0.75rem;">${speedTxt}</span>
-        ${v.postext ? `<br><span style="color:#888;font-size:0.7rem;">${v.postext}</span>` : ''}
-        ${timeTxt ? `<br><span style="color:#aaa;font-size:0.65rem;">Dernière pos. : ${timeTxt}</span>` : ''}
+        <br><span style="font-size:0.75rem;font-weight:600;">${statusTxt}</span>
+        ${v.postext ? `<br><span style="color:#555;font-size:0.72rem;">📍 ${v.postext}</span>` : ''}
+        ${odomTxt ? `<br><span style="color:#888;font-size:0.68rem;">🔧 Compteur : ${odomTxt}</span>` : ''}
+        ${timeTxt ? `<br><span style="color:#aaa;font-size:0.65rem;">⏱ ${timeTxt}</span>` : ''}
       </div>
     `);
 
@@ -2843,8 +2846,8 @@ function renderFleetList() {
 
   list.innerHTML = `<div style="padding:8px 12px;font-weight:700;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);border-bottom:1px solid var(--border);">Véhicules (${fleetData.length})</div>` +
     fleetData.map((v, i) => {
-      const cls = v.speed > 0 ? 'moving' : (v.speed === 0 ? 'stopped' : 'idle');
-      const speed = v.speed > 0 ? `${v.speed} km/h` : 'Arrêt';
+      const cls = v.speed > 0 ? 'moving' : (v.ignition === 1 ? 'idle' : 'stopped');
+      const speed = v.speed > 0 ? `${v.speed} km/h` : (v.ignition === 1 ? 'Contact' : 'Arrêt');
       return `<div class="fleet-vehicle-item" onclick="focusVehicle(${i})">
         <div class="fleet-vehicle-dot ${cls}"></div>
         <span class="fleet-vehicle-name">${v.objectname || v.objectno || '?'}</span>
@@ -2879,18 +2882,30 @@ async function syncFleet() {
     // data peut être un tableau d'objets véhicules
     const vehicles = Array.isArray(data) ? data : (data.objects || data.results || []);
 
-    fleetData = vehicles.map(v => ({
-      objectno: v.objectno || v.objectNo || '',
-      objectname: v.objectname || v.objectName || v.object_name || '',
-      drivername: v.drivername || v.driverName || v.driver_name || '',
-      lat: parseFloat(v.latitude || v.position_latitude || v.lat || 0),
-      lng: parseFloat(v.longitude || v.position_longitude || v.lng || v.lon || 0),
-      speed: parseInt(v.speed || v.position_speed || 0, 10),
-      course: parseInt(v.course || v.position_course || 0, 10),
-      postext: v.postext || v.position_text || v.posText || '',
-      postime: v.postime || v.position_time || v.posTime || '',
-      state: v.objectstate || v.state || '',
-    })).filter(v => v.lat !== 0 && v.lng !== 0);
+    fleetData = vehicles.map(v => {
+      // Webfleet returns coords in micro-degrees (millionths of degree)
+      let lat = 0, lng = 0;
+      if (v.latitude_mdeg != null) lat = v.latitude_mdeg / 1000000;
+      else if (v.lat) lat = parseFloat(v.lat);
+      else if (v.latitude && typeof v.latitude === 'number') lat = v.latitude;
+      if (v.longitude_mdeg != null) lng = v.longitude_mdeg / 1000000;
+      else if (v.lng || v.lon) lng = parseFloat(v.lng || v.lon);
+      else if (v.longitude && typeof v.longitude === 'number') lng = v.longitude;
+      return {
+        objectno: v.objectno || '',
+        objectname: v.objectname || '',
+        drivername: v.drivername || '',
+        lat, lng,
+        speed: parseInt(v.speed || 0, 10),
+        course: parseInt(v.course || 0, 10),
+        postext: v.postext || v.postext_short || '',
+        postime: v.pos_time || v.postime || '',
+        state: v.objectstate || v.state || '',
+        ignition: v.ignition || 0,
+        standstill: v.standstill || 0,
+        odometer: v.odometer_long ? Math.round(v.odometer_long / 100) / 10 : (v.odometer || 0),
+      };
+    }).filter(v => v.lat !== 0 && v.lng !== 0);
 
     // Cache
     try { localStorage.setItem('geoplan_fleet', JSON.stringify({ data: fleetData, ts: Date.now() })); }
