@@ -1031,36 +1031,37 @@ body::before {
 }
 
 /* ===== CARTE FLOTTE (Webfleet) ===== */
-.fleet-overlay {
-  display: none; position: fixed; inset: 0; z-index: 2000;
-  background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease;
+/* Inline map view */
+.map-inline-container { display:flex; flex-direction:column; height:100%; }
+.map-inline-header { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--bg-secondary); flex-shrink:0; }
+.map-inline-info { display:flex; align-items:center; gap:8px; }
+.map-inline-info .badge-count { background:var(--gph-yellow); color:var(--gph-dark); padding:2px 10px; border-radius:20px; font-size:0.7rem; font-weight:700; font-family:'DM Mono',monospace; }
+.map-inline-status { font-size:0.7rem; color:var(--text-muted); font-weight:500; }
+.map-inline-actions { display:flex; gap:6px; }
+.map-inline-body { flex:1; display:flex; position:relative; overflow:hidden; }
+.map-inline-leaflet { flex:1; min-height:0; }
+.map-inline-list { width:240px; overflow-y:auto; border-left:1px solid var(--border); background:var(--bg-secondary); flex-shrink:0; }
+.map-inline-list .fleet-list-header { padding:8px 12px; font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); border-bottom:1px solid var(--border); }
+.map-inline-list .fleet-list-item { display:flex; align-items:center; gap:8px; padding:6px 12px; cursor:pointer; transition:background 0.15s; font-size:0.75rem; border-bottom:1px solid var(--border); }
+.map-inline-list .fleet-list-item:hover { background:var(--bg-card-hover); }
+.map-inline-list .fleet-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.map-inline-list .fleet-dot.moving { background:#16A34A; }
+.map-inline-list .fleet-dot.idle { background:#D97706; }
+.map-inline-list .fleet-dot.stopped { background:#DC2626; }
+.map-inline-list .fleet-list-name { flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.map-inline-list .fleet-list-speed { font-size:0.65rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+
+/* Fullscreen mode */
+.map-inline-container.fullscreen { position:fixed; inset:0; z-index:9000; border-radius:0; }
+.map-inline-container.fullscreen .map-inline-header { padding:12px 20px; }
+
+@media (max-width: 768px) {
+  .map-inline-list { display:none; }
 }
-.fleet-overlay.active { display: flex; align-items: center; justify-content: center; }
-.fleet-panel {
-  background: var(--bg-secondary); border-radius: var(--radius);
-  width: 92vw; max-width: 1200px; height: 85vh;
-  box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
-  overflow: hidden; animation: slideUp 0.25s ease;
-}
-.fleet-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 16px 20px; border-bottom: 1px solid var(--border);
-}
-.fleet-header h2 {
-  font-family: 'Instrument Serif', serif; font-size: 1.3rem; font-weight: 400; flex: 1;
-}
-.fleet-header .badge-count {
-  background: var(--gph-yellow); color: var(--gph-dark);
-  padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
-  font-family: 'DM Mono', monospace;
-}
-.fleet-toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary);
-}
-.fleet-map-container { flex: 1; position: relative; }
-#fleetMap { width: 100%; height: 100%; }
+
+/* Legacy overlay (kept for backward compat but hidden) */
+.fleet-overlay { display:none; }
+.fleet-overlay.active { display:none; }
 .fleet-toast {
   display: none; position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
   background: var(--gph-dark); color: #fff; padding: 8px 18px; border-radius: 20px;
@@ -1455,7 +1456,7 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
         Liste interventions
       </div>
-      <div class="nav-item" onclick="openFleet()">
+      <div class="nav-item" onclick="showView('map')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         Carte / Flotte
       </div>
@@ -1516,6 +1517,7 @@ body::before {
       <button class="view-tab" onclick="switchView('day',this)">Jour</button>
       <button class="view-tab" onclick="switchView('month',this)">Mois</button>
       <button class="view-tab" onclick="switchView('list',this)">Liste</button>
+      <button class="view-tab" onclick="switchView('map',this)">Carte</button>
     </div>
     <div class="topbar-center">
       <button class="nav-btn" onclick="navigate(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -1545,6 +1547,33 @@ body::before {
   <div class="view-content" id="dayView"><div class="day-timeline" id="dayTimeline"></div></div>
   <div class="view-content" id="monthView"><div class="month-grid" id="monthGrid"></div></div>
   <div class="view-content" id="listView"><div class="list-container" id="listContainer"></div></div>
+  <div class="view-content" id="mapView">
+    <div class="map-inline-container" id="mapInlineContainer">
+      <div class="map-inline-header">
+        <div class="map-inline-info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span style="font-weight:700;font-size:0.85rem;">Flotte GPH</span>
+          <span class="badge-count" id="fleetCountInline">0</span>
+          <span class="map-inline-status" id="mapInlineStatus"></span>
+        </div>
+        <div class="map-inline-actions">
+          <button class="btn btn-ghost" onclick="syncFleetInline()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Actualiser
+          </button>
+          <button class="btn btn-ghost" onclick="toggleMapFullscreen()" id="mapFullscreenBtn" title="Plein écran">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            <span class="btn-label-desktop">Plein écran</span>
+          </button>
+        </div>
+      </div>
+      <div class="map-inline-body">
+        <div id="fleetMapInline" class="map-inline-leaflet"></div>
+        <div class="fleet-toast" id="fleetToastInline"></div>
+        <div class="map-inline-list" id="fleetListInline"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="legend">
     <div class="legend-item"><div class="legend-color" style="background:var(--type-sondage)"></div>Sondage</div>
@@ -2190,12 +2219,13 @@ function updateTopbarDate() {
 function switchView(v,tab) {
   document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
   if(tab) tab.classList.add('active');
+  else { const tabs = document.querySelectorAll('.view-tab'); const idx = ['week','day','month','list','map'].indexOf(v); if (tabs[idx]) tabs[idx].classList.add('active'); }
   currentView=v;
   document.querySelectorAll('.view-content').forEach(el=>el.classList.remove('active'));
   document.getElementById(v+'View').classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelectorAll('.nav-item')[v==='list'?1:0].classList.add('active');
-  updateTopbarDate(); renderCurrentView();
+  if (v !== 'map') { document.querySelectorAll('.nav-item')[v==='list'?1:0].classList.add('active'); }
+  if (v === 'map') { initFleetMap(); } else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
 function toggleSidebar() {
@@ -2209,9 +2239,13 @@ function closeSidebar() {
 // Close sidebar when a nav item is clicked on mobile
 function showView(v) {
   closeSidebar();
-  switchView(v,document.querySelectorAll('.view-tab')[['week','day','month','list'].indexOf(v)]);
+  const idx = ['week','day','month','list','map'].indexOf(v);
+  switchView(v, document.querySelectorAll('.view-tab')[idx]);
 }
-function renderCurrentView() { ({week:renderWeek,day:renderDay,month:renderMonth,list:renderList})[currentView](); loadVisibleWeather(); }
+function renderCurrentView() {
+  const renderers = {week:renderWeek, day:renderDay, month:renderMonth, list:renderList};
+  if (renderers[currentView]) { renderers[currentView](); loadVisibleWeather(); }
+}
 
 function loadVisibleWeather() {
   const visibleInts = [];
@@ -2726,27 +2760,26 @@ let fleetMarkers = [];
 let fleetData = [];
 
 function fleetMsg(msg) {
-  const el = document.getElementById('fleetToast');
+  const el = document.getElementById('fleetToastInline');
+  if (!el) return;
   el.textContent = msg; el.style.display = 'block';
   clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 5000);
 }
 
 function openFleet() {
-  closeSidebar();
-  document.getElementById('fleetOverlay').classList.add('active');
-  // Initialiser la carte Leaflet une seule fois
-  if (!fleetMap) {
-    fleetMap = L.map('fleetMap').setView([46.8, -1.2], 8); // Centre Vendée/Pays de Loire
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19
-    }).addTo(fleetMap);
-    // Forcer le recalcul de taille après l'animation
-    setTimeout(() => fleetMap.invalidateSize(), 300);
-  } else {
-    setTimeout(() => fleetMap.invalidateSize(), 300);
-  }
-  // Charger le cache ou lancer un sync
+  // Switch to map view tab
+  switchView('map', document.querySelector('.view-tab:last-child'));
+}
+
+function initFleetMap() {
+  if (fleetMap) { setTimeout(() => fleetMap.invalidateSize(), 200); return; }
+  fleetMap = L.map('fleetMapInline').setView([46.8, -1.2], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19
+  }).addTo(fleetMap);
+  setTimeout(() => fleetMap.invalidateSize(), 300);
+  // Load cached or sync
   if (fleetData.length === 0) {
     const cached = localStorage.getItem('geoplan_fleet');
     if (cached) {
@@ -2760,12 +2793,32 @@ function openFleet() {
       } catch(e) {}
     }
     syncFleet();
+  } else {
+    renderFleetMarkers();
   }
 }
 
-function closeFleet() {
-  document.getElementById('fleetOverlay').classList.remove('active');
+function syncFleetInline() { syncFleet(); }
+
+function toggleMapFullscreen() {
+  const container = document.getElementById('mapInlineContainer');
+  container.classList.toggle('fullscreen');
+  const isFs = container.classList.contains('fullscreen');
+  document.getElementById('mapFullscreenBtn').innerHTML = isFs
+    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg><span class="btn-label-desktop">Réduire</span>'
+    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg><span class="btn-label-desktop">Plein écran</span>';
+  if (fleetMap) setTimeout(() => fleetMap.invalidateSize(), 200);
 }
+
+// Handle Escape key to exit fullscreen
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const container = document.getElementById('mapInlineContainer');
+    if (container && container.classList.contains('fullscreen')) {
+      toggleMapFullscreen();
+    }
+  }
+});
 
 function createVehicleIcon(color, initials) {
   return L.divIcon({
@@ -2821,7 +2874,8 @@ function renderFleetMarkers() {
     bounds.push([v.lat, v.lng]);
   }
 
-  document.getElementById('fleetCount').textContent = fleetData.length;
+  const countEl = document.getElementById('fleetCountInline');
+  if (countEl) countEl.textContent = fleetData.length;
 
   // Ajuster la vue sur les marqueurs
   if (bounds.length > 0) {
@@ -2833,28 +2887,20 @@ function renderFleetMarkers() {
 }
 
 function renderFleetList() {
-  // Supprimer l'ancienne liste si elle existe
-  const existing = document.getElementById('fleetVehicleList');
-  if (existing) existing.remove();
+  const listEl = document.getElementById('fleetListInline');
+  if (!listEl) return;
+  if (fleetData.length === 0) { listEl.innerHTML = ''; return; }
 
-  if (fleetData.length === 0) return;
-
-  const list = document.createElement('div');
-  list.id = 'fleetVehicleList';
-  list.className = 'fleet-vehicle-list';
-
-  list.innerHTML = `<div style="padding:8px 12px;font-weight:700;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);border-bottom:1px solid var(--border);">Véhicules (${fleetData.length})</div>` +
+  listEl.innerHTML = `<div class="fleet-list-header">Véhicules (${fleetData.length})</div>` +
     fleetData.map((v, i) => {
       const cls = v.speed > 0 ? 'moving' : (v.ignition === 1 ? 'idle' : 'stopped');
       const speed = v.speed > 0 ? `${v.speed} km/h` : (v.ignition === 1 ? 'Contact' : 'Arrêt');
-      return `<div class="fleet-vehicle-item" onclick="focusVehicle(${i})">
-        <div class="fleet-vehicle-dot ${cls}"></div>
-        <span class="fleet-vehicle-name">${v.objectname || v.objectno || '?'}</span>
-        <span class="fleet-vehicle-speed">${speed}</span>
+      return `<div class="fleet-list-item" onclick="focusVehicle(${i})">
+        <div class="fleet-dot ${cls}"></div>
+        <span class="fleet-list-name" title="${v.objectname || ''}">${v.objectname || v.objectno || '?'}</span>
+        <span class="fleet-list-speed">${speed}</span>
       </div>`;
     }).join('');
-
-  document.querySelector('.fleet-map-container').appendChild(list);
 }
 
 function focusVehicle(idx) {
