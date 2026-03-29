@@ -2803,7 +2803,6 @@ function renderFleetMarkers() {
       icon: createVehicleIcon(color, initials)
     }).addTo(fleetMap);
 
-    const isIgnOn = v.ignition === 1;
     const statusTxt = v.speed > 0 ? `🟢 En route · ${v.speed} km/h` : (isIgnOn ? '🟡 Contact allumé' : (v.standstill ? '🔴 A l\'arrêt' : '⚫ Hors ligne'));
     const timeTxt = v.postime ? new Date(v.postime).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
     const odomTxt = v.odometer ? `${Math.round(v.odometer)} km` : '';
