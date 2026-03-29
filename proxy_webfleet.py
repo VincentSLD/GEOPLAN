@@ -12,10 +12,10 @@ import json
 WEBFLEET_ACCOUNT  = "gph284"
 WEBFLEET_USERNAME = "admin"
 WEBFLEET_PASSWORD = "123456"
-WEBFLEET_APIKEY   = "VOTRE_APIKEY"
+WEBFLEET_APIKEY   = "9321614f-5839-4f13-9287-c206ffae92ad"
 # ═══════════════════════════════════════════
 
-WEBFLEET_BASE = "https://csv.telematics.tomtom.com/extern"
+WEBFLEET_BASE = "https://csv.business.tomtom.com/extern"
 
 class WebfleetHandler(BaseHTTPRequestHandler):
     def _cors(self):

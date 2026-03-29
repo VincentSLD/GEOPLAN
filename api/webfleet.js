@@ -35,7 +35,7 @@ module.exports = function handler(req, res) {
     useUTF8: 'true',
   });
 
-  const url = `https://csv.telematics.tomtom.com/extern?${params}`;
+  const url = `https://csv.business.tomtom.com/extern?${params}`;
 
   const request = https.get(url, { timeout: 25000 }, (response) => {
     let body = '';
