@@ -15,7 +15,7 @@ WEBFLEET_PASSWORD = "123456"
 WEBFLEET_APIKEY   = "9321614f-5839-4f13-9287-c206ffae92ad"
 # ═══════════════════════════════════════════
 
-WEBFLEET_BASE = "https://csv.business.tomtom.com/extern"
+WEBFLEET_BASE = "https://csv.webfleet.com/extern"
 
 class WebfleetHandler(BaseHTTPRequestHandler):
     def _cors(self):
