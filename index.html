@@ -2115,7 +2115,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); }
+function init() { populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaAbsences().then(() => { updateTeamAbsenceStatuses(); renderCurrentView(); }); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2242,6 +2242,7 @@ function renderWeek() {
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
       html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
+      html+=absenceBadgeHTML(tech.id, day.dateStr);
       di.forEach((int,idx)=>{
         const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
         html+=`<div class="int-group">`;
@@ -2300,6 +2301,8 @@ function renderMonth() {
     const d=new Date(sd);d.setDate(sd.getDate()+i);
     const ds=d.toISOString().split('T')[0], di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId));
     html+=`<div class="month-day ${d.getMonth()!==m?'other-month':''} ${ds===ts?'today':''}" onclick="currentDate=new Date('${ds}');switchView('day',document.querySelectorAll('.view-tab')[1])"><div class="month-day-num">${d.getDate()}</div>`;
+    // Show absences for selected tech in month view
+    if(selectedTechId){const ab=absenceBadgeHTML(selectedTechId,ds);if(ab)html+=ab;}
     di.slice(0,3).forEach(int=>{const c=TYPE_RAW[int.type];html+=`<div class="month-event" style="background:${c}12;color:${c};border-left:2px solid ${c}">${int.startTime} ${int.title.substring(0,15)}</div>`;});
     if(di.length>3)html+=`<div class="month-more">+${di.length-3} de plus</div>`;
     html+=`</div>`;
@@ -3109,7 +3112,9 @@ function closeStgForm() {
 // ======== TAB 1: ÉQUIPE ========
 let luccaCollabs = [];
 let luccaFilterEtabs = []; // array of selected etablissements
-let luccaAbsencesToday = {}; // { lucca_id: { am: bool, pm: bool, type: string } }
+// { "lucca_id:YYYY-MM-DD" => [{periode, type_absence}] }
+let luccaAbsences = {};
+let luccaAbsencesLoaded = false;
 
 const LUCCA_PROXY = '/api/lucca';
 
@@ -3119,55 +3124,62 @@ async function loadLuccaCollabs() {
     const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
     if (error) throw error;
     luccaCollabs = data || [];
-    // Load absences after collabs
-    await loadLuccaAbsencesToday();
-    // Update team member statuses based on absences
+    await loadLuccaAbsences();
     updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
 }
 
-async function loadLuccaAbsencesToday() {
+async function loadLuccaAbsences() {
+  if (luccaAbsencesLoaded) return;
   try {
-    const today = new Date().toISOString().split('T')[0];
-    // Fetch all leaves for today
-    const r = await fetch(`${LUCCA_PROXY}?path=/api/v3/leaves&fields=id,date,isAm,leaveAccount,leavePeriod.ownerId,isActive&date=between,${today},${today}&paging=0,500`);
-    if (!r.ok) return;
-    const data = await r.json();
-    const items = data.data?.items || data.items || [];
-    luccaAbsencesToday = {};
-    items.filter(l => l.isActive !== false).forEach(l => {
-      const ownerId = l.leavePeriod?.ownerId || l.leavePeriod?.owner?.id;
-      if (!ownerId) return;
-      const key = String(ownerId);
-      if (!luccaAbsencesToday[key]) luccaAbsencesToday[key] = { am: false, pm: false, type: '' };
-      if (l.isAm === true) luccaAbsencesToday[key].am = true;
-      else if (l.isAm === false) luccaAbsencesToday[key].pm = true;
-      // Fallback: parse from ID
-      else if (typeof l.id === 'string') {
-        if (l.id.endsWith('-AM')) luccaAbsencesToday[key].am = true;
-        else if (l.id.endsWith('-PM')) luccaAbsencesToday[key].pm = true;
-      }
-      luccaAbsencesToday[key].type = l.leaveAccount?.name || 'Absence';
+    // Load absences for a wide range (3 months around now)
+    const from = new Date(); from.setMonth(from.getMonth() - 1);
+    const to = new Date(); to.setMonth(to.getMonth() + 2);
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr = to.toISOString().split('T')[0];
+    const { data, error } = await sbAuth.from('absences_lucca')
+      .select('lucca_id, date_absence, periode, type_absence')
+      .eq('actif', true)
+      .gte('date_absence', fromStr)
+      .lte('date_absence', toStr);
+    if (error) throw error;
+    luccaAbsences = {};
+    (data || []).forEach(a => {
+      const key = `${a.lucca_id}:${a.date_absence}`;
+      if (!luccaAbsences[key]) luccaAbsences[key] = [];
+      luccaAbsences[key].push({ periode: a.periode, type: a.type_absence || 'Absence' });
     });
+    luccaAbsencesLoaded = true;
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
+// Get absence for a specific tech on a specific date
+function getAbsenceForDate(luccaId, dateStr) {
+  if (!luccaId) return null;
+  const key = `${luccaId}:${dateStr}`;
+  const abs = luccaAbsences[key];
+  if (!abs || abs.length === 0) return null;
+  const am = abs.some(a => a.periode === 'AM');
+  const pm = abs.some(a => a.periode === 'PM');
+  const type = abs[0].type;
+  if (am && pm) return { full: true, label: type, am: true, pm: true };
+  if (am) return { full: false, label: `${type} (matin)`, am: true, pm: false };
+  if (pm) return { full: false, label: `${type} (après-midi)`, am: false, pm: true };
+  return { full: true, label: type, am: true, pm: true }; // unknown period = full day
+}
+
+// Get today's status for team member display
 function getLuccaAbsenceStatus(luccaId) {
   if (!luccaId) return null;
-  const key = String(luccaId);
-  const abs = luccaAbsencesToday[key];
+  const today = new Date().toISOString().split('T')[0];
+  const abs = getAbsenceForDate(luccaId, today);
   if (!abs) return null;
-  const now = new Date();
-  const hour = now.getHours();
+  const hour = new Date().getHours();
   const isAm = hour < 13;
-  // Check if absent for current half-day
-  if (isAm && abs.am) return { absent: true, label: `${abs.type} (matin)`, full: abs.am && abs.pm };
-  if (!isAm && abs.pm) return { absent: true, label: `${abs.type} (après-midi)`, full: abs.am && abs.pm };
-  if (abs.am && abs.pm) return { absent: true, label: `${abs.type} (journée)`, full: true };
-  // Absent other half-day only
-  if (abs.am) return { absent: false, label: `${abs.type} (matin seulement)`, partial: true };
-  if (abs.pm) return { absent: false, label: `${abs.type} (après-midi seulement)`, partial: true };
-  return null;
+  if (abs.full) return { absent: true, label: `${abs.label} (journée)` };
+  if (isAm && abs.am) return { absent: true, label: `${abs.label}` };
+  if (!isAm && abs.pm) return { absent: true, label: `${abs.label}` };
+  return { absent: false, partial: true, label: abs.label };
 }
 
 function updateTeamAbsenceStatuses() {
@@ -3186,6 +3198,18 @@ function updateTeamAbsenceStatuses() {
       t._absenceLabel = null;
     }
   });
+}
+
+// Render absence badge in planning cells
+function absenceBadgeHTML(techId, dateStr) {
+  const teamMember = settingsTeam.find(t => t.id === techId);
+  if (!teamMember || !teamMember.luccaId) return '';
+  const abs = getAbsenceForDate(teamMember.luccaId, dateStr);
+  if (!abs) return '';
+  const bgColor = abs.full ? '#fee2e2' : '#fff7ed';
+  const textColor = abs.full ? '#dc2626' : '#ea580c';
+  const icon = abs.full ? '🚫' : '½';
+  return `<div class="absence-badge" style="background:${bgColor};color:${textColor};border:1px solid ${textColor}20;border-radius:6px;padding:4px 8px;font-size:0.65rem;font-weight:700;text-align:center;margin-bottom:3px;">${icon} ${abs.label}</div>`;
 }
 
 function getLuccaEtablissements() {
