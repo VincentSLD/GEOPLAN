@@ -3146,16 +3146,22 @@ async function loadLuccaAbsences() {
     var to = new Date(); to.setMonth(to.getMonth() + 2);
     var fromStr = from.toISOString().split('T')[0];
     var toStr = to.toISOString().split('T')[0];
-    var result = await sbAuth.from('absences_lucca')
-      .select('lucca_id, date_absence, periode, type_absence')
-      .eq('actif', true)
-      .gte('date_absence', fromStr)
-      .lte('date_absence', toStr);
-    if (result.error) { console.error('[Lucca] Erreur requête absences_lucca:', result.error); return; }
-    var data = result.data || [];
-
+    // Supabase default limit is 1000 rows — we need all absences
+    var allData = [], pageSize = 1000, offset = 0, hasMore = true;
+    while (hasMore) {
+      var result = await sbAuth.from('absences_lucca')
+        .select('lucca_id, date_absence, periode, type_absence')
+        .eq('actif', true)
+        .gte('date_absence', fromStr)
+        .lte('date_absence', toStr)
+        .range(offset, offset + pageSize - 1);
+      if (result.error) { console.error('[Lucca] Erreur requête absences_lucca:', result.error); return; }
+      allData = allData.concat(result.data || []);
+      hasMore = (result.data || []).length === pageSize;
+      offset += pageSize;
+    }
     luccaAbsences = {};
-    data.forEach(function(a) {
+    allData.forEach(function(a) {
       var dateNorm = (a.date_absence || '').substring(0, 10);
       var key = a.lucca_id + ':' + dateNorm;
       if (!luccaAbsences[key]) luccaAbsences[key] = [];
@@ -3163,7 +3169,7 @@ async function loadLuccaAbsences() {
     });
 
     luccaAbsencesLoaded = true;
-    console.log('[Lucca] ' + data.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées uniques');
+    console.log('[Lucca] ' + allData.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées uniques');
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
