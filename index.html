@@ -1329,19 +1329,18 @@ body::before {
 .ai-action-apply-all-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
 /* Settings */
-.settings-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:6000; backdrop-filter:blur(2px); }
-.settings-overlay.open { display:block; }
-.settings-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:900px; height:85vh; background:var(--bg-secondary); border-radius:var(--radius); z-index:6001; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden; }
-.settings-panel.open { display:flex; }
-.settings-header { padding:20px 24px 0; display:flex; align-items:center; justify-content:space-between; }
-.settings-header h2 { font-size:1.2rem; font-weight:800; color:var(--gph-dark); }
-.settings-tabs { display:flex; gap:0; padding:16px 24px 0; border-bottom:1px solid var(--border); }
+/* Settings inline view */
+.settings-inline { display:flex; flex-direction:column; height:100%; }
+.settings-tabs { display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--border); background:var(--bg-secondary); flex-shrink:0; }
 .settings-tab { padding:10px 20px; border:none; background:none; font-size:0.78rem; font-weight:600; color:var(--text-muted); cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; transition:all 0.2s; }
 .settings-tab:hover { color:var(--text-primary); }
 .settings-tab.active { color:var(--gph-dark); border-bottom-color:var(--gph-yellow); }
 .settings-body { flex:1; overflow-y:auto; padding:20px 24px; }
 .settings-content { display:none; }
 .settings-content.active { display:block; }
+.settings-subform { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.settings-subform-header { display:flex; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--bg-secondary); flex-shrink:0; }
+.settings-subform-body { flex:1; overflow-y:auto; padding:20px 24px; }
 
 .stg-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
 .stg-toolbar h3 { font-size:0.9rem; font-weight:700; }
@@ -1367,9 +1366,7 @@ body::before {
 .stg-status-partiel { background:#fff7ed; color:#ea580c; }
 
 /* Settings form modal (sub-modal) */
-.stg-form-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:7000; }
-.stg-form-overlay.open { display:flex; align-items:center; justify-content:center; }
-.stg-form { background:#fff; border-radius:var(--radius); padding:28px; width:90%; max-width:520px; max-height:80vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,0.25); }
+.stg-form { background:#fff; border-radius:var(--radius); padding:24px; max-width:600px; }
 .stg-form h3 { font-size:1rem; font-weight:800; margin-bottom:20px; color:var(--gph-dark); }
 .stg-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .stg-form-grid.full { grid-template-columns:1fr; }
@@ -1496,7 +1493,7 @@ body::before {
         <span style="color:var(--gph-yellow);font-weight:700;">Assistant IA</span>
       </div>
     </div>
-    <div class="nav-item" onclick="openSettings()">
+    <div class="nav-item" onclick="showView('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Paramétrage
     </div>
@@ -1577,6 +1574,33 @@ body::before {
         <div id="fleetMapInline" class="map-inline-leaflet"></div>
         <div class="fleet-toast" id="fleetToastInline"></div>
         <div class="map-inline-list" id="fleetListInline"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view-content" id="settingsView">
+    <div class="settings-inline">
+      <div class="settings-tabs" id="settingsTabsInline">
+        <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
+        <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
+        <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
+        <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
+        <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
+      </div>
+      <div class="settings-body" id="settingsBodyInline">
+        <div class="settings-content active" id="settingsTeam"></div>
+        <div class="settings-content" id="settingsVehicles"></div>
+        <div class="settings-content" id="settingsTypes"></div>
+        <div class="settings-content" id="settingsGroups"></div>
+        <div class="settings-content" id="settingsGeneral"></div>
+      </div>
+      <!-- Sub-form area (replaces popup) -->
+      <div class="settings-subform" id="settingsSubform" style="display:none;">
+        <div class="settings-subform-header">
+          <button class="btn btn-ghost" onclick="closeStgForm()">← Retour</button>
+          <span id="settingsSubformTitle" style="font-weight:700;font-size:0.9rem;"></span>
+        </div>
+        <div class="settings-subform-body" id="settingsSubformBody"></div>
       </div>
     </div>
   </div>
@@ -1719,28 +1743,7 @@ body::before {
   </div>
 </div>
 
-<!-- SETTINGS PANEL -->
-<div id="settings-overlay" class="settings-overlay" onclick="closeSettings()"></div>
-<div id="settings-panel" class="settings-panel">
-  <div class="settings-header">
-    <h2>Paramétrage</h2>
-    <button class="ai-close" onclick="closeSettings()">&times;</button>
-  </div>
-  <div class="settings-tabs">
-    <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
-    <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
-    <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
-    <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
-    <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
-  </div>
-  <div class="settings-body">
-    <div class="settings-content active" id="settingsTeam"></div>
-    <div class="settings-content" id="settingsVehicles"></div>
-    <div class="settings-content" id="settingsTypes"></div>
-    <div class="settings-content" id="settingsGroups"></div>
-    <div class="settings-content" id="settingsGeneral"></div>
-  </div>
-</div>
+<!-- Settings panel removed — now inline in settingsView -->
 
 </div><!-- .app -->
 
@@ -2175,8 +2178,9 @@ function switchView(v,tab) {
   document.querySelectorAll('.view-content').forEach(el=>el.classList.remove('active'));
   document.getElementById(v+'View').classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  if (v !== 'map') { document.querySelectorAll('.nav-item')[v==='list'?1:0].classList.add('active'); }
-  if (v === 'map') { initFleetMap(); } else { updateTopbarDate(); renderCurrentView(); }
+  if (v === 'map') { initFleetMap(); }
+  else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
+  else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
 function toggleSidebar() {
@@ -3048,38 +3052,40 @@ let settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
 
 // --- Open / Close ---
 function openSettings() {
-  document.getElementById('settings-overlay').classList.add('open');
-  document.getElementById('settings-panel').classList.add('open');
+  switchView('settings');
   renderSettingsTeam();
 }
 function closeSettings() {
-  document.getElementById('settings-overlay').classList.remove('open');
-  document.getElementById('settings-panel').classList.remove('open');
   closeStgForm();
 }
 function switchSettingsTab(tab, btn) {
-  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
+  closeStgForm(); // close any open sub-form first
+  document.querySelectorAll('#settingsTabsInline .settings-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#settingsBodyInline .settings-content').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
   const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', groups: 'settingsGroups', general: 'settingsGeneral' };
   document.getElementById(map[tab]).classList.add('active');
   ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
 }
 
-// --- Sub-form modal ---
-let stgFormOverlay = null;
+// --- Sub-form (inline, replaces list with form + back button) ---
 function openStgForm(html) {
-  if (!stgFormOverlay) {
-    stgFormOverlay = document.createElement('div');
-    stgFormOverlay.className = 'stg-form-overlay';
-    document.body.appendChild(stgFormOverlay);
-  }
-  stgFormOverlay.innerHTML = `<div class="stg-form">${html}</div>`;
-  stgFormOverlay.classList.add('open');
-  stgFormOverlay.onclick = (e) => { if (e.target === stgFormOverlay) closeStgForm(); };
+  // Extract title from <h3> in the HTML
+  const titleMatch = html.match(/<h3[^>]*>(.*?)<\/h3>/);
+  const title = titleMatch ? titleMatch[1] : 'Modifier';
+  const bodyHtml = html.replace(/<h3[^>]*>.*?<\/h3>/, '');
+
+  document.getElementById('settingsTabsInline').style.display = 'none';
+  document.getElementById('settingsBodyInline').style.display = 'none';
+  const subform = document.getElementById('settingsSubform');
+  subform.style.display = 'flex';
+  document.getElementById('settingsSubformTitle').innerHTML = title;
+  document.getElementById('settingsSubformBody').innerHTML = `<div class="stg-form">${bodyHtml}</div>`;
 }
 function closeStgForm() {
-  if (stgFormOverlay) stgFormOverlay.classList.remove('open');
+  document.getElementById('settingsTabsInline').style.display = '';
+  document.getElementById('settingsBodyInline').style.display = '';
+  document.getElementById('settingsSubform').style.display = 'none';
 }
 
 // ======== TAB 1: ÉQUIPE ========
