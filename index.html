@@ -3220,10 +3220,15 @@ function getLuccaAbsenceStatus(luccaId) {
 }
 
 function updateTeamAbsenceStatuses() {
+  _luccaIdMap = null; // reset map
   settingsTeam.forEach(t => {
-    const luccaId = t.luccaId;
-    if (!luccaId) return;
-    const abs = getLuccaAbsenceStatus(luccaId);
+    if (!t.luccaId) { t._autoStatut = null; t._absenceLabel = null; return; }
+    const possibleIds = getLuccaIdsForTech(t.id);
+    let abs = null;
+    for (const lid of possibleIds) {
+      abs = getLuccaAbsenceStatus(lid);
+      if (abs) break;
+    }
     if (abs && abs.absent) {
       t._autoStatut = 'absent';
       t._absenceLabel = abs.label;
@@ -3237,11 +3242,58 @@ function updateTeamAbsenceStatuses() {
   });
 }
 
+// Build a mapping from all possible Lucca IDs to team member
+let _luccaIdMap = null; // { anyLuccaId: teamMemberId }
+function buildLuccaIdMap() {
+  if (_luccaIdMap) return;
+  _luccaIdMap = {};
+  settingsTeam.forEach(t => {
+    if (!t.luccaId) return;
+    // Find the collab in luccaCollabs by any match
+    const collab = luccaCollabs.find(c =>
+      String(c.lucca_id) === String(t.luccaId) ||
+      String(c.id).replace('lucca_', '') === String(t.luccaId) ||
+      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) ||
+      (`${c.prenom} ${c.nom}`.toLowerCase() === `${t.prenom} ${t.nom}`.toLowerCase())
+    );
+    // Map all possible IDs for this collab
+    if (collab) {
+      _luccaIdMap[String(collab.lucca_id)] = t.id;
+      _luccaIdMap[String(collab.id).replace('lucca_', '')] = t.id;
+    }
+    _luccaIdMap[String(t.luccaId)] = t.id;
+  });
+}
+
+// Reverse lookup: from techId, get all possible lucca IDs to check absences
+function getLuccaIdsForTech(techId) {
+  buildLuccaIdMap();
+  const teamMember = settingsTeam.find(t => t.id === techId);
+  if (!teamMember || !teamMember.luccaId) return [];
+  const ids = [String(teamMember.luccaId)];
+  // Find matching collab and add all its IDs
+  const collab = luccaCollabs.find(c =>
+    String(c.lucca_id) === String(teamMember.luccaId) ||
+    String(c.id).replace('lucca_', '') === String(teamMember.luccaId) ||
+    (c.email && teamMember.email && c.email.toLowerCase() === teamMember.email.toLowerCase()) ||
+    (`${c.prenom} ${c.nom}`.toLowerCase() === `${teamMember.prenom} ${teamMember.nom}`.toLowerCase())
+  );
+  if (collab) {
+    ids.push(String(collab.lucca_id));
+    ids.push(String(collab.id).replace('lucca_', ''));
+  }
+  return [...new Set(ids)];
+}
+
 // Render absence badge in planning cells
 function absenceBadgeHTML(techId, dateStr) {
-  const teamMember = settingsTeam.find(t => t.id === techId);
-  if (!teamMember || !teamMember.luccaId) return '';
-  const abs = getAbsenceForDate(String(teamMember.luccaId), dateStr);
+  const possibleIds = getLuccaIdsForTech(techId);
+  if (possibleIds.length === 0) return '';
+  let abs = null;
+  for (const lid of possibleIds) {
+    abs = getAbsenceForDate(lid, dateStr);
+    if (abs) break;
+  }
   if (!abs) return '';
   const bgColor = abs.full ? '#fee2e2' : '#fff7ed';
   const textColor = abs.full ? '#dc2626' : '#ea580c';
