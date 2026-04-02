@@ -3349,82 +3349,140 @@ function syncTeamToTechnicians() {
   renderCurrentView();
 }
 
-// ======== TAB 2: VÉHICULES ========
+// ======== TAB 2: VÉHICULES (Webfleet + attributions) ========
+// Vehicle assignments stored separately: { objectno: 'collaborateur name' }
+let vehicleAssignments = loadSettings('geoplan_vehicle_assign', {});
+let vehicleExtras = loadSettings('geoplan_vehicle_extras', {}); // { objectno: { equipements, prochRevision, prochCT } }
+
+async function loadWebfleetVehicles() {
+  // Use cached fleet data if available, otherwise fetch
+  if (fleetData.length > 0) return;
+  const cached = localStorage.getItem('geoplan_fleet');
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      fleetData = parsed.data || [];
+      return;
+    } catch(e) {}
+  }
+  // Fetch from API
+  try {
+    const r = await fetch(WEBFLEET_PROXY + '?action=showObjectReportExtern');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.error) return;
+    const vehicles = Array.isArray(data) ? data : (data.objects || data.results || []);
+    fleetData = vehicles.map(v => {
+      let lat = 0, lng = 0;
+      if (v.latitude_mdeg != null) lat = v.latitude_mdeg / 1000000;
+      if (v.longitude_mdeg != null) lng = v.longitude_mdeg / 1000000;
+      return {
+        objectno: v.objectno || '', objectname: v.objectname || '',
+        drivername: v.drivername || '', lat, lng,
+        speed: parseInt(v.speed || 0, 10), ignition: v.ignition || 0,
+        standstill: v.standstill || 0, postext: v.postext || v.postext_short || '',
+        postime: v.pos_time || v.postime || '', objecttype: v.objecttype || '',
+        odometer: v.odometer_long ? Math.round(v.odometer_long / 100) / 10 : (v.odometer || 0),
+      };
+    }).filter(v => v.objectname);
+    try { localStorage.setItem('geoplan_fleet', JSON.stringify({ data: fleetData, ts: Date.now() })); } catch(e) {}
+  } catch(e) { console.warn('[Vehicles] Erreur chargement Webfleet:', e); }
+}
+
 function renderSettingsVehicles() {
   const c = document.getElementById('settingsVehicles');
-  let html = `<div class="stg-toolbar"><h3>Parc véhicules (${settingsVehicles.length})</h3><button class="stg-add-btn" onclick="editVehicle(null)">+ Ajouter</button></div>`;
-  html += `<table class="stg-table"><thead><tr><th>Type</th><th>Marque / Modèle</th><th>Immat.</th><th>PTAC</th><th>Affectation</th><th>Équipements</th><th>Km</th><th>Proch. révision</th><th>CT</th><th>Actions</th></tr></thead><tbody>`;
-  settingsVehicles.forEach(v => {
-    const revWarn = v.prochRevision && new Date(v.prochRevision) < new Date(Date.now() + 30*86400000) ? ' style="color:#d97706;font-weight:700;"' : '';
-    const ctWarn = v.prochCT && new Date(v.prochCT) < new Date(Date.now() + 60*86400000) ? ' style="color:#dc2626;font-weight:700;"' : '';
+  let html = `<div class="stg-toolbar"><h3>Flotte Webfleet (${fleetData.length} véhicules)</h3>`;
+  html += `<button class="stg-add-btn" onclick="refreshWebfleetVehicles()">↻ Actualiser depuis Webfleet</button></div>`;
+
+  if (fleetData.length === 0) {
+    html += `<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:0.82rem;">Chargement des véhicules Webfleet...</div>`;
+    c.innerHTML = html;
+    loadWebfleetVehicles().then(() => { if (fleetData.length > 0) renderSettingsVehicles(); });
+    return;
+  }
+
+  html += `<table class="stg-table"><thead><tr><th>Nom du véhicule</th><th>Type</th><th>Dernière position</th><th>Km</th><th>Statut</th><th>Collaborateur attribué</th><th>Équipements</th><th>Actions</th></tr></thead><tbody>`;
+  fleetData.forEach(v => {
+    const assign = vehicleAssignments[v.objectno] || '';
+    const extras = vehicleExtras[v.objectno] || {};
+    const statusIcon = v.speed > 0 ? '🟢' : (v.ignition === 1 ? '🟡' : '🔴');
+    const statusTxt = v.speed > 0 ? 'En route' : (v.ignition === 1 ? 'Contact' : 'Arrêt');
+    const odom = v.odometer ? `${Math.round(v.odometer).toLocaleString('fr-FR')} km` : '—';
+    const timeTxt = v.postime ? new Date(v.postime).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+
     html += `<tr>
-      <td><strong>${v.type}</strong></td>
-      <td>${v.marque}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:0.74rem;">${v.immat}</td>
-      <td>${v.ptac}</td>
-      <td>${v.affectation || '—'}</td>
-      <td style="font-size:0.7rem;">${v.equipements || '—'}</td>
-      <td style="font-family:'DM Mono',monospace;">${v.kmActuel ? v.kmActuel.toLocaleString('fr-FR') : '—'}</td>
-      <td${revWarn}>${v.prochRevision || '—'}</td>
-      <td${ctWarn}>${v.prochCT || '—'}</td>
-      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editVehicle(${v.id})">Modifier</button><button class="stg-btn-del" onclick="deleteVehicle(${v.id})">Suppr.</button></div></td>
+      <td><strong>${v.objectname}</strong></td>
+      <td style="font-size:0.72rem;">${v.objecttype || '—'}</td>
+      <td style="font-size:0.7rem;" title="${v.postext || ''}">${v.postext ? v.postext.substring(0, 35) + (v.postext.length > 35 ? '...' : '') : '—'}<br><span style="color:var(--text-muted);font-size:0.62rem;">${timeTxt}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.72rem;">${odom}</td>
+      <td>${statusIcon} <span style="font-size:0.7rem;">${statusTxt}</span></td>
+      <td>
+        <select class="stg-vehicle-assign" data-objectno="${v.objectno}" onchange="saveVehicleAssignment('${v.objectno}', this.value)" style="height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;max-width:180px;">
+          <option value="">— Non attribué —</option>
+          ${settingsTeam.map(t => `<option value="${t.prenom} ${t.nom}" ${assign === t.prenom + ' ' + t.nom ? 'selected' : ''}>${t.prenom} ${t.nom}</option>`).join('')}
+        </select>
+      </td>
+      <td style="font-size:0.7rem;">${extras.equipements || '—'}</td>
+      <td><button class="stg-btn-edit" onclick="editVehicleExtras('${v.objectno}')">Détails</button></td>
     </tr>`;
   });
   html += `</tbody></table>`;
   c.innerHTML = html;
 }
 
-function editVehicle(id) {
-  const v = id ? settingsVehicles.find(x => x.id === id) : { id: 0, type: 'Fourgon', marque: '', immat: '', ptac: '', affectation: '', equipements: '', kmActuel: '', prochRevision: '', prochCT: '' };
-  const teamOpts = settingsTeam.map(t => `<option value="${t.prenom} ${t.nom}" ${v.affectation === t.prenom + ' ' + t.nom ? 'selected' : ''}>${t.prenom} ${t.nom}</option>`).join('');
+function saveVehicleAssignment(objectno, collab) {
+  if (collab) { vehicleAssignments[objectno] = collab; } else { delete vehicleAssignments[objectno]; }
+  saveSettings('geoplan_vehicle_assign', vehicleAssignments);
+  // Also update the team member's vehicule field
+  const teamMember = settingsTeam.find(t => `${t.prenom} ${t.nom}` === collab);
+  if (teamMember) {
+    const veh = fleetData.find(v => v.objectno === objectno);
+    teamMember.vehicule = veh ? veh.objectname : '';
+    saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  }
+}
+
+function editVehicleExtras(objectno) {
+  const v = fleetData.find(x => x.objectno === objectno);
+  const extras = vehicleExtras[objectno] || {};
+  const assign = vehicleAssignments[objectno] || '';
+  if (!v) return;
   openStgForm(`
-    <h3>${id ? 'Modifier' : 'Ajouter'} un véhicule</h3>
+    <h3>Détails — ${v.objectname}</h3>
+    <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:12px;margin-bottom:16px;font-size:0.78rem;">
+      <div><strong>Type :</strong> ${v.objecttype || '—'}</div>
+      <div><strong>Position :</strong> ${v.postext || '—'}</div>
+      <div><strong>Compteur :</strong> ${v.odometer ? Math.round(v.odometer).toLocaleString('fr-FR') + ' km' : '—'}</div>
+      <div><strong>Attribué à :</strong> ${assign || 'Non attribué'}</div>
+    </div>
     <div class="stg-form-grid">
-      <div class="stg-form-field"><label>Type</label><select id="stf-vtype"><option ${v.type==='Fourgon'?'selected':''}>Fourgon</option><option ${v.type==='4x4'?'selected':''}>4x4</option><option ${v.type==='Camion'?'selected':''}>Camion</option><option ${v.type==='Véhicule léger'?'selected':''}>Véhicule léger</option><option ${v.type==='Engin de chantier'?'selected':''}>Engin de chantier</option></select></div>
-      <div class="stg-form-field"><label>Marque / Modèle</label><input id="stf-vmarque" value="${v.marque}"></div>
-      <div class="stg-form-field"><label>Immatriculation</label><input id="stf-vimmat" value="${v.immat}" placeholder="AB-123-CD"></div>
-      <div class="stg-form-field"><label>PTAC</label><input id="stf-vptac" value="${v.ptac}" placeholder="3.5t"></div>
-      <div class="stg-form-field"><label>Affectation</label><select id="stf-vaffect"><option value="">Non affecté</option>${teamOpts}</select></div>
-      <div class="stg-form-field"><label>Kilométrage</label><input id="stf-vkm" type="number" value="${v.kmActuel || ''}"></div>
-      <div class="stg-form-field span2"><label>Équipements embarqués</label><input id="stf-vequip" value="${v.equipements || ''}" placeholder="Tarière, Carotteuse, ..."></div>
-      <div class="stg-form-field"><label>Prochaine révision</label><input id="stf-vrev" type="date" value="${v.prochRevision || ''}"></div>
-      <div class="stg-form-field"><label>Contrôle technique</label><input id="stf-vct" type="date" value="${v.prochCT || ''}"></div>
+      <div class="stg-form-field span2"><label>Équipements embarqués</label><input id="stf-vequip" value="${extras.equipements || ''}" placeholder="Tarière, Carotteuse, Pénétromètre..."></div>
+      <div class="stg-form-field"><label>Prochaine révision</label><input id="stf-vrev" type="date" value="${extras.prochRevision || ''}"></div>
+      <div class="stg-form-field"><label>Contrôle technique</label><input id="stf-vct" type="date" value="${extras.prochCT || ''}"></div>
+      <div class="stg-form-field span2"><label>Notes</label><input id="stf-vnotes" value="${extras.notes || ''}" placeholder="Remarques sur le véhicule..."></div>
     </div>
     <div class="stg-form-actions">
       <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
-      <button class="stg-form-save" onclick="saveVehicle(${id || 0})">Enregistrer</button>
+      <button class="stg-form-save" onclick="saveVehicleExtras('${objectno}')">Enregistrer</button>
     </div>
   `);
 }
 
-function saveVehicle(id) {
-  const data = {
-    type: document.getElementById('stf-vtype').value,
-    marque: document.getElementById('stf-vmarque').value.trim(),
-    immat: document.getElementById('stf-vimmat').value.trim(),
-    ptac: document.getElementById('stf-vptac').value.trim(),
-    affectation: document.getElementById('stf-vaffect').value,
+function saveVehicleExtras(objectno) {
+  vehicleExtras[objectno] = {
     equipements: document.getElementById('stf-vequip').value.trim(),
-    kmActuel: parseInt(document.getElementById('stf-vkm').value) || 0,
     prochRevision: document.getElementById('stf-vrev').value,
     prochCT: document.getElementById('stf-vct').value,
+    notes: document.getElementById('stf-vnotes').value.trim(),
   };
-  if (id) {
-    const idx = settingsVehicles.findIndex(x => x.id === id);
-    if (idx >= 0) { data.id = id; settingsVehicles[idx] = data; }
-  } else {
-    data.id = settingsVehicles.length ? Math.max(...settingsVehicles.map(x => x.id)) + 1 : 1;
-    settingsVehicles.push(data);
-  }
-  saveSettings(SETTINGS_KEYS.vehicles, settingsVehicles);
+  saveSettings('geoplan_vehicle_extras', vehicleExtras);
   closeStgForm();
   renderSettingsVehicles();
 }
 
-function deleteVehicle(id) {
-  if (!confirm('Supprimer ce véhicule ?')) return;
-  settingsVehicles = settingsVehicles.filter(x => x.id !== id);
-  saveSettings(SETTINGS_KEYS.vehicles, settingsVehicles);
+async function refreshWebfleetVehicles() {
+  fleetData = [];
+  localStorage.removeItem('geoplan_fleet');
   renderSettingsVehicles();
 }
 
