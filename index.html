@@ -1399,6 +1399,16 @@ body::before {
 .lucca-etab-option { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:0.72rem; cursor:pointer; white-space:nowrap; }
 .lucca-etab-option:hover { background:var(--bg-card-hover); }
 .lucca-etab-option input[type="checkbox"] { cursor:pointer; }
+
+/* Address autocomplete dropdown */
+.addr-dropdown { display:none; position:absolute; top:100%; left:0; right:0; margin-top:2px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-xs); box-shadow:var(--shadow-lg); z-index:200; max-height:220px; overflow-y:auto; }
+.addr-item { padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.1s; }
+.addr-item:last-child { border-bottom:none; }
+.addr-item:hover { background:var(--gph-yellow-light); }
+.addr-item-main { display:block; font-size:0.78rem; font-weight:600; color:var(--text-primary); }
+.addr-item-context { display:block; font-size:0.65rem; color:var(--text-muted); margin-top:1px; }
+.addr-empty { color:var(--text-muted); font-size:0.75rem; font-style:italic; cursor:default; }
+.addr-empty:hover { background:transparent; }
 .stg-hab { padding:2px 7px; border-radius:8px; font-size:0.6rem; font-weight:700; background:var(--bg-primary); border:1px solid var(--border); }
 .stg-hab.expired { background:#fee2e2; color:#dc2626; border-color:rgba(220,38,38,0.3); }
 .stg-group-tag { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; white-space:nowrap; }
@@ -1632,7 +1642,7 @@ body::before {
       </div>
       <div class="form-group"><label class="form-label">Étude Akuiteo</label><select class="form-select" id="intEtude" onchange="onEtudeSelect()"><option value="">— Aucune étude —</option></select></div>
       <div class="form-group"><label class="form-label">Intitulé / Étude</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
-      <div class="form-group"><label class="form-label">Adresse du site</label><input class="form-input" id="intAddress" placeholder="Ex: 12 rue des Lilas, 44000 Nantes"></div>
+      <div class="form-group"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Ex: 12 rue des Lilas, 44000 Nantes" autocomplete="off"></div></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="intDate" type="date"></div>
         <div class="form-group"><label class="form-label">Heure début</label><input class="form-input" id="intStart" type="time" value="08:00"></div>
@@ -2321,7 +2331,8 @@ function handleDrag(e,id){draggedId=id;e.dataTransfer.effectAllowed='move';}
 function handleDrop(e,tid,ds){e.preventDefault();if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;renderCurrentView();}draggedId=null;}}
 
 // ===== MODAL =====
-function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value=currentDate.toISOString().split('T')[0];['intTitle','intAddress','intClient','intNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('intStart').value='08:00';document.getElementById('intEnd').value='12:00';document.getElementById('intTravel').value='30';document.getElementById('intTravelReturn').value='30';document.getElementById('modalOverlay').classList.add('active');}
+let _intAddrInitialized = false;
+function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value=currentDate.toISOString().split('T')[0];['intTitle','intAddress','intClient','intNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('intStart').value='08:00';document.getElementById('intEnd').value='12:00';document.getElementById('intTravel').value='30';document.getElementById('intTravelReturn').value='30';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -3081,6 +3092,13 @@ function openStgForm(html) {
   subform.style.display = 'flex';
   document.getElementById('settingsSubformTitle').innerHTML = title;
   document.getElementById('settingsSubformBody').innerHTML = `<div class="stg-form">${bodyHtml}</div>`;
+
+  // Init address autocomplete on any address fields present
+  setTimeout(() => {
+    if (document.getElementById('stf-depart-adresse')) setupAddressAutocomplete('stf-depart-adresse', 'stf-depart-lat', 'stf-depart-lon', 'stf-depart-geocode');
+    if (document.getElementById('stf-arrivee-adresse')) setupAddressAutocomplete('stf-arrivee-adresse', 'stf-arrivee-lat', 'stf-arrivee-lon', 'stf-arrivee-geocode');
+    if (document.getElementById('stf-agadresse')) setupAddressAutocomplete('stf-agadresse', 'stf-aglat', 'stf-aglon', 'stf-ag-geocode-status');
+  }, 50);
 }
 function closeStgForm() {
   document.getElementById('settingsTabsInline').style.display = '';
@@ -3948,28 +3966,125 @@ function renderAgencesList() {
   list.innerHTML = html;
 }
 
-// ═══ GÉOCODAGE (Nominatim / OpenStreetMap) ═══
+// ═══ AUTOCOMPLÉTION ADRESSE (API BAN — data.gouv.fr) ═══
+const _addrTimers = {};
+
+function setupAddressAutocomplete(inputId, latFieldId, lonFieldId, statusId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  // Create dropdown container
+  let dropdown = input.parentElement.querySelector('.addr-dropdown');
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'addr-dropdown';
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(dropdown);
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(_addrTimers[inputId]);
+    if (q.length < 4) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
+    _addrTimers[inputId] = setTimeout(() => fetchAddressSuggestions(q, inputId, latFieldId, lonFieldId, statusId, dropdown), 250);
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+async function fetchAddressSuggestions(query, inputId, latFieldId, lonFieldId, statusId, dropdown) {
+  try {
+    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&autocomplete=1&limit=5`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const features = data.features || [];
+    if (features.length === 0) { dropdown.innerHTML = '<div class="addr-item addr-empty">Aucun résultat</div>'; dropdown.style.display = 'block'; return; }
+
+    dropdown.innerHTML = features.map((f, i) => {
+      const props = f.properties || {};
+      const [lon, lat] = f.geometry?.coordinates || [0, 0];
+      return `<div class="addr-item" data-idx="${i}" data-lat="${lat}" data-lon="${lon}" data-label="${(props.label || '').replace(/"/g, '&quot;')}">
+        <span class="addr-item-main">${props.label || '?'}</span>
+        <span class="addr-item-context">${props.context || ''}</span>
+      </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
+
+    // Click handler on items
+    dropdown.querySelectorAll('.addr-item[data-idx]').forEach(item => {
+      item.addEventListener('click', () => {
+        const lat = parseFloat(item.dataset.lat);
+        const lon = parseFloat(item.dataset.lon);
+        const label = item.dataset.label;
+        document.getElementById(inputId).value = label;
+        document.getElementById(latFieldId).value = lat.toFixed(6);
+        document.getElementById(lonFieldId).value = lon.toFixed(6);
+        const statusEl = document.getElementById(statusId);
+        if (statusEl) { statusEl.textContent = `✓ ${lat.toFixed(4)}, ${lon.toFixed(4)}`; statusEl.style.color = '#16A34A'; }
+        dropdown.style.display = 'none';
+      });
+    });
+  } catch(e) { console.warn('[BAN] Erreur autocomplete:', e); }
+}
+
+// Simple autocomplete (no lat/lon fields, just fills input)
+function setupAddressAutocompleteSimple(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let dropdown = input.parentElement.querySelector('.addr-dropdown');
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'addr-dropdown';
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(dropdown);
+  }
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(_addrTimers[inputId]);
+    if (q.length < 4) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
+    _addrTimers[inputId] = setTimeout(async () => {
+      try {
+        const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&autocomplete=1&limit=5`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const features = data.features || [];
+        if (features.length === 0) { dropdown.style.display = 'none'; return; }
+        dropdown.innerHTML = features.map(f => {
+          const p = f.properties || {};
+          return `<div class="addr-item" data-label="${(p.label || '').replace(/"/g, '&quot;')}"><span class="addr-item-main">${p.label || '?'}</span><span class="addr-item-context">${p.context || ''}</span></div>`;
+        }).join('');
+        dropdown.style.display = 'block';
+        dropdown.querySelectorAll('.addr-item').forEach(item => {
+          item.addEventListener('click', () => { input.value = item.dataset.label; dropdown.style.display = 'none'; });
+        });
+      } catch(e) {}
+    }, 250);
+  });
+  document.addEventListener('click', (e) => { if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none'; });
+}
+
+// Legacy fallback for geocode button
 async function geocodeAddress(address, latFieldId, lonFieldId, statusId) {
   const statusEl = document.getElementById(statusId);
-  if (!address || address.length < 5) { if (statusEl) statusEl.textContent = 'Adresse trop courte'; return; }
+  if (!address || address.length < 4) { if (statusEl) statusEl.textContent = 'Adresse trop courte'; return; }
   if (statusEl) { statusEl.textContent = 'Recherche...'; statusEl.style.color = 'var(--text-muted)'; }
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=fr&limit=1`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'GéoPlan GPH' } });
-    if (!r.ok) throw new Error('Erreur Nominatim');
-    const results = await r.json();
-    if (results.length > 0) {
-      const lat = parseFloat(results[0].lat);
-      const lon = parseFloat(results[0].lon);
+    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(address)}&limit=1`);
+    if (!r.ok) throw new Error('Erreur API');
+    const data = await r.json();
+    if (data.features && data.features.length > 0) {
+      const [lon, lat] = data.features[0].geometry.coordinates;
       document.getElementById(latFieldId).value = lat.toFixed(6);
       document.getElementById(lonFieldId).value = lon.toFixed(6);
-      if (statusEl) { statusEl.textContent = `✓ ${results[0].display_name.substring(0, 60)}`; statusEl.style.color = '#16A34A'; }
+      if (statusEl) { statusEl.textContent = `✓ ${data.features[0].properties.label}`; statusEl.style.color = '#16A34A'; }
     } else {
       if (statusEl) { statusEl.textContent = '✗ Adresse non trouvée'; statusEl.style.color = '#DC2626'; }
     }
-  } catch(e) {
-    if (statusEl) { statusEl.textContent = '✗ Erreur : ' + e.message; statusEl.style.color = '#DC2626'; }
-  }
+  } catch(e) { if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = '#DC2626'; } }
 }
 
 function editAgence(id) {
