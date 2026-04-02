@@ -3219,53 +3219,56 @@ function getLuccaAbsenceStatus(luccaId) {
   return { absent: false, partial: true, label: abs.label };
 }
 
-// Build a mapping from all possible Lucca IDs to team member
-let _luccaIdMap = null;
+var _luccaIdMap = null;
+
+function _findCollabForTeamMember(t) {
+  return luccaCollabs.find(function(c) {
+    return String(c.lucca_id) === String(t.luccaId) ||
+      String(c.id).replace('lucca_', '') === String(t.luccaId) ||
+      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) ||
+      (c.prenom + ' ' + c.nom).toLowerCase() === (t.prenom + ' ' + t.nom).toLowerCase();
+  });
+}
+
 function buildLuccaIdMap() {
   if (_luccaIdMap) return;
   _luccaIdMap = {};
-  settingsTeam.forEach(t => {
-    if (!t.luccaId) return;
-    const collab = luccaCollabs.find(c =>
-      String(c.lucca_id) === String(t.luccaId) ||
-      String(c.id).replace('lucca_', '') === String(t.luccaId) ||
-      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) ||
-      (`${c.prenom} ${c.nom}`.toLowerCase() === `${t.prenom} ${t.nom}`.toLowerCase())
-    );
+  for (var i = 0; i < settingsTeam.length; i++) {
+    var t = settingsTeam[i];
+    if (!t.luccaId) continue;
+    var collab = _findCollabForTeamMember(t);
     if (collab) {
       _luccaIdMap[String(collab.lucca_id)] = t.id;
       _luccaIdMap[String(collab.id).replace('lucca_', '')] = t.id;
     }
     _luccaIdMap[String(t.luccaId)] = t.id;
-  });
+  }
 }
 
 function getLuccaIdsForTech(techId) {
   buildLuccaIdMap();
-  const teamMember = settingsTeam.find(t => t.id === techId);
+  var teamMember = settingsTeam.find(function(t) { return t.id === techId; });
   if (!teamMember || !teamMember.luccaId) return [];
-  const ids = [String(teamMember.luccaId)];
-  const collab = luccaCollabs.find(c =>
-    String(c.lucca_id) === String(teamMember.luccaId) ||
-    String(c.id).replace('lucca_', '') === String(teamMember.luccaId) ||
-    (c.email && teamMember.email && c.email.toLowerCase() === teamMember.email.toLowerCase()) ||
-    (`${c.prenom} ${c.nom}`.toLowerCase() === `${teamMember.prenom} ${teamMember.nom}`.toLowerCase())
-  );
+  var ids = [String(teamMember.luccaId)];
+  var collab = _findCollabForTeamMember(teamMember);
   if (collab) {
     ids.push(String(collab.lucca_id));
     ids.push(String(collab.id).replace('lucca_', ''));
   }
-  return [...new Set(ids)];
+  var unique = [];
+  for (var i = 0; i < ids.length; i++) { if (unique.indexOf(ids[i]) === -1) unique.push(ids[i]); }
+  return unique;
 }
 
 function updateTeamAbsenceStatuses() {
   _luccaIdMap = null;
-  settingsTeam.forEach(t => {
-    if (!t.luccaId) { t._autoStatut = null; t._absenceLabel = null; return; }
-    const possibleIds = getLuccaIdsForTech(t.id);
-    let abs = null;
-    for (const lid of possibleIds) {
-      abs = getLuccaAbsenceStatus(lid);
+  for (var i = 0; i < settingsTeam.length; i++) {
+    var t = settingsTeam[i];
+    if (!t.luccaId) { t._autoStatut = null; t._absenceLabel = null; continue; }
+    var possibleIds = getLuccaIdsForTech(t.id);
+    var abs = null;
+    for (var j = 0; j < possibleIds.length; j++) {
+      abs = getLuccaAbsenceStatus(possibleIds[j]);
       if (abs) break;
     }
     if (abs && abs.absent) {
@@ -3278,15 +3281,15 @@ function updateTeamAbsenceStatuses() {
       t._autoStatut = null;
       t._absenceLabel = null;
     }
-  });
+  }
 }
 
 function absenceBadgeHTML(techId, dateStr) {
-  const possibleIds = getLuccaIdsForTech(techId);
+  var possibleIds = getLuccaIdsForTech(techId);
   if (possibleIds.length === 0) return '';
-  let abs = null;
-  for (const lid of possibleIds) {
-    abs = getAbsenceForDate(lid, dateStr);
+  var abs = null;
+  for (var i = 0; i < possibleIds.length; i++) {
+    abs = getAbsenceForDate(possibleIds[i], dateStr);
     if (abs) break;
   }
   if (!abs) return '';
