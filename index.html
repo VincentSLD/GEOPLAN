@@ -1399,6 +1399,8 @@ body::before {
 .lucca-etab-option { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:0.72rem; cursor:pointer; white-space:nowrap; }
 .lucca-etab-option:hover { background:var(--bg-card-hover); }
 .lucca-etab-option input[type="checkbox"] { cursor:pointer; }
+.stg-accordion-header { display:flex; align-items:center; gap:8px; cursor:pointer; padding:6px 0; user-select:none; }
+.stg-accordion-header:hover h3 { color:var(--gph-yellow); }
 
 /* Address autocomplete dropdown */
 .addr-dropdown { display:none; position:absolute; top:100%; left:0; right:0; margin-top:2px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-xs); box-shadow:var(--shadow-lg); z-index:200; max-height:220px; overflow-y:auto; }
@@ -3278,9 +3280,14 @@ function renderSettingsTeam() {
   });
   html += `</tbody></table>`;
 
-  // Section Collaborateurs Lucca
-  html += `<div style="margin-top:28px;border-top:2px solid var(--border);padding-top:20px;">`;
-  html += `<div class="stg-toolbar"><h3>Collaborateurs Lucca (${luccaCollabs.length})</h3>`;
+  // Section Collaborateurs Lucca (accordéon)
+  html += `<div style="margin-top:28px;border-top:2px solid var(--border);padding-top:12px;">`;
+  html += `<div class="stg-accordion-header" onclick="var b=document.getElementById('luccaAccordionBody');var a=this.querySelector('.stg-accordion-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">`;
+  html += `<span class="stg-accordion-arrow" style="font-size:0.65rem;color:var(--text-muted);transition:transform 0.2s;">▶</span>`;
+  html += `<h3 style="font-size:0.9rem;font-weight:700;cursor:pointer;">Collaborateurs Lucca (${luccaCollabs.length})</h3>`;
+  html += `</div>`;
+  html += `<div id="luccaAccordionBody" style="display:none;margin-top:10px;">`;
+  html += `<div class="stg-toolbar"><div></div>`;
   html += `<div style="display:flex;gap:8px;align-items:center;">`;
   const etabs = getLuccaEtablissements();
   const selectedCount = luccaFilterEtabs.length;
@@ -3297,7 +3304,7 @@ function renderSettingsTeam() {
   html += `<input type="text" id="luccaSearch" placeholder="Rechercher..." oninput="renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;width:160px;">`;
   html += `</div></div>`;
   html += `<div id="luccaListContainer"></div>`;
-  html += `</div>`;
+  html += `</div></div>`;
 
   c.innerHTML = html;
 
