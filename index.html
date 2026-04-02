@@ -3998,7 +3998,9 @@ function setupAddressAutocomplete(inputId, latFieldId, lonFieldId, statusId) {
 
 async function fetchAddressSuggestions(query, inputId, latFieldId, lonFieldId, statusId, dropdown) {
   try {
-    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&autocomplete=1&limit=5`);
+    const hasNumber = /^\d/.test(query.trim());
+    const typeParam = hasNumber ? '&type=housenumber' : '';
+    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&autocomplete=1&limit=5${typeParam}`);
     if (!r.ok) return;
     const data = await r.json();
     const features = data.features || [];
@@ -4048,7 +4050,9 @@ function setupAddressAutocompleteSimple(inputId) {
     if (q.length < 4) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
     _addrTimers[inputId] = setTimeout(async () => {
       try {
-        const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&autocomplete=1&limit=5`);
+        const hasNum = /^\d/.test(q);
+        const tParam = hasNum ? '&type=housenumber' : '';
+        const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&autocomplete=1&limit=5${tParam}`);
         if (!r.ok) return;
         const data = await r.json();
         const features = data.features || [];
