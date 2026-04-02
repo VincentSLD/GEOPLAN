@@ -2234,7 +2234,17 @@ function renderWeek() {
     const dn=['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
     html+=`<div class="grid-header-cell ${it?'today':''} ${iw?'weekend':''}"><div class="day-name">${dn[d.getDay()]}</div><div class="day-num">${d.getDate()}</div></div>`;
   }
-  getFilteredTechs().forEach(tech=>{
+  const techs = getFilteredTechs();
+  if (techs.length === 0) {
+    html += `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-muted);">
+      <div style="font-size:1.5rem;margin-bottom:8px;">👥</div>
+      <div style="font-size:0.9rem;font-weight:600;">Aucun collaborateur dans l'équipe</div>
+      <div style="font-size:0.78rem;margin-top:4px;">Ajoutez des collaborateurs dans <a href="#" onclick="showView('settings');return false;" style="color:var(--gph-yellow);font-weight:700;">Paramétrage → Équipe</a></div>
+    </div>`;
+    grid.innerHTML=html;
+    return;
+  }
+  techs.forEach(tech=>{
     const wi=interventions.filter(i=>i.techId===tech.id&&days.some(d=>d.dateStr===i.date));
     const tt=wi.reduce((s,i)=>s+i.travelTo+i.travelFrom,0);
     const th=wi.reduce((s,i)=>{const[sh,sm]=i.startTime.split(':').map(Number),[eh,em]=i.endTime.split(':').map(Number);return s+(eh-sh)+(em-sm)/60;},0);
@@ -3587,7 +3597,7 @@ function deleteTeamMember(id) {
 
 function syncTeamToTechnicians() {
   TECHNICIANS.length = 0;
-  settingsTeam.filter(t => t.statut === 'actif' && t._autoStatut !== 'absent').forEach(t => {
+  settingsTeam.filter(t => t.statut === 'actif').forEach(t => {
     TECHNICIANS.push({
       id: t.id, name: t.prenom + ' ' + t.nom, initials: t.initials,
       role: t.role, base: t.base, color: t.color,
