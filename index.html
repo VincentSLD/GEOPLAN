@@ -3297,9 +3297,13 @@ function editTeamMember(id) {
           <select id="stf-depart-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.departAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
         </div>
         <div id="stf-depart-custom-wrap" style="display:${!departIsAgence ? 'contents' : 'none'};">
-          <div class="stg-form-field span2"><label>Adresse</label><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans"></div>
-          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.0001" value="${t.departLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.0001" value="${t.departLon || ''}" placeholder="-1.878"></div>
+          <div class="stg-form-field span2"><label>Adresse</label>
+            <div style="display:flex;gap:6px;"><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans" style="flex:1;">
+            <button type="button" onclick="geocodeAddress(document.getElementById('stf-depart-adresse').value,'stf-depart-lat','stf-depart-lon','stf-depart-geocode')" style="padding:0 12px;border:1px solid var(--gph-yellow);border-radius:var(--radius-xs);background:var(--gph-yellow-light);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📍 Géolocaliser</button></div>
+            <div id="stf-depart-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
+          </div>
+          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.000001" value="${t.departLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.000001" value="${t.departLon || ''}" placeholder="-1.878"></div>
         </div>
       </div>
     </div>
@@ -3320,9 +3324,13 @@ function editTeamMember(id) {
           <select id="stf-arrivee-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.arriveeAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
         </div>
         <div id="stf-arrivee-custom-wrap" style="display:${!arriveeIsAgence ? 'contents' : 'none'};">
-          <div class="stg-form-field span2"><label>Adresse</label><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans"></div>
-          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.0001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.0001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
+          <div class="stg-form-field span2"><label>Adresse</label>
+            <div style="display:flex;gap:6px;"><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans" style="flex:1;">
+            <button type="button" onclick="geocodeAddress(document.getElementById('stf-arrivee-adresse').value,'stf-arrivee-lat','stf-arrivee-lon','stf-arrivee-geocode')" style="padding:0 12px;border:1px solid var(--gph-yellow);border-radius:var(--radius-xs);background:var(--gph-yellow-light);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📍 Géolocaliser</button></div>
+            <div id="stf-arrivee-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
+          </div>
+          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.000001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.000001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
         </div>
       </div>
     </div>
@@ -3844,6 +3852,30 @@ function renderAgencesList() {
   list.innerHTML = html;
 }
 
+// ═══ GÉOCODAGE (Nominatim / OpenStreetMap) ═══
+async function geocodeAddress(address, latFieldId, lonFieldId, statusId) {
+  const statusEl = document.getElementById(statusId);
+  if (!address || address.length < 5) { if (statusEl) statusEl.textContent = 'Adresse trop courte'; return; }
+  if (statusEl) { statusEl.textContent = 'Recherche...'; statusEl.style.color = 'var(--text-muted)'; }
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=fr&limit=1`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'GéoPlan GPH' } });
+    if (!r.ok) throw new Error('Erreur Nominatim');
+    const results = await r.json();
+    if (results.length > 0) {
+      const lat = parseFloat(results[0].lat);
+      const lon = parseFloat(results[0].lon);
+      document.getElementById(latFieldId).value = lat.toFixed(6);
+      document.getElementById(lonFieldId).value = lon.toFixed(6);
+      if (statusEl) { statusEl.textContent = `✓ ${results[0].display_name.substring(0, 60)}`; statusEl.style.color = '#16A34A'; }
+    } else {
+      if (statusEl) { statusEl.textContent = '✗ Adresse non trouvée'; statusEl.style.color = '#DC2626'; }
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗ Erreur : ' + e.message; statusEl.style.color = '#DC2626'; }
+  }
+}
+
 function editAgence(id) {
   migrateAgences();
   const a = id ? (settingsGeneral.agences || []).find(x => x.id === id) : { id: 0, nom: '', adresse: '', lat: '', lon: '', principale: false };
@@ -3852,9 +3884,15 @@ function editAgence(id) {
     <h3>${id ? 'Modifier' : 'Ajouter'} une agence</h3>
     <div class="stg-form-grid">
       <div class="stg-form-field span2"><label>Nom de l'agence</label><input id="stf-agnom" value="${a.nom}"></div>
-      <div class="stg-form-field span2"><label>Adresse</label><input id="stf-agadresse" value="${a.adresse}" placeholder="Ex: 108 Route de La Roche-sur-Yon, 85300 Challans"></div>
-      <div class="stg-form-field"><label>Latitude GPS</label><input type="number" step="0.001" id="stf-aglat" value="${a.lat || ''}" placeholder="46.845"></div>
-      <div class="stg-form-field"><label>Longitude GPS</label><input type="number" step="0.001" id="stf-aglon" value="${a.lon || ''}" placeholder="-1.878"></div>
+      <div class="stg-form-field span2"><label>Adresse</label>
+        <div style="display:flex;gap:6px;">
+          <input id="stf-agadresse" value="${a.adresse}" placeholder="Ex: 108 Route de La Roche-sur-Yon, 85300 Challans" style="flex:1;">
+          <button type="button" onclick="geocodeAddress(document.getElementById('stf-agadresse').value,'stf-aglat','stf-aglon','stf-ag-geocode-status')" style="padding:0 12px;border:1px solid var(--gph-yellow);border-radius:var(--radius-xs);background:var(--gph-yellow-light);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📍 Géolocaliser</button>
+        </div>
+        <div id="stf-ag-geocode-status" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
+      </div>
+      <div class="stg-form-field"><label>Latitude GPS</label><input type="number" step="0.000001" id="stf-aglat" value="${a.lat || ''}" placeholder="46.845"></div>
+      <div class="stg-form-field"><label>Longitude GPS</label><input type="number" step="0.000001" id="stf-aglon" value="${a.lon || ''}" placeholder="-1.878"></div>
     </div>
     <div class="stg-form-actions">
       <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
