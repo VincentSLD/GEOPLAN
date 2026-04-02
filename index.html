@@ -3152,21 +3152,24 @@ async function loadLuccaAbsences() {
       .eq('actif', true)
       .gte('date_absence', fromStr)
       .lte('date_absence', toStr);
-    if (error) throw error;
+    if (error) { console.error('[Lucca] Erreur requête absences_lucca:', error); return; }
     luccaAbsences = {};
     (data || []).forEach(a => {
-      const key = `${a.lucca_id}:${a.date_absence}`;
+      // Normalize date: "2026-04-02T00:00:00+00:00" → "2026-04-02"
+      const dateNorm = (a.date_absence || '').substring(0, 10);
+      const key = `${a.lucca_id}:${dateNorm}`;
       if (!luccaAbsences[key]) luccaAbsences[key] = [];
       luccaAbsences[key].push({ periode: a.periode, type: a.type_absence || 'Absence' });
     });
     luccaAbsencesLoaded = true;
+    console.log(`[Lucca] ${data.length} absences chargées, ${Object.keys(luccaAbsences).length} entrées uniques`);
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
 // Get absence for a specific tech on a specific date
 function getAbsenceForDate(luccaId, dateStr) {
   if (!luccaId) return null;
-  const key = `${luccaId}:${dateStr}`;
+  const key = `${String(luccaId)}:${dateStr}`;
   const abs = luccaAbsences[key];
   if (!abs || abs.length === 0) return null;
   const am = abs.some(a => a.periode === 'AM');
@@ -3214,7 +3217,7 @@ function updateTeamAbsenceStatuses() {
 function absenceBadgeHTML(techId, dateStr) {
   const teamMember = settingsTeam.find(t => t.id === techId);
   if (!teamMember || !teamMember.luccaId) return '';
-  const abs = getAbsenceForDate(teamMember.luccaId, dateStr);
+  const abs = getAbsenceForDate(String(teamMember.luccaId), dateStr);
   if (!abs) return '';
   const bgColor = abs.full ? '#fee2e2' : '#fff7ed';
   const textColor = abs.full ? '#dc2626' : '#ea580c';
