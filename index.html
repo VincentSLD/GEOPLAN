@@ -1745,13 +1745,8 @@ body::before {
 </div><!-- .app -->
 
 <script>
-const TECHNICIANS = [
-  { id:1, name:'Luc Fontaine',    initials:'LF', color:'#2563EB', role:'Ingénieur géotechnique', base:'Challans' },
-  { id:2, name:'Marie Duval',     initials:'MD', color:'#7C3AED', role:'Technicienne sondage',   base:'Nantes' },
-  { id:3, name:'Kévin Morel',     initials:'KM', color:'#16A34A', role:'Ingénieur géotechnique', base:'Niort' },
-  { id:4, name:'Sophie Tanguy',   initials:'ST', color:'#D97706', role:'Technicienne labo',      base:'Pau' },
-  { id:5, name:'Julien Bernard',  initials:'JB', color:'#DB2777', role:'Chef de projet',         base:'Nantes' },
-];
+// Technicians array — populated from settingsTeam after login
+const TECHNICIANS = [];
 
 const TYPES = {
   sondage:        { label:'Sondage',        class:'int-sondage',        color:'var(--type-sondage)' },
@@ -1773,58 +1768,8 @@ const MONDAY = getMonday(new Date(TODAY));
 function timeToMin(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
 function minToTime(m) { if(m<0)m+=1440; return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
 
-function generateInterventions() {
-  const list = [];
-  const titles = [
-    {t:'Sondage carotté G2 AVP',type:'sondage'},{t:'Essai pressiométrique',type:'essai'},
-    {t:'Prélèvement sol — Lot A',type:'prelevement'},{t:'Reconnaissance visuelle terrain',type:'reconnaissance'},
-    {t:'Suivi fondations profondes',type:'suivi'},{t:'Essais labo — compressibilité',type:'labo'},
-    {t:'Sondage destructif G1 ES',type:'sondage'},{t:'Essai pénétrométrique',type:'essai'},
-    {t:'Prélèvement eau nappe',type:'prelevement'},{t:'Visite chantier ZAC',type:'reconnaissance'},
-    {t:'Contrôle compactage',type:'suivi'},{t:'Essai perméabilité Lefranc',type:'essai'},
-    {t:'Suivi piézométrique',type:'suivi'},{t:'Sondage tarière G2 PRO',type:'sondage'},
-    {t:'Reconnaissance G1 — Loi ELAN',type:'reconnaissance'},{t:'URGENT — Glissement terrain',type:'urgent'},
-    {t:'Essai de plaque EV2',type:'essai'},{t:'Sondage PMT — Pont N165',type:'sondage'},
-    {t:'Étude parasismique',type:'essai'},{t:'Prélèvement roche altérée',type:'prelevement'},
-  ];
-  const locs = [
-    '15 rue de la Gare, 85300 Challans','ZAC Atlantis, 44800 Saint-Herblain',
-    'Route de Vannes, 44000 Nantes','Rue du Commerce, 79000 Niort',
-    'Bd Alsace-Lorraine, 64000 Pau','Zone du Pré Vert, 85000 La Roche-sur-Yon',
-    'Lot. Les Chênes, 44600 Saint-Nazaire','Port de commerce, 44100 Nantes',
-    'Île de Nantes, 44200 Nantes','Route de Bordeaux, 79000 Niort',
-    'ZI Nord, 85600 Montaigu','Bourg de Pornic, 44210 Pornic',
-    'Centre-ville, 17000 La Rochelle','ZAC Erdre-Porterie, 44300 Nantes',
-  ];
-  const clients = ['Bouygues Immobilier','Vinci Construction','Maisons de l\'Avenir','SNCF Réseau','Mairie de Nantes','Département 85','Nexity','Kaufman & Broad','Groupe Giboire','Altarea Cogedim'];
-  const statuses = ['planned','planned','planned','inprogress','done'];
-  let id = 1;
-  for (let off=-2; off<12; off++) {
-    const n = 2+Math.floor(Math.random()*4);
-    for (let i=0; i<n; i++) {
-      const d = new Date(MONDAY); d.setDate(MONDAY.getDate()+off);
-      const ti = titles[Math.floor(Math.random()*titles.length)];
-      const sh = 7+Math.floor(Math.random()*5), sm = Math.random()>0.5?30:0;
-      const eh = Math.min(sh+1+Math.floor(Math.random()*4),18);
-      list.push({
-        id:id++, title:ti.t, type:ti.type,
-        date:d.toISOString().split('T')[0],
-        startTime:`${String(sh).padStart(2,'0')}:${String(sm).padStart(2,'0')}`,
-        endTime:`${String(eh).padStart(2,'0')}:${String(sm).padStart(2,'0')}`,
-        techId:TECHNICIANS[Math.floor(Math.random()*TECHNICIANS.length)].id,
-        location:locs[Math.floor(Math.random()*locs.length)],
-        client:clients[Math.floor(Math.random()*clients.length)],
-        travelTo:15+Math.floor(Math.random()*60),
-        travelFrom:15+Math.floor(Math.random()*60),
-        status: off<0?'done':(off===0&&i===0?'inprogress':statuses[Math.floor(Math.random()*statuses.length)]),
-        notes:'',
-      });
-    }
-  }
-  return list;
-}
-
-let interventions = generateInterventions();
+// Interventions — loaded from Supabase or empty
+let interventions = loadSettings('geoplan_interventions', []);
 let currentView = 'week', currentDate = new Date(TODAY), editingId = null;
 let selectedTechId = null; // null = all technicians
 let selectedGroupId = null; // null = all groups
@@ -2378,6 +2323,7 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 function saveIntervention(){
   const data={id:editingId||(Math.max(...interventions.map(i=>i.id),0)+1),title:document.getElementById('intTitle').value||'Nouvelle intervention',type:document.getElementById('intType').value,date:document.getElementById('intDate').value,startTime:document.getElementById('intStart').value,endTime:document.getElementById('intEnd').value,techId:parseInt(document.getElementById('intTech').value),location:document.getElementById('intAddress').value||'Adresse non renseignée',client:document.getElementById('intClient').value||'-',travelTo:parseInt(document.getElementById('intTravel').value)||0,travelFrom:parseInt(document.getElementById('intTravelReturn').value)||0,status:document.getElementById('intStatus').value,notes:document.getElementById('intNotes').value};
   if(editingId){const idx=interventions.findIndex(i=>i.id===editingId);if(idx>=0)interventions[idx]=data;}else interventions.push(data);
+  saveSettings('geoplan_interventions', interventions);
   closeModal();renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
 }
 
@@ -2432,7 +2378,7 @@ function editIntervention(id){
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   document.getElementById('modalOverlay').classList.add('active');
 }
-function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
+function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);saveSettings('geoplan_interventions',interventions);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
@@ -3028,6 +2974,8 @@ async function loadAllSettingsFromSupabase() {
       if (va) saveSettingsToSupabase('geoplan_vehicle_assign', va);
       const ve = loadSettings('geoplan_vehicle_extras', null);
       if (ve) saveSettingsToSupabase('geoplan_vehicle_extras', ve);
+      const ints = loadSettings('geoplan_interventions', null);
+      if (ints && ints.length > 0) saveSettingsToSupabase('geoplan_interventions', ints);
       return;
     }
     // Apply Supabase data to localStorage and memory
@@ -3049,6 +2997,7 @@ async function loadAllSettingsFromSupabase() {
       settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
       vehicleAssignments = loadSettings('geoplan_vehicle_assign', {});
       vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
+      interventions = loadSettings('geoplan_interventions', []);
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
@@ -3057,13 +3006,7 @@ async function loadAllSettingsFromSupabase() {
 }
 
 // --- Default data ---
-const DEFAULT_TEAM = TECHNICIANS.map(t => ({
-  id: t.id, nom: t.name.split(' ').slice(1).join(' '), prenom: t.name.split(' ')[0],
-  initials: t.initials, role: t.role, base: t.base, color: t.color,
-  lat: null, lon: null, vehicule: '', telephone: '', email: '',
-  habilitations: [], joursOff: [], heureDebut: '07:00', heureFin: '18:00',
-  statut: 'actif'
-}));
+const DEFAULT_TEAM = []; // Empty — populated from Paramétrage or Lucca import
 
 const DEFAULT_VEHICLES = [
   { id: 1, type: 'Fourgon', marque: 'Renault Master', immat: 'AB-123-CD', ptac: '3.5t', affectation: '', equipements: 'Tarière, Carotteuse', kmActuel: 45200, prochRevision: '2026-06-15', prochCT: '2027-01-10' },
@@ -4432,6 +4375,8 @@ function applyAIAction(action, itemId) {
     if (idx < 0) { if (btn) btn.textContent = '❌ Introuvable'; return; }
     interventions.splice(idx, 1);
   }
+
+  saveSettings('geoplan_interventions', interventions);
 
   // Visual feedback
   if (itemEl) {
