@@ -2975,7 +2975,7 @@ async function syncFleet() {
 
 // ═══ PARAMÉTRAGE ═══
 
-// --- Data persistence ---
+// --- Data persistence (Supabase + localStorage cache) ---
 const SETTINGS_KEYS = {
   team: 'geoplan_team',
   vehicles: 'geoplan_vehicles',
@@ -2984,12 +2984,76 @@ const SETTINGS_KEYS = {
   groups: 'geoplan_groups',
 };
 
+// Load from localStorage cache (synchronous, fast)
 function loadSettings(key, defaults) {
   try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : defaults; }
   catch(e) { return defaults; }
 }
+
+// Save to localStorage + Supabase (async, shared)
 function saveSettings(key, data) {
   localStorage.setItem(key, JSON.stringify(data));
+  saveSettingsToSupabase(key, data);
+}
+
+// Debounce Supabase writes to avoid flooding
+const _supabaseSaveTimers = {};
+function saveSettingsToSupabase(key, data) {
+  clearTimeout(_supabaseSaveTimers[key]);
+  _supabaseSaveTimers[key] = setTimeout(async () => {
+    try {
+      const email = currentAuthUser?.email || 'unknown';
+      const { error } = await sbAuth.from('geoplan_settings').upsert({
+        key, value: data, updated_at: new Date().toISOString(), updated_by: email,
+      }, { onConflict: 'key' });
+      if (error) console.warn('[Settings] Erreur sauvegarde Supabase:', key, error.message);
+    } catch(e) { console.warn('[Settings] Erreur Supabase:', e); }
+  }, 500);
+}
+
+// Load all settings from Supabase (called after login)
+async function loadAllSettingsFromSupabase() {
+  try {
+    const { data, error } = await sbAuth.from('geoplan_settings').select('key, value');
+    if (error) { console.warn('[Settings] Erreur lecture Supabase:', error.message); return; }
+    if (!data || data.length === 0) {
+      // First time: push current localStorage to Supabase
+      console.log('[Settings] Première sync: envoi des paramètres vers Supabase');
+      for (const [name, key] of Object.entries(SETTINGS_KEYS)) {
+        const current = loadSettings(key, null);
+        if (current) saveSettingsToSupabase(key, current);
+      }
+      // Also save vehicle assignments & extras
+      const va = loadSettings('geoplan_vehicle_assign', null);
+      if (va) saveSettingsToSupabase('geoplan_vehicle_assign', va);
+      const ve = loadSettings('geoplan_vehicle_extras', null);
+      if (ve) saveSettingsToSupabase('geoplan_vehicle_extras', ve);
+      return;
+    }
+    // Apply Supabase data to localStorage and memory
+    let updated = false;
+    data.forEach(row => {
+      const existing = localStorage.getItem(row.key);
+      const remote = JSON.stringify(row.value);
+      if (remote !== existing) {
+        localStorage.setItem(row.key, remote);
+        updated = true;
+      }
+    });
+    if (updated) {
+      // Reload in-memory variables from updated localStorage
+      settingsTeam = loadSettings(SETTINGS_KEYS.team, DEFAULT_TEAM);
+      settingsVehicles = loadSettings(SETTINGS_KEYS.vehicles, DEFAULT_VEHICLES);
+      settingsIntTypes = loadSettings(SETTINGS_KEYS.intTypes, DEFAULT_INT_TYPES);
+      settingsGeneral = loadSettings(SETTINGS_KEYS.general, DEFAULT_GENERAL);
+      settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
+      vehicleAssignments = loadSettings('geoplan_vehicle_assign', {});
+      vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
+      syncTeamToTechnicians();
+      syncTypesToApp();
+      console.log('[Settings] Paramètres synchronisés depuis Supabase');
+    }
+  } catch(e) { console.warn('[Settings] Erreur sync Supabase:', e); }
 }
 
 // --- Default data ---
@@ -4415,7 +4479,8 @@ function showApp(user) {
   document.getElementById('auth-avatar-inline').textContent = initials;
   document.getElementById('auth-user-bar-inline').classList.add('visible');
   checkAdmin(user);
-  init();
+  // Sync settings from Supabase before init
+  loadAllSettingsFromSupabase().then(() => init());
 }
 
 function showLogin() {
