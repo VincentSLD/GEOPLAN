@@ -1364,6 +1364,7 @@ body::before {
 .stg-status-actif { background:#dcfce7; color:#16a34a; }
 .stg-status-conge { background:#fef3c7; color:#d97706; }
 .stg-status-indispo { background:#fee2e2; color:#dc2626; }
+.stg-status-partiel { background:#fff7ed; color:#ea580c; }
 
 /* Settings form modal (sub-modal) */
 .stg-form-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:7000; }
@@ -3077,6 +3078,9 @@ function closeStgForm() {
 // ======== TAB 1: ÉQUIPE ========
 let luccaCollabs = [];
 let luccaFilterEtabs = []; // array of selected etablissements
+let luccaAbsencesToday = {}; // { lucca_id: { am: bool, pm: bool, type: string } }
+
+const LUCCA_PROXY = '/api/lucca';
 
 async function loadLuccaCollabs() {
   if (luccaCollabs.length > 0) return;
@@ -3084,7 +3088,73 @@ async function loadLuccaCollabs() {
     const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
     if (error) throw error;
     luccaCollabs = data || [];
+    // Load absences after collabs
+    await loadLuccaAbsencesToday();
+    // Update team member statuses based on absences
+    updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
+}
+
+async function loadLuccaAbsencesToday() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    // Fetch all leaves for today
+    const r = await fetch(`${LUCCA_PROXY}?path=/api/v3/leaves&fields=id,date,isAm,leaveAccount,leavePeriod.ownerId,isActive&date=between,${today},${today}&paging=0,500`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const items = data.data?.items || data.items || [];
+    luccaAbsencesToday = {};
+    items.filter(l => l.isActive !== false).forEach(l => {
+      const ownerId = l.leavePeriod?.ownerId || l.leavePeriod?.owner?.id;
+      if (!ownerId) return;
+      const key = String(ownerId);
+      if (!luccaAbsencesToday[key]) luccaAbsencesToday[key] = { am: false, pm: false, type: '' };
+      if (l.isAm === true) luccaAbsencesToday[key].am = true;
+      else if (l.isAm === false) luccaAbsencesToday[key].pm = true;
+      // Fallback: parse from ID
+      else if (typeof l.id === 'string') {
+        if (l.id.endsWith('-AM')) luccaAbsencesToday[key].am = true;
+        else if (l.id.endsWith('-PM')) luccaAbsencesToday[key].pm = true;
+      }
+      luccaAbsencesToday[key].type = l.leaveAccount?.name || 'Absence';
+    });
+  } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
+}
+
+function getLuccaAbsenceStatus(luccaId) {
+  if (!luccaId) return null;
+  const key = String(luccaId);
+  const abs = luccaAbsencesToday[key];
+  if (!abs) return null;
+  const now = new Date();
+  const hour = now.getHours();
+  const isAm = hour < 13;
+  // Check if absent for current half-day
+  if (isAm && abs.am) return { absent: true, label: `${abs.type} (matin)`, full: abs.am && abs.pm };
+  if (!isAm && abs.pm) return { absent: true, label: `${abs.type} (après-midi)`, full: abs.am && abs.pm };
+  if (abs.am && abs.pm) return { absent: true, label: `${abs.type} (journée)`, full: true };
+  // Absent other half-day only
+  if (abs.am) return { absent: false, label: `${abs.type} (matin seulement)`, partial: true };
+  if (abs.pm) return { absent: false, label: `${abs.type} (après-midi seulement)`, partial: true };
+  return null;
+}
+
+function updateTeamAbsenceStatuses() {
+  settingsTeam.forEach(t => {
+    const luccaId = t.luccaId;
+    if (!luccaId) return;
+    const abs = getLuccaAbsenceStatus(luccaId);
+    if (abs && abs.absent) {
+      t._autoStatut = 'absent';
+      t._absenceLabel = abs.label;
+    } else if (abs && abs.partial) {
+      t._autoStatut = 'partiel';
+      t._absenceLabel = abs.label;
+    } else {
+      t._autoStatut = null;
+      t._absenceLabel = null;
+    }
+  });
 }
 
 function getLuccaEtablissements() {
@@ -3100,8 +3170,21 @@ function renderSettingsTeam() {
   let html = `<div class="stg-toolbar"><h3>Équipe GéoPlan (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter manuellement</button></div>`;
   html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Rôle</th><th>Base</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
-    const statusCls = t.statut === 'actif' ? 'stg-status-actif' : t.statut === 'conge' ? 'stg-status-conge' : 'stg-status-indispo';
-    const statusLabel = t.statut === 'actif' ? 'Actif' : t.statut === 'conge' ? 'En congé' : 'Indisponible';
+    // Statut auto Lucca: priorité sur le statut manuel si absent aujourd'hui
+    let effectiveStatut = t.statut;
+    let statusLabel, statusCls;
+    if (t._autoStatut === 'absent') {
+      effectiveStatut = 'absent';
+      statusCls = 'stg-status-conge';
+      statusLabel = `<span title="${t._absenceLabel || ''}">Absent</span><br><span style="font-size:0.58rem;font-weight:400;opacity:0.7;">${t._absenceLabel || ''}</span>`;
+    } else if (t._autoStatut === 'partiel') {
+      effectiveStatut = 'partiel';
+      statusCls = 'stg-status-partiel';
+      statusLabel = `<span title="${t._absenceLabel || ''}">½ journée</span><br><span style="font-size:0.58rem;font-weight:400;opacity:0.7;">${t._absenceLabel || ''}</span>`;
+    } else {
+      statusCls = t.statut === 'actif' ? 'stg-status-actif' : t.statut === 'conge' ? 'stg-status-conge' : 'stg-status-indispo';
+      statusLabel = t.statut === 'actif' ? 'Actif' : t.statut === 'conge' ? 'En congé' : 'Indisponible';
+    }
     const habs = (t.habilitations || []).map(h => {
       const exp = h.expiration && new Date(h.expiration) < new Date() ? ' expired' : '';
       return `<span class="stg-hab${exp}" title="${h.nom}${h.expiration ? ' — exp. ' + h.expiration : ''}">${h.nom}</span>`;
@@ -3449,7 +3532,7 @@ function deleteTeamMember(id) {
 
 function syncTeamToTechnicians() {
   TECHNICIANS.length = 0;
-  settingsTeam.filter(t => t.statut === 'actif').forEach(t => {
+  settingsTeam.filter(t => t.statut === 'actif' && t._autoStatut !== 'absent').forEach(t => {
     TECHNICIANS.push({
       id: t.id, name: t.prenom + ' ' + t.nom, initials: t.initials,
       role: t.role, base: t.base, color: t.color,
