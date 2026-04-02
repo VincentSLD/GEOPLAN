@@ -1396,6 +1396,11 @@ body::before {
 .stg-save-bar button:hover { background:var(--gph-yellow); color:var(--gph-dark); }
 
 .stg-habilitations { display:flex; flex-wrap:wrap; gap:4px; }
+.lucca-etab-menu { display:none; position:absolute; top:100%; left:0; margin-top:4px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-xs); box-shadow:var(--shadow-lg); z-index:100; min-width:220px; max-height:280px; overflow-y:auto; }
+.lucca-etab-menu.open { display:block; }
+.lucca-etab-option { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:0.72rem; cursor:pointer; white-space:nowrap; }
+.lucca-etab-option:hover { background:var(--bg-card-hover); }
+.lucca-etab-option input[type="checkbox"] { cursor:pointer; }
 .stg-hab { padding:2px 7px; border-radius:8px; font-size:0.6rem; font-weight:700; background:var(--bg-primary); border:1px solid var(--border); }
 .stg-hab.expired { background:#fee2e2; color:#dc2626; border-color:rgba(220,38,38,0.3); }
 .stg-group-tag { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; white-space:nowrap; }
@@ -3071,7 +3076,7 @@ function closeStgForm() {
 
 // ======== TAB 1: ÉQUIPE ========
 let luccaCollabs = [];
-let luccaFilter = '';
+let luccaFilterEtabs = []; // array of selected etablissements
 
 async function loadLuccaCollabs() {
   if (luccaCollabs.length > 0) return;
@@ -3122,10 +3127,17 @@ function renderSettingsTeam() {
   html += `<div class="stg-toolbar"><h3>Collaborateurs Lucca (${luccaCollabs.length})</h3>`;
   html += `<div style="display:flex;gap:8px;align-items:center;">`;
   const etabs = getLuccaEtablissements();
-  html += `<select id="luccaFilterEtab" onchange="luccaFilter=this.value;renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">`;
-  html += `<option value="">Tous les établissements</option>`;
-  etabs.forEach(e => html += `<option value="${e}" ${luccaFilter===e?'selected':''}>${e}</option>`);
-  html += `</select>`;
+  const selectedCount = luccaFilterEtabs.length;
+  const btnLabel = selectedCount === 0 ? 'Tous les établissements' : `${selectedCount} établissement${selectedCount > 1 ? 's' : ''}`;
+  html += `<div style="position:relative;" id="luccaEtabDropdown">`;
+  html += `<button onclick="document.getElementById('luccaEtabMenu').classList.toggle('open')" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 12px;font-size:0.72rem;font-family:inherit;background:var(--bg-card);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">${btnLabel} <span style="font-size:0.6rem;">▼</span></button>`;
+  html += `<div id="luccaEtabMenu" class="lucca-etab-menu">`;
+  html += `<label class="lucca-etab-option" style="border-bottom:1px solid var(--border);font-weight:700;"><input type="checkbox" onchange="toggleAllLuccaEtabs(this.checked)" ${selectedCount === 0 ? 'checked' : (selectedCount === etabs.length ? 'checked' : '')}> Tous</label>`;
+  etabs.forEach(e => {
+    const checked = luccaFilterEtabs.length === 0 || luccaFilterEtabs.includes(e);
+    html += `<label class="lucca-etab-option"><input type="checkbox" value="${e}" class="lucca-etab-cb" ${checked ? 'checked' : ''} onchange="updateLuccaEtabFilter()"> ${e}</label>`;
+  });
+  html += `</div></div>`;
   html += `<input type="text" id="luccaSearch" placeholder="Rechercher..." oninput="renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;width:160px;">`;
   html += `</div></div>`;
   html += `<div id="luccaListContainer"></div>`;
@@ -3134,25 +3146,43 @@ function renderSettingsTeam() {
   c.innerHTML = html;
 
   // Load Lucca data then render list
-  loadLuccaCollabs().then(() => {
-    // Update etab filter options if just loaded
-    const sel = document.getElementById('luccaFilterEtab');
-    if (sel && sel.options.length <= 1) {
-      getLuccaEtablissements().forEach(e => { const opt = document.createElement('option'); opt.value = e; opt.textContent = e; sel.appendChild(opt); });
-    }
+  if (luccaCollabs.length === 0) {
+    loadLuccaCollabs().then(() => { if (luccaCollabs.length > 0) renderSettingsTeam(); });
+  } else {
     renderLuccaList();
-  });
+  }
+}
+
+function toggleAllLuccaEtabs(checked) {
+  if (checked) { luccaFilterEtabs = []; } else { luccaFilterEtabs = ['__none__']; }
+  renderLuccaList();
+  // Update checkboxes
+  document.querySelectorAll('.lucca-etab-cb').forEach(cb => cb.checked = checked);
+}
+
+function updateLuccaEtabFilter() {
+  const checked = [...document.querySelectorAll('.lucca-etab-cb:checked')].map(cb => cb.value);
+  const allEtabs = getLuccaEtablissements();
+  if (checked.length === allEtabs.length || checked.length === 0) {
+    luccaFilterEtabs = []; // all selected = no filter
+  } else {
+    luccaFilterEtabs = checked;
+  }
+  renderLuccaList();
 }
 
 function renderLuccaList() {
   const container = document.getElementById('luccaListContainer');
   if (!container) return;
 
-  const filterEtab = document.getElementById('luccaFilterEtab')?.value || '';
   const search = (document.getElementById('luccaSearch')?.value || '').toLowerCase().trim();
 
   let filtered = luccaCollabs;
-  if (filterEtab) filtered = filtered.filter(c => c.etablissement === filterEtab);
+  if (luccaFilterEtabs.length > 0 && luccaFilterEtabs[0] !== '__none__') {
+    filtered = filtered.filter(c => luccaFilterEtabs.includes(c.etablissement));
+  } else if (luccaFilterEtabs[0] === '__none__') {
+    filtered = [];
+  }
   if (search) filtered = filtered.filter(c => `${c.prenom} ${c.nom} ${c.email} ${c.poste} ${c.departement}`.toLowerCase().includes(search));
 
   if (filtered.length === 0) {
@@ -3183,6 +3213,13 @@ function renderLuccaList() {
   html += `<div style="text-align:right;font-size:0.65rem;color:var(--text-muted);padding:6px 0;">${filtered.length} collaborateur${filtered.length > 1 ? 's' : ''} affichés</div>`;
   container.innerHTML = html;
 }
+
+// Close etab dropdown on outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('luccaEtabDropdown');
+  const menu = document.getElementById('luccaEtabMenu');
+  if (dd && menu && !dd.contains(e.target)) menu.classList.remove('open');
+});
 
 function importLuccaCollab(luccaId) {
   const c = luccaCollabs.find(x => x.id === luccaId);
