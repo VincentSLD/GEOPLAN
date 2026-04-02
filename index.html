@@ -1366,7 +1366,7 @@ body::before {
 .stg-status-partiel { background:#fff7ed; color:#ea580c; }
 
 /* Settings form modal (sub-modal) */
-.stg-form { background:#fff; border-radius:var(--radius); padding:24px; max-width:600px; }
+.stg-form { background:#fff; border-radius:var(--radius); padding:24px; max-width:720px; }
 .stg-form h3 { font-size:1rem; font-weight:800; margin-bottom:20px; color:var(--gph-dark); }
 .stg-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .stg-form-grid.full { grid-template-columns:1fr; }
@@ -3396,53 +3396,55 @@ function editTeamMember(id) {
       <div class="stg-form-field"><label>Véhicule</label><input id="stf-vehicule" value="${t.vehicule || ''}" placeholder="Ex: Renault Master AB-123-CD"></div>
     </div>
 
-    <div style="margin:16px 0 8px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+    <div style="margin:16px 0 8px;padding:14px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
       <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">📍 Lieu de départ (matin)</div>
-      <div class="stg-form-grid">
-        <div class="stg-form-field span2">
-          <label>Type de lieu</label>
-          <select id="stf-depart-type" onchange="toggleDepartFields()">
-            <option value="custom" ${!departIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
-            <option value="agence" ${departIsAgence ? 'selected' : ''}>Agence</option>
-          </select>
+      <div class="stg-form-field" style="margin-bottom:10px;">
+        <label>Type de lieu</label>
+        <select id="stf-depart-type" onchange="toggleDepartFields()" style="width:100%;">
+          <option value="custom" ${!departIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
+          <option value="agence" ${departIsAgence ? 'selected' : ''}>Agence</option>
+        </select>
+      </div>
+      <div id="stf-depart-agence-wrap" class="stg-form-field" style="display:${departIsAgence ? 'flex' : 'none'};margin-bottom:10px;">
+        <label>Agence de départ</label>
+        <select id="stf-depart-agence" style="width:100%;"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.departAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
+      </div>
+      <div id="stf-depart-custom-wrap" style="display:${!departIsAgence ? 'block' : 'none'};">
+        <div class="stg-form-field" style="margin-bottom:10px;">
+          <label>Adresse</label>
+          <div style="position:relative;"><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Commencez à taper une adresse..." autocomplete="off" style="width:100%;"></div>
+          <div id="stf-depart-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
         </div>
-        <div id="stf-depart-agence-wrap" class="stg-form-field span2" style="display:${departIsAgence ? 'flex' : 'none'};">
-          <label>Agence de départ</label>
-          <select id="stf-depart-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.departAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
-        </div>
-        <div id="stf-depart-custom-wrap" style="display:${!departIsAgence ? 'contents' : 'none'};">
-          <div class="stg-form-field span2"><label>Adresse</label>
-            <div style="position:relative;"><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans" autocomplete="off"></div>
-            <div id="stf-depart-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
-          </div>
-          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.000001" value="${t.departLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.000001" value="${t.departLon || ''}" placeholder="-1.878"></div>
+        <div style="display:flex;gap:12px;">
+          <div class="stg-form-field" style="flex:1;"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.000001" value="${t.departLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field" style="flex:1;"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.000001" value="${t.departLon || ''}" placeholder="-1.878"></div>
         </div>
       </div>
     </div>
 
-    <div style="margin:0 0 8px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+    <div style="margin:0 0 8px;padding:14px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
       <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">🏠 Lieu d'arrivée (soir)</div>
-      <div class="stg-form-grid">
-        <div class="stg-form-field span2">
-          <label>Type de lieu</label>
-          <select id="stf-arrivee-type" onchange="toggleArriveeFields()">
-            <option value="custom" ${!arriveeIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
-            <option value="agence" ${arriveeIsAgence ? 'selected' : ''}>Agence</option>
-            <option value="depart">Identique au départ</option>
-          </select>
+      <div class="stg-form-field" style="margin-bottom:10px;">
+        <label>Type de lieu</label>
+        <select id="stf-arrivee-type" onchange="toggleArriveeFields()" style="width:100%;">
+          <option value="custom" ${!arriveeIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
+          <option value="agence" ${arriveeIsAgence ? 'selected' : ''}>Agence</option>
+          <option value="depart">Identique au départ</option>
+        </select>
+      </div>
+      <div id="stf-arrivee-agence-wrap" class="stg-form-field" style="display:${arriveeIsAgence ? 'flex' : 'none'};margin-bottom:10px;">
+        <label>Agence d'arrivée</label>
+        <select id="stf-arrivee-agence" style="width:100%;"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.arriveeAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
+      </div>
+      <div id="stf-arrivee-custom-wrap" style="display:${!arriveeIsAgence ? 'block' : 'none'};">
+        <div class="stg-form-field" style="margin-bottom:10px;">
+          <label>Adresse</label>
+          <div style="position:relative;"><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Commencez à taper une adresse..." autocomplete="off" style="width:100%;"></div>
+          <div id="stf-arrivee-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
         </div>
-        <div id="stf-arrivee-agence-wrap" class="stg-form-field span2" style="display:${arriveeIsAgence ? 'flex' : 'none'};">
-          <label>Agence d'arrivée</label>
-          <select id="stf-arrivee-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.arriveeAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
-        </div>
-        <div id="stf-arrivee-custom-wrap" style="display:${!arriveeIsAgence ? 'contents' : 'none'};">
-          <div class="stg-form-field span2"><label>Adresse</label>
-            <div style="position:relative;"><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans" autocomplete="off"></div>
-            <div id="stf-arrivee-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
-          </div>
-          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.000001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.000001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
+        <div style="display:flex;gap:12px;">
+          <div class="stg-form-field" style="flex:1;"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.000001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field" style="flex:1;"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.000001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
         </div>
       </div>
     </div>
@@ -3464,12 +3466,12 @@ function editTeamMember(id) {
 function toggleDepartFields() {
   const type = document.getElementById('stf-depart-type').value;
   document.getElementById('stf-depart-agence-wrap').style.display = type === 'agence' ? 'flex' : 'none';
-  document.getElementById('stf-depart-custom-wrap').style.display = type === 'custom' ? 'contents' : 'none';
+  document.getElementById('stf-depart-custom-wrap').style.display = type === 'custom' ? 'block' : 'none';
 }
 function toggleArriveeFields() {
   const type = document.getElementById('stf-arrivee-type').value;
   document.getElementById('stf-arrivee-agence-wrap').style.display = type === 'agence' ? 'flex' : 'none';
-  document.getElementById('stf-arrivee-custom-wrap').style.display = type === 'custom' ? 'contents' : 'none';
+  document.getElementById('stf-arrivee-custom-wrap').style.display = type === 'custom' ? 'block' : 'none';
 }
 
 function saveTeamMember(id) {
