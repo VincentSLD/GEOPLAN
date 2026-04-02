@@ -3134,37 +3134,10 @@ async function loadLuccaCollabs() {
     const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
     if (error) throw error;
     luccaCollabs = data || [];
-    // Migration: fix luccaId for existing team members (lucca_id → id sans prefix)
-    migrateLuccaIds();
     await loadLuccaAbsences();
     updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
 }
-
-function migrateLuccaIds() {
-  let changed = false;
-  settingsTeam.forEach(t => {
-    if (!t.luccaId) return;
-    // Check if current luccaId matches any absences — if not, try to fix it
-    const collab = luccaCollabs.find(c =>
-      c.lucca_id === t.luccaId || // old format match
-      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) || // email match
-      (`${c.prenom} ${c.nom}`.toLowerCase() === `${t.prenom} ${t.nom}`.toLowerCase()) // name match
-    );
-    if (collab && collab.id) {
-      const correctId = String(collab.id).replace('lucca_', '');
-      if (correctId !== t.luccaId) {
-        console.log(`[Lucca] Migration luccaId: ${t.prenom} ${t.nom}: ${t.luccaId} → ${correctId}`);
-        t.luccaId = correctId;
-        changed = true;
-      }
-    }
-  });
-  if (changed) saveSettings(SETTINGS_KEYS.team, settingsTeam);
-}
-
-// Mapping: collab lucca_id → absence ownerId
-var collabToAbsenceId = {};
 
 async function loadLuccaAbsences() {
   if (luccaAbsencesLoaded) return;
@@ -3189,77 +3162,9 @@ async function loadLuccaAbsences() {
       luccaAbsences[key].push({ periode: a.periode, type: a.type_absence || 'Absence' });
     });
 
-    // Build mapping: collab lucca_id → absence ownerId
-    // Load saved mapping or build from absences_lucca_mapping table
-    await buildCollabAbsenceMapping();
-
-    // Re-index absences with collab lucca_id as key too
-    var mappedCount = 0;
-    Object.keys(collabToAbsenceId).forEach(function(collabId) {
-      var ownerId = collabToAbsenceId[collabId];
-      Object.keys(luccaAbsences).forEach(function(key) {
-        if (key.startsWith(ownerId + ':')) {
-          var dateStr = key.split(':')[1];
-          var newKey = collabId + ':' + dateStr;
-          if (!luccaAbsences[newKey]) {
-            luccaAbsences[newKey] = luccaAbsences[key];
-            mappedCount++;
-          }
-        }
-      });
-    });
-
     luccaAbsencesLoaded = true;
-    console.log('[Lucca] ' + data.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées, ' + mappedCount + ' remappées via mapping');
+    console.log('[Lucca] ' + data.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées uniques');
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
-}
-
-async function buildCollabAbsenceMapping() {
-  // Try saved mapping first
-  var saved = loadSettings('geoplan_absence_mapping', null);
-  if (saved && Object.keys(saved).length > 0) {
-    collabToAbsenceId = saved;
-    return;
-  }
-  // Try to load from a Supabase mapping table
-  try {
-    var result = await sbAuth.from('absences_lucca_mapping').select('collab_lucca_id, absence_owner_id');
-    if (!result.error && result.data && result.data.length > 0) {
-      result.data.forEach(function(r) { collabToAbsenceId[r.collab_lucca_id] = r.absence_owner_id; });
-      saveSettings('geoplan_absence_mapping', collabToAbsenceId);
-      return;
-    }
-  } catch(e) {}
-  // Auto-build mapping via Lucca API (if configured)
-  try {
-    var r = await fetch(LUCCA_PROXY + '?path=/api/v3/users&fields=id,mail&paging=0,500');
-    if (r.ok) {
-      var apiData = await r.json();
-      var users = apiData.data?.items || apiData.items || [];
-      if (users.length > 0) {
-        // Build email → API userId mapping
-        var emailToApiId = {};
-        users.forEach(function(u) { if (u.mail) emailToApiId[u.mail.toLowerCase()] = String(u.id); });
-        // Match collabs by email
-        var mapped = 0;
-        luccaCollabs.forEach(function(c) {
-          if (c.email) {
-            var apiId = emailToApiId[c.email.toLowerCase()];
-            if (apiId && apiId !== c.lucca_id) {
-              collabToAbsenceId[c.lucca_id] = apiId;
-              mapped++;
-            }
-          }
-        });
-        if (mapped > 0) {
-          saveSettings('geoplan_absence_mapping', collabToAbsenceId);
-          console.log('[Lucca] Mapping auto construit via API: ' + mapped + ' correspondances');
-          return;
-        }
-      }
-    }
-  } catch(e) { console.log('[Lucca] API Lucca non disponible pour le mapping auto'); }
-  console.log('[Lucca] Ajoutez LUCCA_BASE_URL + LUCCA_API_KEY dans Vercel pour auto-mapper les absences.');
 }
 
 // Get absence for a specific tech on a specific date
@@ -3291,58 +3196,10 @@ function getLuccaAbsenceStatus(luccaId) {
   return { absent: false, partial: true, label: abs.label };
 }
 
-var _luccaIdMap = null;
-
-function _findCollabForTeamMember(t) {
-  return luccaCollabs.find(function(c) {
-    return String(c.lucca_id) === String(t.luccaId) ||
-      String(c.id).replace('lucca_', '') === String(t.luccaId) ||
-      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) ||
-      (c.prenom + ' ' + c.nom).toLowerCase() === (t.prenom + ' ' + t.nom).toLowerCase();
-  });
-}
-
-function buildLuccaIdMap() {
-  if (_luccaIdMap) return;
-  _luccaIdMap = {};
-  for (var i = 0; i < settingsTeam.length; i++) {
-    var t = settingsTeam[i];
-    if (!t.luccaId) continue;
-    var collab = _findCollabForTeamMember(t);
-    if (collab) {
-      _luccaIdMap[String(collab.lucca_id)] = t.id;
-      _luccaIdMap[String(collab.id).replace('lucca_', '')] = t.id;
-    }
-    _luccaIdMap[String(t.luccaId)] = t.id;
-  }
-}
-
-function getLuccaIdsForTech(techId) {
-  buildLuccaIdMap();
-  var teamMember = settingsTeam.find(function(t) { return t.id === techId; });
-  if (!teamMember || !teamMember.luccaId) return [];
-  var ids = [String(teamMember.luccaId)];
-  var collab = _findCollabForTeamMember(teamMember);
-  if (collab) {
-    ids.push(String(collab.lucca_id));
-    ids.push(String(collab.id).replace('lucca_', ''));
-  }
-  var unique = [];
-  for (var i = 0; i < ids.length; i++) { if (unique.indexOf(ids[i]) === -1) unique.push(ids[i]); }
-  return unique;
-}
-
 function updateTeamAbsenceStatuses() {
-  _luccaIdMap = null;
-  for (var i = 0; i < settingsTeam.length; i++) {
-    var t = settingsTeam[i];
-    if (!t.luccaId) { t._autoStatut = null; t._absenceLabel = null; continue; }
-    var possibleIds = getLuccaIdsForTech(t.id);
-    var abs = null;
-    for (var j = 0; j < possibleIds.length; j++) {
-      abs = getLuccaAbsenceStatus(possibleIds[j]);
-      if (abs) break;
-    }
+  settingsTeam.forEach(function(t) {
+    if (!t.luccaId) { t._autoStatut = null; t._absenceLabel = null; return; }
+    var abs = getLuccaAbsenceStatus(t.luccaId);
     if (abs && abs.absent) {
       t._autoStatut = 'absent';
       t._absenceLabel = abs.label;
@@ -3353,17 +3210,13 @@ function updateTeamAbsenceStatuses() {
       t._autoStatut = null;
       t._absenceLabel = null;
     }
-  }
+  });
 }
 
 function absenceBadgeHTML(techId, dateStr) {
-  var possibleIds = getLuccaIdsForTech(techId);
-  if (possibleIds.length === 0) return '';
-  var abs = null;
-  for (var i = 0; i < possibleIds.length; i++) {
-    abs = getAbsenceForDate(possibleIds[i], dateStr);
-    if (abs) break;
-  }
+  var teamMember = settingsTeam.find(function(t) { return t.id === techId; });
+  if (!teamMember || !teamMember.luccaId) return '';
+  var abs = getAbsenceForDate(teamMember.luccaId, dateStr);
   if (!abs) return '';
   const bgColor = abs.full ? '#fee2e2' : '#fff7ed';
   const textColor = abs.full ? '#dc2626' : '#ea580c';
@@ -3540,7 +3393,7 @@ function importLuccaCollab(luccaId) {
     heureDebut: '07:00', heureFin: '18:00',
     statut: 'actif',
     groupeId: null,
-    luccaId: c.id ? String(c.id).replace('lucca_', '') : (c.lucca_id || null),
+    luccaId: c.lucca_id || null,
   });
   saveSettings(SETTINGS_KEYS.team, settingsTeam);
   syncTeamToTechnicians();
