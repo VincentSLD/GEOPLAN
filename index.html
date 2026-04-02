@@ -2115,7 +2115,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaAbsences().then(() => { updateTeamAbsenceStatuses(); renderCurrentView(); }); }
+function init() { syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
