@@ -3134,9 +3134,33 @@ async function loadLuccaCollabs() {
     const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
     if (error) throw error;
     luccaCollabs = data || [];
+    // Migration: fix luccaId for existing team members (lucca_id → id sans prefix)
+    migrateLuccaIds();
     await loadLuccaAbsences();
     updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
+}
+
+function migrateLuccaIds() {
+  let changed = false;
+  settingsTeam.forEach(t => {
+    if (!t.luccaId) return;
+    // Check if current luccaId matches any absences — if not, try to fix it
+    const collab = luccaCollabs.find(c =>
+      c.lucca_id === t.luccaId || // old format match
+      (c.email && t.email && c.email.toLowerCase() === t.email.toLowerCase()) || // email match
+      (`${c.prenom} ${c.nom}`.toLowerCase() === `${t.prenom} ${t.nom}`.toLowerCase()) // name match
+    );
+    if (collab && collab.id) {
+      const correctId = String(collab.id).replace('lucca_', '');
+      if (correctId !== t.luccaId) {
+        console.log(`[Lucca] Migration luccaId: ${t.prenom} ${t.nom}: ${t.luccaId} → ${correctId}`);
+        t.luccaId = correctId;
+        changed = true;
+      }
+    }
+  });
+  if (changed) saveSettings(SETTINGS_KEYS.team, settingsTeam);
 }
 
 async function loadLuccaAbsences() {
@@ -3394,7 +3418,7 @@ function importLuccaCollab(luccaId) {
     heureDebut: '07:00', heureFin: '18:00',
     statut: 'actif',
     groupeId: null,
-    luccaId: c.lucca_id || null,
+    luccaId: c.id ? String(c.id).replace('lucca_', '') : (c.lucca_id || null),
   });
   saveSettings(SETTINGS_KEYS.team, settingsTeam);
   syncTeamToTechnicians();
