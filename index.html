@@ -3696,16 +3696,106 @@ function renderSettingsGeneral() {
       </div>
     </div>
     <div class="stg-general-section">
-      <h4>Agence principale</h4>
-      <div class="stg-general-grid">
-        <div class="stg-general-field"><label>Nom de l'agence</label><input id="stg-agnom" value="${g.agenceNom}"></div>
-        <div class="stg-general-field"><label>Adresse</label><input id="stg-agadresse" value="${g.agenceAdresse}"></div>
-        <div class="stg-general-field"><label>Latitude GPS</label><input type="number" step="0.001" id="stg-aglat" value="${g.agenceLat}"></div>
-        <div class="stg-general-field"><label>Longitude GPS</label><input type="number" step="0.001" id="stg-aglon" value="${g.agenceLon}"></div>
-      </div>
+      <h4>Agences</h4>
+      <div id="stg-agences-list"></div>
+      <button class="stg-add-btn" onclick="editAgence(null)" style="margin-top:8px;">+ Ajouter une agence</button>
     </div>
     <div class="stg-save-bar"><button onclick="saveGeneralSettings()">Enregistrer les paramètres</button></div>
   `;
+  renderAgencesList();
+}
+
+// Migration: ancien format agence unique → tableau agences
+function migrateAgences() {
+  if (!settingsGeneral.agences) {
+    settingsGeneral.agences = [];
+    if (settingsGeneral.agenceNom) {
+      settingsGeneral.agences.push({
+        id: 1, nom: settingsGeneral.agenceNom, adresse: settingsGeneral.agenceAdresse || '',
+        lat: settingsGeneral.agenceLat || 0, lon: settingsGeneral.agenceLon || 0, principale: true,
+      });
+    }
+  }
+}
+
+function renderAgencesList() {
+  migrateAgences();
+  const list = document.getElementById('stg-agences-list');
+  if (!list) return;
+  const agences = settingsGeneral.agences || [];
+  if (agences.length === 0) {
+    list.innerHTML = `<div style="color:var(--text-muted);font-size:0.78rem;padding:10px 0;">Aucune agence configurée.</div>`;
+    return;
+  }
+  let html = `<table class="stg-table"><thead><tr><th>Nom</th><th>Adresse</th><th>GPS</th><th></th><th>Actions</th></tr></thead><tbody>`;
+  agences.forEach(a => {
+    html += `<tr>
+      <td><strong>${a.nom}</strong>${a.principale ? ' <span style="background:var(--gph-yellow);color:var(--gph-dark);padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;margin-left:6px;">PRINCIPALE</span>' : ''}</td>
+      <td style="font-size:0.72rem;">${a.adresse || '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.68rem;">${a.lat ? a.lat.toFixed(3) + ', ' + a.lon.toFixed(3) : '—'}</td>
+      <td>${!a.principale ? `<button class="stg-btn-edit" onclick="setAgencePrincipale(${a.id})" style="font-size:0.58rem;">Définir principale</button>` : ''}</td>
+      <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editAgence(${a.id})">Modifier</button><button class="stg-btn-del" onclick="deleteAgence(${a.id})">Suppr.</button></div></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  list.innerHTML = html;
+}
+
+function editAgence(id) {
+  migrateAgences();
+  const a = id ? (settingsGeneral.agences || []).find(x => x.id === id) : { id: 0, nom: '', adresse: '', lat: '', lon: '', principale: false };
+  if (!a) return;
+  openStgForm(`
+    <h3>${id ? 'Modifier' : 'Ajouter'} une agence</h3>
+    <div class="stg-form-grid">
+      <div class="stg-form-field span2"><label>Nom de l'agence</label><input id="stf-agnom" value="${a.nom}"></div>
+      <div class="stg-form-field span2"><label>Adresse</label><input id="stf-agadresse" value="${a.adresse}" placeholder="Ex: 108 Route de La Roche-sur-Yon, 85300 Challans"></div>
+      <div class="stg-form-field"><label>Latitude GPS</label><input type="number" step="0.001" id="stf-aglat" value="${a.lat || ''}" placeholder="46.845"></div>
+      <div class="stg-form-field"><label>Longitude GPS</label><input type="number" step="0.001" id="stf-aglon" value="${a.lon || ''}" placeholder="-1.878"></div>
+    </div>
+    <div class="stg-form-actions">
+      <button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button>
+      <button class="stg-form-save" onclick="saveAgence(${id || 0})">Enregistrer</button>
+    </div>
+  `);
+}
+
+function saveAgence(id) {
+  migrateAgences();
+  const data = {
+    nom: document.getElementById('stf-agnom').value.trim(),
+    adresse: document.getElementById('stf-agadresse').value.trim(),
+    lat: parseFloat(document.getElementById('stf-aglat').value) || 0,
+    lon: parseFloat(document.getElementById('stf-aglon').value) || 0,
+  };
+  if (!data.nom) { alert('Nom requis'); return; }
+  if (id) {
+    const idx = settingsGeneral.agences.findIndex(x => x.id === id);
+    if (idx >= 0) { data.id = id; data.principale = settingsGeneral.agences[idx].principale; settingsGeneral.agences[idx] = data; }
+  } else {
+    data.id = settingsGeneral.agences.length ? Math.max(...settingsGeneral.agences.map(x => x.id)) + 1 : 1;
+    data.principale = settingsGeneral.agences.length === 0;
+    settingsGeneral.agences.push(data);
+  }
+  saveSettings(SETTINGS_KEYS.general, settingsGeneral);
+  closeStgForm();
+  renderAgencesList();
+}
+
+function deleteAgence(id) {
+  if (!confirm('Supprimer cette agence ?')) return;
+  settingsGeneral.agences = settingsGeneral.agences.filter(x => x.id !== id);
+  if (settingsGeneral.agences.length > 0 && !settingsGeneral.agences.some(a => a.principale)) {
+    settingsGeneral.agences[0].principale = true;
+  }
+  saveSettings(SETTINGS_KEYS.general, settingsGeneral);
+  renderAgencesList();
+}
+
+function setAgencePrincipale(id) {
+  settingsGeneral.agences.forEach(a => a.principale = (a.id === id));
+  saveSettings(SETTINGS_KEYS.general, settingsGeneral);
+  renderAgencesList();
 }
 
 function saveGeneralSettings() {
@@ -3720,14 +3810,12 @@ function saveGeneralSettings() {
       pauseFin: document.querySelector(`.stg-jour-pfin[data-jour="${j}"]`).value,
     };
   });
+  migrateAgences();
   settingsGeneral = {
+    ...settingsGeneral,
     jours,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
-    agenceNom: document.getElementById('stg-agnom').value.trim(),
-    agenceAdresse: document.getElementById('stg-agadresse').value.trim(),
-    agenceLat: parseFloat(document.getElementById('stg-aglat').value) || 0,
-    agenceLon: parseFloat(document.getElementById('stg-aglon').value) || 0,
   };
   saveSettings(SETTINGS_KEYS.general, settingsGeneral);
   alert('Paramètres enregistrés !');
