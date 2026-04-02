@@ -3070,9 +3070,29 @@ function closeStgForm() {
 }
 
 // ======== TAB 1: ÉQUIPE ========
+let luccaCollabs = [];
+let luccaFilter = '';
+
+async function loadLuccaCollabs() {
+  if (luccaCollabs.length > 0) return;
+  try {
+    const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
+    if (error) throw error;
+    luccaCollabs = data || [];
+  } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
+}
+
+function getLuccaEtablissements() {
+  const set = new Set();
+  luccaCollabs.forEach(c => { if (c.etablissement) set.add(c.etablissement); });
+  return [...set].sort();
+}
+
 function renderSettingsTeam() {
   const c = document.getElementById('settingsTeam');
-  let html = `<div class="stg-toolbar"><h3>Géotechniciens (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter</button></div>`;
+
+  // Section Équipe GéoPlan
+  let html = `<div class="stg-toolbar"><h3>Équipe GéoPlan (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter manuellement</button></div>`;
   html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Rôle</th><th>Base</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
     const statusCls = t.statut === 'actif' ? 'stg-status-actif' : t.statut === 'conge' ? 'stg-status-conge' : 'stg-status-indispo';
@@ -3096,7 +3116,101 @@ function renderSettingsTeam() {
     </tr>`;
   });
   html += `</tbody></table>`;
+
+  // Section Collaborateurs Lucca
+  html += `<div style="margin-top:28px;border-top:2px solid var(--border);padding-top:20px;">`;
+  html += `<div class="stg-toolbar"><h3>Collaborateurs Lucca (${luccaCollabs.length})</h3>`;
+  html += `<div style="display:flex;gap:8px;align-items:center;">`;
+  const etabs = getLuccaEtablissements();
+  html += `<select id="luccaFilterEtab" onchange="luccaFilter=this.value;renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">`;
+  html += `<option value="">Tous les établissements</option>`;
+  etabs.forEach(e => html += `<option value="${e}" ${luccaFilter===e?'selected':''}>${e}</option>`);
+  html += `</select>`;
+  html += `<input type="text" id="luccaSearch" placeholder="Rechercher..." oninput="renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;width:160px;">`;
+  html += `</div></div>`;
+  html += `<div id="luccaListContainer"></div>`;
+  html += `</div>`;
+
   c.innerHTML = html;
+
+  // Load Lucca data then render list
+  loadLuccaCollabs().then(() => {
+    // Update etab filter options if just loaded
+    const sel = document.getElementById('luccaFilterEtab');
+    if (sel && sel.options.length <= 1) {
+      getLuccaEtablissements().forEach(e => { const opt = document.createElement('option'); opt.value = e; opt.textContent = e; sel.appendChild(opt); });
+    }
+    renderLuccaList();
+  });
+}
+
+function renderLuccaList() {
+  const container = document.getElementById('luccaListContainer');
+  if (!container) return;
+
+  const filterEtab = document.getElementById('luccaFilterEtab')?.value || '';
+  const search = (document.getElementById('luccaSearch')?.value || '').toLowerCase().trim();
+
+  let filtered = luccaCollabs;
+  if (filterEtab) filtered = filtered.filter(c => c.etablissement === filterEtab);
+  if (search) filtered = filtered.filter(c => `${c.prenom} ${c.nom} ${c.email} ${c.poste} ${c.departement}`.toLowerCase().includes(search));
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:0.8rem;">${luccaCollabs.length === 0 ? 'Chargement des collaborateurs Lucca...' : 'Aucun collaborateur trouvé'}</div>`;
+    return;
+  }
+
+  // Check which are already in team
+  const teamEmails = new Set(settingsTeam.map(t => (t.email || '').toLowerCase()));
+  const teamNames = new Set(settingsTeam.map(t => `${t.prenom} ${t.nom}`.toLowerCase()));
+
+  let html = `<table class="stg-table"><thead><tr><th>Nom</th><th>Poste</th><th>Département</th><th>Établissement</th><th>Email</th><th>Action</th></tr></thead><tbody>`;
+  filtered.forEach(c => {
+    const inTeam = teamEmails.has((c.email || '').toLowerCase()) || teamNames.has(`${c.prenom} ${c.nom}`.toLowerCase());
+    html += `<tr style="${inTeam ? 'opacity:0.5;' : ''}">
+      <td><strong>${c.prenom || ''} ${c.nom || ''}</strong></td>
+      <td style="font-size:0.72rem;">${c.poste || '—'}</td>
+      <td style="font-size:0.72rem;">${c.departement || '—'}</td>
+      <td style="font-size:0.72rem;">${c.etablissement || '—'}</td>
+      <td style="font-size:0.7rem;font-family:'DM Mono',monospace;">${c.email || '—'}</td>
+      <td>${inTeam
+        ? '<span style="font-size:0.65rem;color:var(--text-muted);font-weight:600;">Déjà ajouté</span>'
+        : `<button class="stg-btn-edit" onclick="importLuccaCollab('${(c.id || '').replace(/'/g, "\\'")}')">+ Importer</button>`
+      }</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  html += `<div style="text-align:right;font-size:0.65rem;color:var(--text-muted);padding:6px 0;">${filtered.length} collaborateur${filtered.length > 1 ? 's' : ''} affichés</div>`;
+  container.innerHTML = html;
+}
+
+function importLuccaCollab(luccaId) {
+  const c = luccaCollabs.find(x => x.id === luccaId);
+  if (!c) return;
+  const newId = settingsTeam.length ? Math.max(...settingsTeam.map(x => x.id)) + 1 : 1;
+  const initials = ((c.prenom || '')[0] || '') + ((c.nom || '')[0] || '');
+  const colors = ['#2563EB','#7C3AED','#16A34A','#D97706','#DB2777','#0891B2','#DC2626','#6366F1'];
+  settingsTeam.push({
+    id: newId,
+    prenom: c.prenom || '',
+    nom: c.nom || '',
+    initials: initials.toUpperCase(),
+    role: c.poste || 'Polyvalent',
+    base: c.etablissement || '',
+    color: colors[newId % colors.length],
+    lat: null, lon: null,
+    vehicule: '',
+    telephone: '',
+    email: c.email || '',
+    habilitations: [],
+    heureDebut: '07:00', heureFin: '18:00',
+    statut: 'actif',
+    groupeId: null,
+    luccaId: c.lucca_id || null,
+  });
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  syncTeamToTechnicians();
+  renderSettingsTeam();
 }
 
 function editTeamMember(id) {
