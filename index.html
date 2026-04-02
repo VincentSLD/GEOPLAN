@@ -3251,12 +3251,23 @@ function importLuccaCollab(luccaId) {
 }
 
 function editTeamMember(id) {
-  const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif', groupeId: null };
+  const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', departAdresse: '', departLat: '', departLon: '', departAgenceId: null, arriveeAdresse: '', arriveeLat: '', arriveeLon: '', arriveeAgenceId: null, vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif', groupeId: null };
   const habsList = ['AIPR', 'H0B0', 'SST', 'CACES', 'Amiante SS4', 'CATEC', 'Travail en hauteur'];
   const habsChecks = habsList.map(h => {
     const existing = (t.habilitations || []).find(x => x.nom === h);
     return `<label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><input type="checkbox" class="hab-check" data-hab="${h}" ${existing ? 'checked' : ''}> ${h} <input type="date" class="hab-exp" data-hab="${h}" value="${existing ? existing.expiration || '' : ''}" style="height:28px;font-size:0.7rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;"></label>`;
   }).join('');
+
+  // Migration: ancien format (base/lat/lon) → départ/arrivée
+  if (!t.departAdresse && t.base) { t.departAdresse = t.base; t.departLat = t.lat; t.departLon = t.lon; }
+  if (!t.arriveeAdresse && !t.arriveeAgenceId && t.base) { t.arriveeAdresse = t.base; t.arriveeLat = t.lat; t.arriveeLon = t.lon; }
+
+  migrateAgences();
+  const agences = settingsGeneral.agences || [];
+  const agenceOpts = agences.map(a => `<option value="${a.id}">${a.nom} — ${a.adresse || 'sans adresse'}</option>`).join('');
+
+  const departIsAgence = !!t.departAgenceId;
+  const arriveeIsAgence = !!t.arriveeAgenceId;
 
   openStgForm(`
     <h3>${id ? 'Modifier' : 'Ajouter'} un géotechnicien</h3>
@@ -3268,12 +3279,57 @@ function editTeamMember(id) {
       <div class="stg-form-field"><label>Rôle / Spécialité</label><select id="stf-role"><option ${t.role==='Sondeur'?'selected':''}>Sondeur</option><option ${t.role==='Chef de mission'?'selected':''}>Chef de mission</option><option ${t.role==='Labo terrain'?'selected':''}>Labo terrain</option><option ${t.role==='Polyvalent'?'selected':''}>Polyvalent</option><option ${t.role==='Ingénieur'?'selected':''}>Ingénieur</option></select></div>
       <div class="stg-form-field"><label>Statut</label><select id="stf-statut"><option value="actif" ${t.statut==='actif'?'selected':''}>Actif</option><option value="conge" ${t.statut==='conge'?'selected':''}>En congé</option><option value="indispo" ${t.statut==='indispo'?'selected':''}>Indisponible</option></select></div>
       <div class="stg-form-field"><label>Groupe / Équipe</label><select id="stf-groupe"><option value="">Aucun groupe</option>${settingsGroups.map(g => `<option value="${g.id}" ${t.groupeId==g.id?'selected':''}>${g.nom}</option>`).join('')}</select></div>
-      <div class="stg-form-field span2"><label>Adresse de base (départ)</label><input id="stf-base" value="${t.base}" placeholder="Ex: La Roche-sur-Yon"></div>
-      <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-lat" type="number" step="0.001" value="${t.lat || ''}" placeholder="46.671"></div>
-      <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-lon" type="number" step="0.001" value="${t.lon || ''}" placeholder="-1.427"></div>
       <div class="stg-form-field"><label>Véhicule</label><input id="stf-vehicule" value="${t.vehicule || ''}" placeholder="Ex: Renault Master AB-123-CD"></div>
+    </div>
+
+    <div style="margin:16px 0 8px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">📍 Lieu de départ (matin)</div>
+      <div class="stg-form-grid">
+        <div class="stg-form-field span2">
+          <label>Type de lieu</label>
+          <select id="stf-depart-type" onchange="toggleDepartFields()">
+            <option value="custom" ${!departIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
+            <option value="agence" ${departIsAgence ? 'selected' : ''}>Agence</option>
+          </select>
+        </div>
+        <div id="stf-depart-agence-wrap" class="stg-form-field span2" style="display:${departIsAgence ? 'flex' : 'none'};">
+          <label>Agence de départ</label>
+          <select id="stf-depart-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.departAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
+        </div>
+        <div id="stf-depart-custom-wrap" style="display:${!departIsAgence ? 'contents' : 'none'};">
+          <div class="stg-form-field span2"><label>Adresse</label><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans"></div>
+          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.0001" value="${t.departLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.0001" value="${t.departLon || ''}" placeholder="-1.878"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:0 0 8px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">🏠 Lieu d'arrivée (soir)</div>
+      <div class="stg-form-grid">
+        <div class="stg-form-field span2">
+          <label>Type de lieu</label>
+          <select id="stf-arrivee-type" onchange="toggleArriveeFields()">
+            <option value="custom" ${!arriveeIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
+            <option value="agence" ${arriveeIsAgence ? 'selected' : ''}>Agence</option>
+            <option value="depart">Identique au départ</option>
+          </select>
+        </div>
+        <div id="stf-arrivee-agence-wrap" class="stg-form-field span2" style="display:${arriveeIsAgence ? 'flex' : 'none'};">
+          <label>Agence d'arrivée</label>
+          <select id="stf-arrivee-agence"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.arriveeAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
+        </div>
+        <div id="stf-arrivee-custom-wrap" style="display:${!arriveeIsAgence ? 'contents' : 'none'};">
+          <div class="stg-form-field span2"><label>Adresse</label><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Ex: 12 Rue de la Gare, 85300 Challans"></div>
+          <div class="stg-form-field"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.0001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
+          <div class="stg-form-field"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.0001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stg-form-grid">
       <div class="stg-form-field"><label>Téléphone</label><input id="stf-tel" value="${t.telephone || ''}" placeholder="06 XX XX XX XX"></div>
-      <div class="stg-form-field span2"><label>Email</label><input id="stf-email" type="email" value="${t.email || ''}"></div>
+      <div class="stg-form-field"><label>Email</label><input id="stf-email" type="email" value="${t.email || ''}"></div>
       <div class="stg-form-field"><label>Heure début</label><input id="stf-hdebut" type="time" value="${t.heureDebut || '07:00'}"></div>
       <div class="stg-form-field"><label>Heure fin</label><input id="stf-hfin" type="time" value="${t.heureFin || '18:00'}"></div>
       <div class="stg-form-field span2"><label>Habilitations</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">${habsChecks}</div></div>
@@ -3283,6 +3339,17 @@ function editTeamMember(id) {
       <button class="stg-form-save" onclick="saveTeamMember(${id || 0})">Enregistrer</button>
     </div>
   `);
+}
+
+function toggleDepartFields() {
+  const type = document.getElementById('stf-depart-type').value;
+  document.getElementById('stf-depart-agence-wrap').style.display = type === 'agence' ? 'flex' : 'none';
+  document.getElementById('stf-depart-custom-wrap').style.display = type === 'custom' ? 'contents' : 'none';
+}
+function toggleArriveeFields() {
+  const type = document.getElementById('stf-arrivee-type').value;
+  document.getElementById('stf-arrivee-agence-wrap').style.display = type === 'agence' ? 'flex' : 'none';
+  document.getElementById('stf-arrivee-custom-wrap').style.display = type === 'custom' ? 'contents' : 'none';
 }
 
 function saveTeamMember(id) {
@@ -3297,6 +3364,41 @@ function saveTeamMember(id) {
     habs.push({ nom: habName, expiration: expInput ? expInput.value : '' });
   });
 
+  // Départ
+  const departType = document.getElementById('stf-depart-type').value;
+  let departAgenceId = null, departAdresse = '', departLat = null, departLon = null;
+  if (departType === 'agence') {
+    departAgenceId = parseInt(document.getElementById('stf-depart-agence').value) || null;
+    if (departAgenceId) {
+      migrateAgences();
+      const ag = (settingsGeneral.agences || []).find(a => a.id === departAgenceId);
+      if (ag) { departAdresse = ag.adresse; departLat = ag.lat; departLon = ag.lon; }
+    }
+  } else {
+    departAdresse = document.getElementById('stf-depart-adresse').value.trim();
+    departLat = parseFloat(document.getElementById('stf-depart-lat').value) || null;
+    departLon = parseFloat(document.getElementById('stf-depart-lon').value) || null;
+  }
+
+  // Arrivée
+  const arriveeType = document.getElementById('stf-arrivee-type').value;
+  let arriveeAgenceId = null, arriveeAdresse = '', arriveeLat = null, arriveeLon = null;
+  if (arriveeType === 'agence') {
+    arriveeAgenceId = parseInt(document.getElementById('stf-arrivee-agence').value) || null;
+    if (arriveeAgenceId) {
+      migrateAgences();
+      const ag = (settingsGeneral.agences || []).find(a => a.id === arriveeAgenceId);
+      if (ag) { arriveeAdresse = ag.adresse; arriveeLat = ag.lat; arriveeLon = ag.lon; }
+    }
+  } else if (arriveeType === 'depart') {
+    arriveeAdresse = departAdresse; arriveeLat = departLat; arriveeLon = departLon;
+    arriveeAgenceId = departAgenceId;
+  } else {
+    arriveeAdresse = document.getElementById('stf-arrivee-adresse').value.trim();
+    arriveeLat = parseFloat(document.getElementById('stf-arrivee-lat').value) || null;
+    arriveeLon = parseFloat(document.getElementById('stf-arrivee-lon').value) || null;
+  }
+
   const data = {
     prenom, nom,
     initials: document.getElementById('stf-initials').value.trim() || (prenom[0] + nom[0]).toUpperCase(),
@@ -3304,9 +3406,10 @@ function saveTeamMember(id) {
     role: document.getElementById('stf-role').value,
     statut: document.getElementById('stf-statut').value,
     groupeId: parseInt(document.getElementById('stf-groupe').value) || null,
-    base: document.getElementById('stf-base').value.trim(),
-    lat: parseFloat(document.getElementById('stf-lat').value) || null,
-    lon: parseFloat(document.getElementById('stf-lon').value) || null,
+    base: departAdresse, // backwards compat
+    lat: departLat, lon: departLon, // backwards compat
+    departAdresse, departLat, departLon, departAgenceId,
+    arriveeAdresse, arriveeLat, arriveeLon, arriveeAgenceId,
     vehicule: document.getElementById('stf-vehicule').value.trim(),
     telephone: document.getElementById('stf-tel').value.trim(),
     email: document.getElementById('stf-email').value.trim(),
