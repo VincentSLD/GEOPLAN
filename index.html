@@ -1488,9 +1488,9 @@ body::before {
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Gestion</div>
-      <div class="nav-item" onclick="openEtudes()">
+      <div class="nav-item" onclick="showView('commandes')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Études / Dossiers
+        Commandes / Études
       </div>
       <div class="nav-item" onclick="alert('Module clients — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1532,6 +1532,7 @@ body::before {
       <button class="view-tab" onclick="switchView('day',this)">Jour</button>
       <button class="view-tab" onclick="switchView('month',this)">Mois</button>
       <button class="view-tab" onclick="switchView('list',this)">Liste</button>
+      <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
       <button class="view-tab" onclick="switchView('map',this)">Carte</button>
     </div>
     <div class="topbar-center">
@@ -1562,6 +1563,23 @@ body::before {
   <div class="view-content" id="dayView"><div class="day-timeline" id="dayTimeline"></div></div>
   <div class="view-content" id="monthView"><div class="month-grid" id="monthGrid"></div></div>
   <div class="view-content" id="listView"><div class="list-container" id="listContainer"></div></div>
+  <div class="view-content" id="commandesView">
+    <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg-secondary);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-weight:700;font-size:0.9rem;">Commandes Akuiteo</span>
+        <span class="badge-count" id="commandesCount">0</span>
+        <input type="text" id="commandesSearch" placeholder="Rechercher..." oninput="filterCommandes()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.72rem;font-family:inherit;width:200px;">
+      </div>
+      <button class="btn btn-ghost" id="commandesSyncBtn" onclick="syncEtudes()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Synchroniser Akuiteo
+      </button>
+    </div>
+    <div style="flex:1;overflow:auto;padding:16px 20px;" id="commandesListContainer">
+      <div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">Cliquez sur "Synchroniser Akuiteo" pour charger les commandes.</div>
+    </div>
+  </div>
+
   <div class="view-content" id="mapView">
     <div class="map-inline-container" id="mapInlineContainer">
       <div class="map-inline-header">
@@ -2192,6 +2210,7 @@ function switchView(v,tab) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if (v === 'map') { initFleetMap(); }
   else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
+  else if (v === 'commandes') { initCommandes(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -2415,15 +2434,27 @@ document.addEventListener('click',e=>{const p=document.getElementById('detailPan
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDetail();}});
 
-// ═══ AKUITEO API via proxy local (lancer: python proxy_akuiteo.py) ═══
-const AKUITEO_PROXY = 'http://localhost:8888';
+// ═══ AKUITEO API ═══
+const AKUITEO_PROXY = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:8888'
+  : '/api/akuiteo?path=';
 let etudesData = []; // { ref, nom, client, montant, montant_ttc, date, statut, agence, docs[] }
 let etudesFiltered = [];
 
 async function akuiteoFetch(method, path, body = null) {
   const opts = { method, headers: { 'Accept': 'application/json' } };
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-  const r = await fetch(AKUITEO_PROXY + path, opts);
+  // Vercel: /api/akuiteo?path=/sales/orders/search&limit=50
+  // Local:  http://localhost:8888/sales/orders/search?limit=50
+  const isVercel = AKUITEO_PROXY.includes('?path=');
+  let url;
+  if (isVercel) {
+    const [basePath, qs] = path.includes('?') ? path.split('?', 2) : [path, ''];
+    url = AKUITEO_PROXY + basePath + (qs ? '&' + qs : '');
+  } else {
+    url = AKUITEO_PROXY + path;
+  }
+  const r = await fetch(url, opts);
   console.log(`[Akuiteo] ${method} ${path} → ${r.status}`);
   if (!r.ok) { const txt = await r.text(); throw new Error(`Akuiteo ${r.status}: ${txt.substring(0, 200)}`); }
   const text = await r.text();
@@ -2528,8 +2559,21 @@ async function syncEtudes() {
       akuiteoFetchAll('/sales/orders/search', { id: { operator: 'IS_NOT', value: '0' } }),
     ]);
 
-    // Filtrer : garder uniquement les commandes à faire ou en cours (exclure DELIVERED, CANCELLED)
-    const activeOrders = orders.filter(o => o.state !== 'DELIVERED' && o.state !== 'CANCELLED');
+    // Appliquer filtres admin
+    const akExclure = (settingsGeneral.akuiteoExclure || ['DELIVERED','CANCELLED']).map(function(s){return s.toUpperCase();});
+    const akStatuts = (settingsGeneral.akuiteoStatuts || []).map(function(s){return s.toUpperCase();});
+    const akSocietes = (settingsGeneral.akuiteoSocietes || []).map(function(s){return s.toUpperCase();});
+
+    const activeOrders = orders.filter(function(o) {
+      var state = (o.state || '').toUpperCase();
+      if (akExclure.indexOf(state) >= 0) return false;
+      if (akStatuts.length > 0 && akStatuts.indexOf(state) < 0) return false;
+      if (akSocietes.length > 0) {
+        var entity = (o.entityCode || '').toUpperCase();
+        if (akSocietes.indexOf(entity) < 0) return false;
+      }
+      return true;
+    });
     console.log(`[Akuiteo] ${allCustomers.length} clients, ${orders.length} commandes total, ${activeOrders.length} en cours/à faire`);
     etudesMsg(`${allCustomers.length} clients, ${activeOrders.length} commandes actives. Construction...`);
 
@@ -2585,6 +2629,7 @@ async function syncEtudes() {
     console.log(`[Akuiteo] ${etudesData.length} études construites en ${elapsed}s`);
     etudesMsg(`${etudesData.length} études synchronisées en ${elapsed}s`);
     renderEtudesTable();
+    renderCommandesList();
     populateEtudeSelect();
 
   } catch (e) {
@@ -2616,6 +2661,85 @@ function renderEtudesEmpty() {
     <small>Cliquez sur "Sync Akuiteo" pour charger les études.<br>Proxy : <code>python proxy_akuiteo.py</code></small>
   </div>`;
   document.getElementById('etudesCount').textContent = '0';
+}
+
+// ═══ VUE COMMANDES INLINE ═══
+function initCommandes() {
+  if (etudesData.length === 0) {
+    var cached = localStorage.getItem('geoplan_etudes');
+    if (cached) {
+      try {
+        var parsed = JSON.parse(cached);
+        etudesData = parsed.data || [];
+        etudesFiltered = etudesData.slice();
+      } catch(e) {}
+    }
+  }
+  renderCommandesList();
+}
+
+function filterCommandes() {
+  var q = (document.getElementById('commandesSearch').value || '').toLowerCase().trim();
+  if (!q) { etudesFiltered = etudesData.slice(); }
+  else {
+    etudesFiltered = etudesData.filter(function(e) {
+      return e.ref.toLowerCase().indexOf(q) >= 0 ||
+        e.nom.toLowerCase().indexOf(q) >= 0 ||
+        e.client.toLowerCase().indexOf(q) >= 0 ||
+        (e.agence || '').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  renderCommandesList();
+}
+
+function renderCommandesList() {
+  var c = document.getElementById('commandesListContainer');
+  if (!c) return;
+  var countEl = document.getElementById('commandesCount');
+  if (countEl) countEl.textContent = etudesFiltered.length;
+
+  if (etudesFiltered.length === 0) {
+    c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">' + (etudesData.length === 0 ? 'Cliquez sur "Synchroniser Akuiteo" pour charger les commandes.' : 'Aucune commande trouvée.') + '</div>';
+    return;
+  }
+
+  var fmt = function(n) { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); };
+  var fmtDate = function(d) { return d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; };
+
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom / Étude</th><th>Client</th><th>Montant HT</th><th>Agence</th><th>Date</th><th>Commandes</th><th>Action</th></tr></thead><tbody>';
+  etudesFiltered.forEach(function(e) {
+    html += '<tr>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + e.ref + '</td>';
+    html += '<td><strong>' + (e.nom || '—') + '</strong></td>';
+    html += '<td style="font-size:0.75rem;">' + (e.client || '—') + '</td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(e.montant || 0) + '</td>';
+    html += '<td style="font-size:0.72rem;">' + (e.agence || '—') + '</td>';
+    html += '<td style="font-size:0.72rem;">' + fmtDate(e.minDate) + (e.maxDate && e.maxDate !== e.minDate ? ' → ' + fmtDate(e.maxDate) : '') + '</td>';
+    html += '<td style="font-size:0.72rem;">' + (e.nbCmd || 0) + ' cmd</td>';
+    html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (e.ref || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+function planifierCommande(ref) {
+  var etude = etudesData.find(function(e) { return e.ref === ref; });
+  if (!etude) return;
+  // Ouvrir le formulaire d'intervention pré-rempli
+  switchView('week', document.querySelectorAll('.view-tab')[0]);
+  setTimeout(function() {
+    openModal();
+    document.getElementById('intTitle').value = etude.nom || etude.ref;
+    document.getElementById('intClient').value = etude.client || '';
+    // Sélectionner l'étude dans le dropdown si elle existe
+    var etudeSelect = document.getElementById('intEtude');
+    if (etudeSelect) {
+      for (var i = 0; i < etudeSelect.options.length; i++) {
+        if (etudeSelect.options[i].value === ref) { etudeSelect.selectedIndex = i; break; }
+      }
+    }
+  }, 100);
 }
 
 function renderEtudesTable() {
@@ -3974,6 +4098,16 @@ function renderSettingsGeneral() {
       <div id="stg-agences-list"></div>
       <button class="stg-add-btn" onclick="editAgence(null)" style="margin-top:8px;">+ Ajouter une agence</button>
     </div>
+    <div class="stg-general-section">
+      <h4>Filtres commandes Akuiteo</h4>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;">Définissez les filtres pour les commandes affichées dans la planification. Séparez les valeurs par des virgules.</p>
+      <div class="stg-general-grid">
+        <div class="stg-general-field" style="grid-column:span 3;"><label>Sociétés / Codes entité (entityCode)</label><input id="stg-ak-societes" value="${(g.akuiteoSocietes || []).join(', ')}" placeholder="Ex: GPH, SOLOG, REGAR"></div>
+        <div class="stg-general-field" style="grid-column:span 3;"><label>Types de mission (données personnalisées)</label><input id="stg-ak-types" value="${(g.akuiteoTypes || []).join(', ')}" placeholder="Ex: G1, G2 AVP, G2 PRO, G5"></div>
+        <div class="stg-general-field" style="grid-column:span 3;"><label>Statuts à afficher</label><input id="stg-ak-statuts" value="${(g.akuiteoStatuts || ['OPENED','CONFIRMED','IN_PROGRESS']).join(', ')}" placeholder="Ex: OPENED, CONFIRMED, IN_PROGRESS"></div>
+        <div class="stg-general-field" style="grid-column:span 3;"><label>Statuts à exclure</label><input id="stg-ak-exclure" value="${(g.akuiteoExclure || ['DELIVERED','CANCELLED']).join(', ')}" placeholder="Ex: DELIVERED, CANCELLED"></div>
+      </div>
+    </div>
     <div class="stg-save-bar"><button onclick="saveGeneralSettings()">Enregistrer les paramètres</button></div>
   `;
   renderAgencesList();
@@ -4212,12 +4346,17 @@ function saveGeneralSettings() {
       pauseFin: document.querySelector(`.stg-jour-pfin[data-jour="${j}"]`).value,
     };
   });
+  function splitTrim(val) { return val ? val.split(',').map(function(s){return s.trim();}).filter(Boolean) : []; }
   migrateAgences();
   settingsGeneral = {
     ...settingsGeneral,
     jours,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
+    akuiteoSocietes: splitTrim(document.getElementById('stg-ak-societes').value),
+    akuiteoTypes: splitTrim(document.getElementById('stg-ak-types').value),
+    akuiteoStatuts: splitTrim(document.getElementById('stg-ak-statuts').value),
+    akuiteoExclure: splitTrim(document.getElementById('stg-ak-exclure').value),
   };
   saveSettings(SETTINGS_KEYS.general, settingsGeneral);
   alert('Paramètres enregistrés !');
