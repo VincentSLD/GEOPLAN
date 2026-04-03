@@ -1570,9 +1570,9 @@ body::before {
         <span class="badge-count" id="commandesCount">0</span>
         <input type="text" id="commandesSearch" placeholder="Rechercher..." oninput="filterCommandes()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.72rem;font-family:inherit;width:200px;">
       </div>
-      <button class="btn btn-ghost" id="commandesSyncBtn" onclick="syncEtudes()">
+      <button class="btn btn-ghost" onclick="refreshCommandes()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        Synchroniser Akuiteo
+        Rafraîchir
       </button>
     </div>
     <div style="flex:1;overflow:auto;padding:16px 20px;" id="commandesListContainer">
@@ -2664,29 +2664,72 @@ function renderEtudesEmpty() {
 }
 
 // ═══ VUE COMMANDES INLINE ═══
-function initCommandes() {
-  if (etudesData.length === 0) {
-    var cached = localStorage.getItem('geoplan_etudes');
-    if (cached) {
-      try {
-        var parsed = JSON.parse(cached);
-        etudesData = parsed.data || [];
-        etudesFiltered = etudesData.slice();
-      } catch(e) {}
+var commandesData = [];
+var commandesFiltered = [];
+var commandesLoaded = false;
+
+async function initCommandes() {
+  if (!commandesLoaded) await loadCommandesFromSupabase();
+  renderCommandesList();
+}
+
+async function loadCommandesFromSupabase() {
+  try {
+    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date_creation, date_client, responsable_id, reference1, affaire_id');
+
+    // Appliquer filtres admin
+    var g = settingsGeneral;
+    var exclure = (g.akuiteoExclure || ['DELIVERED', 'CANCELLED']).map(function(s) { return s.toLowerCase().trim(); });
+    var statuts = (g.akuiteoStatuts || []).map(function(s) { return s.toLowerCase().trim(); });
+    var societes = (g.akuiteoSocietes || []).map(function(s) { return s.trim(); });
+
+    if (exclure.length > 0) {
+      // Supabase ne supporte pas "not in" directement, on filtre côté client
     }
-  }
+
+    var result = await query.order('date_creation', { ascending: false }).limit(2000);
+    if (result.error) { console.error('[Commandes] Erreur Supabase:', result.error); return; }
+    var data = result.data || [];
+
+    // Filtrer côté client
+    commandesData = data.filter(function(c) {
+      var s = (c.statut || '').toLowerCase();
+      if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
+      if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
+      if (societes.length > 0) {
+        var ag = (c.agence || '').toUpperCase();
+        var match = false;
+        for (var i = 0; i < societes.length; i++) { if (ag.indexOf(societes[i].toUpperCase()) >= 0) { match = true; break; } }
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    commandesFiltered = commandesData.slice();
+    commandesLoaded = true;
+    console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées depuis Supabase (après filtres)');
+  } catch(e) { console.warn('[Commandes] Erreur:', e); }
+}
+
+async function refreshCommandes() {
+  commandesLoaded = false;
+  commandesData = [];
+  commandesFiltered = [];
+  await loadCommandesFromSupabase();
   renderCommandesList();
 }
 
 function filterCommandes() {
   var q = (document.getElementById('commandesSearch').value || '').toLowerCase().trim();
-  if (!q) { etudesFiltered = etudesData.slice(); }
+  if (!q) { commandesFiltered = commandesData.slice(); }
   else {
-    etudesFiltered = etudesData.filter(function(e) {
-      return e.ref.toLowerCase().indexOf(q) >= 0 ||
-        e.nom.toLowerCase().indexOf(q) >= 0 ||
-        e.client.toLowerCase().indexOf(q) >= 0 ||
-        (e.agence || '').toLowerCase().indexOf(q) >= 0;
+    commandesFiltered = commandesData.filter(function(c) {
+      return (c.ref || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.nom || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.client_name || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.agence || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.description || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.projet || '').toLowerCase().indexOf(q) >= 0;
     });
   }
   renderCommandesList();
@@ -2696,47 +2739,50 @@ function renderCommandesList() {
   var c = document.getElementById('commandesListContainer');
   if (!c) return;
   var countEl = document.getElementById('commandesCount');
-  if (countEl) countEl.textContent = etudesFiltered.length;
+  if (countEl) countEl.textContent = commandesFiltered.length;
 
-  if (etudesFiltered.length === 0) {
-    c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">' + (etudesData.length === 0 ? 'Cliquez sur "Synchroniser Akuiteo" pour charger les commandes.' : 'Aucune commande trouvée.') + '</div>';
+  if (commandesFiltered.length === 0) {
+    c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">' + (commandesData.length === 0 ? 'Chargement des commandes...' : 'Aucune commande trouvée.') + '</div>';
     return;
   }
 
   var fmt = function(n) { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); };
   var fmtDate = function(d) { return d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; };
+  var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
+  var statusColors = { en_cours: '#D97706', livree: '#16A34A', annulee: '#DC2626', confirmee: '#2563EB', expediee: '#0891B2' };
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom / Étude</th><th>Client</th><th>Montant HT</th><th>Agence</th><th>Date</th><th>Commandes</th><th>Action</th></tr></thead><tbody>';
-  etudesFiltered.forEach(function(e) {
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Montant HT</th><th>Agence</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody>';
+  commandesFiltered.forEach(function(cmd) {
+    var sColor = statusColors[cmd.statut] || '#888';
+    var sLabel = statusLabels[cmd.statut] || cmd.statut || '—';
     html += '<tr>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + e.ref + '</td>';
-    html += '<td><strong>' + (e.nom || '—') + '</strong></td>';
-    html += '<td style="font-size:0.75rem;">' + (e.client || '—') + '</td>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(e.montant || 0) + '</td>';
-    html += '<td style="font-size:0.72rem;">' + (e.agence || '—') + '</td>';
-    html += '<td style="font-size:0.72rem;">' + fmtDate(e.minDate) + (e.maxDate && e.maxDate !== e.minDate ? ' → ' + fmtDate(e.maxDate) : '') + '</td>';
-    html += '<td style="font-size:0.72rem;">' + (e.nbCmd || 0) + ' cmd</td>';
-    html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (e.ref || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
+    html += '<td><strong>' + (cmd.nom || cmd.description || '—') + '</strong></td>';
+    html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
+    html += '<td style="font-size:0.72rem;">' + (cmd.agence || '—') + '</td>';
+    html += '<td><span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span></td>';
+    html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date_creation || cmd.date_client) + '</td>';
+    html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
   c.innerHTML = html;
 }
 
-function planifierCommande(ref) {
-  var etude = etudesData.find(function(e) { return e.ref === ref; });
-  if (!etude) return;
-  // Ouvrir le formulaire d'intervention pré-rempli
+function planifierCommande(cmdId) {
+  var cmd = commandesData.find(function(c) { return c.id === cmdId; });
+  if (!cmd) return;
   switchView('week', document.querySelectorAll('.view-tab')[0]);
   setTimeout(function() {
     openModal();
-    document.getElementById('intTitle').value = etude.nom || etude.ref;
-    document.getElementById('intClient').value = etude.client || '';
-    // Sélectionner l'étude dans le dropdown si elle existe
+    document.getElementById('intTitle').value = (cmd.nom || cmd.description || cmd.ref || '');
+    document.getElementById('intClient').value = cmd.client_name || '';
+    // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
-    if (etudeSelect) {
+    if (etudeSelect && cmd.projet) {
       for (var i = 0; i < etudeSelect.options.length; i++) {
-        if (etudeSelect.options[i].value === ref) { etudeSelect.selectedIndex = i; break; }
+        if (etudeSelect.options[i].value === cmd.projet) { etudeSelect.selectedIndex = i; break; }
       }
     }
   }, 100);
