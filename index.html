@@ -1401,6 +1401,9 @@ body::before {
 .lucca-etab-option input[type="checkbox"] { cursor:pointer; }
 .stg-accordion-header { display:flex; align-items:center; gap:8px; cursor:pointer; padding:6px 0; user-select:none; }
 .stg-accordion-header:hover h3 { color:var(--gph-yellow); }
+.stg-filter-title { display:block; font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin-bottom:8px; }
+.stg-filter-option { display:flex; align-items:center; gap:6px; font-size:0.75rem; padding:3px 0; cursor:pointer; }
+.stg-filter-option input[type="checkbox"] { cursor:pointer; }
 
 /* Address autocomplete dropdown */
 .addr-dropdown { display:none; position:absolute; top:100%; left:0; right:0; margin-top:2px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-xs); box-shadow:var(--shadow-lg); z-index:200; max-height:220px; overflow-y:auto; }
@@ -2679,9 +2682,10 @@ async function loadCommandesFromSupabase() {
 
     // Appliquer filtres admin
     var g = settingsGeneral;
-    var exclure = (g.akuiteoExclure || ['DELIVERED', 'CANCELLED']).map(function(s) { return s.toLowerCase().trim(); });
+    var exclure = (g.akuiteoExclure || []).map(function(s) { return s.toLowerCase().trim(); });
     var statuts = (g.akuiteoStatuts || []).map(function(s) { return s.toLowerCase().trim(); });
     var societes = (g.akuiteoSocietes || []).map(function(s) { return s.trim(); });
+    var agencesFilt = (g.akuiteoAgences || []).map(function(s) { return s.toUpperCase().trim(); });
 
     if (exclure.length > 0) {
       // Supabase ne supporte pas "not in" directement, on filtre côté client
@@ -2696,12 +2700,8 @@ async function loadCommandesFromSupabase() {
       var s = (c.statut || '').toLowerCase();
       if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
       if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
-      if (societes.length > 0) {
-        var soc = ((c.societe || '') + ' ' + (c.agence || '')).toUpperCase();
-        var match = false;
-        for (var i = 0; i < societes.length; i++) { if (soc.indexOf(societes[i].toUpperCase()) >= 0) { match = true; break; } }
-        if (!match) return false;
-      }
+      if (societes.length > 0 && societes.indexOf(c.societe || '') < 0) return false;
+      if (agencesFilt.length > 0 && agencesFilt.indexOf((c.agence || '').toUpperCase()) < 0) return false;
       return true;
     });
 
@@ -4145,18 +4145,68 @@ function renderSettingsGeneral() {
       <button class="stg-add-btn" onclick="editAgence(null)" style="margin-top:8px;">+ Ajouter une agence</button>
     </div>
     <div class="stg-general-section">
-      <h4>Filtres commandes Akuiteo</h4>
-      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;">Définissez les filtres pour les commandes affichées dans la planification. Séparez les valeurs par des virgules.</p>
-      <div class="stg-general-grid">
-        <div class="stg-general-field" style="grid-column:span 3;"><label>Sociétés / Codes entité (entityCode)</label><input id="stg-ak-societes" value="${(g.akuiteoSocietes || []).join(', ')}" placeholder="Ex: GPH, SOLOG, REGAR"></div>
-        <div class="stg-general-field" style="grid-column:span 3;"><label>Types de mission (données personnalisées)</label><input id="stg-ak-types" value="${(g.akuiteoTypes || []).join(', ')}" placeholder="Ex: G1, G2 AVP, G2 PRO, G5"></div>
-        <div class="stg-general-field" style="grid-column:span 3;"><label>Statuts à afficher</label><input id="stg-ak-statuts" value="${(g.akuiteoStatuts || ['OPENED','CONFIRMED','IN_PROGRESS']).join(', ')}" placeholder="Ex: OPENED, CONFIRMED, IN_PROGRESS"></div>
-        <div class="stg-general-field" style="grid-column:span 3;"><label>Statuts à exclure</label><input id="stg-ak-exclure" value="${(g.akuiteoExclure || ['DELIVERED','CANCELLED']).join(', ')}" placeholder="Ex: DELIVERED, CANCELLED"></div>
-      </div>
+      <h4>Filtres commandes</h4>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px;">Cochez les valeurs à inclure dans la vue Commandes. Si rien n'est coché, tout est affiché.</p>
+      <div id="stg-ak-filters-container"><div style="color:var(--text-muted);font-size:0.78rem;">Chargement des filtres...</div></div>
     </div>
     <div class="stg-save-bar"><button onclick="saveGeneralSettings()">Enregistrer les paramètres</button></div>
   `;
   renderAgencesList();
+  loadAkuiteoFilterOptions();
+}
+
+// Load distinct values from Supabase for filter checkboxes
+async function loadAkuiteoFilterOptions() {
+  var container = document.getElementById('stg-ak-filters-container');
+  if (!container) return;
+  try {
+    var result = await sbAuth.from('commandes').select('societe, agence, statut').limit(5000);
+    if (result.error) { container.innerHTML = '<div style="color:#dc2626;font-size:0.75rem;">Erreur chargement filtres: ' + result.error.message + '</div>'; return; }
+    var data = result.data || [];
+    var societes = {}, agences = {}, statuts = {};
+    data.forEach(function(c) {
+      if (c.societe) societes[c.societe] = (societes[c.societe] || 0) + 1;
+      if (c.agence) agences[c.agence] = (agences[c.agence] || 0) + 1;
+      if (c.statut) statuts[c.statut] = (statuts[c.statut] || 0) + 1;
+    });
+
+    var g = settingsGeneral;
+    var selectedSoc = g.akuiteoSocietes || [];
+    var selectedAg = g.akuiteoAgences || [];
+    var selectedSt = g.akuiteoStatuts || [];
+    var excludeSt = g.akuiteoExclure || [];
+
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">';
+
+    // Sociétés
+    html += '<div><label class="stg-filter-title">Sociétés</label>';
+    Object.keys(societes).sort().forEach(function(s) {
+      var checked = selectedSoc.length === 0 || selectedSoc.indexOf(s) >= 0;
+      html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-soc" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + societes[s] + ')</span></label>';
+    });
+    html += '</div>';
+
+    // Agences
+    html += '<div><label class="stg-filter-title">Agences</label>';
+    Object.keys(agences).sort().forEach(function(a) {
+      var checked = selectedAg.length === 0 || selectedAg.indexOf(a) >= 0;
+      html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-ag" value="' + a + '" ' + (checked ? 'checked' : '') + '> ' + a + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + agences[a] + ')</span></label>';
+    });
+    html += '</div>';
+
+    // Statuts
+    html += '<div><label class="stg-filter-title">Statuts</label>';
+    var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
+    Object.keys(statuts).sort().forEach(function(s) {
+      var isExcluded = excludeSt.indexOf(s) >= 0;
+      var checked = !isExcluded && (selectedSt.length === 0 || selectedSt.indexOf(s) >= 0);
+      html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-st" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + (statusLabels[s] || s) + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + statuts[s] + ')</span></label>';
+    });
+    html += '</div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) { container.innerHTML = '<div style="color:#dc2626;font-size:0.75rem;">Erreur: ' + e.message + '</div>'; }
 }
 
 // Migration: ancien format agence unique → tableau agences
@@ -4392,17 +4442,26 @@ function saveGeneralSettings() {
       pauseFin: document.querySelector(`.stg-jour-pfin[data-jour="${j}"]`).value,
     };
   });
-  function splitTrim(val) { return val ? val.split(',').map(function(s){return s.trim();}).filter(Boolean) : []; }
+  function getCheckedValues(cls) { var v=[]; document.querySelectorAll('.'+cls+':checked').forEach(function(cb){v.push(cb.value);}); return v; }
+  function getAllValues(cls) { var v=[]; document.querySelectorAll('.'+cls).forEach(function(cb){v.push(cb.value);}); return v; }
+  var checkedSoc = getCheckedValues('ak-filter-soc');
+  var allSoc = getAllValues('ak-filter-soc');
+  var checkedAg = getCheckedValues('ak-filter-ag');
+  var allAg = getAllValues('ak-filter-ag');
+  var checkedSt = getCheckedValues('ak-filter-st');
+  var allSt = getAllValues('ak-filter-st');
+  var excludeSt = allSt.filter(function(s){ return checkedSt.indexOf(s) < 0; });
+
   migrateAgences();
   settingsGeneral = {
     ...settingsGeneral,
     jours,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
-    akuiteoSocietes: splitTrim(document.getElementById('stg-ak-societes').value),
-    akuiteoTypes: splitTrim(document.getElementById('stg-ak-types').value),
-    akuiteoStatuts: splitTrim(document.getElementById('stg-ak-statuts').value),
-    akuiteoExclure: splitTrim(document.getElementById('stg-ak-exclure').value),
+    akuiteoSocietes: checkedSoc.length === allSoc.length ? [] : checkedSoc,
+    akuiteoAgences: checkedAg.length === allAg.length ? [] : checkedAg,
+    akuiteoStatuts: checkedSt.length === allSt.length ? [] : checkedSt,
+    akuiteoExclure: excludeSt,
   };
   saveSettings(SETTINGS_KEYS.general, settingsGeneral);
   alert('Paramètres enregistrés !');
