@@ -2685,7 +2685,10 @@ async function loadCommandesFromSupabase() {
     var exclure = (g.akuiteoExclure || []).map(function(s) { return s.toLowerCase().trim(); });
     var statuts = (g.akuiteoStatuts || []).map(function(s) { return s.toLowerCase().trim(); });
     var societes = (g.akuiteoSocietes || []).map(function(s) { return s.trim(); });
-    var agencesFilt = (g.akuiteoAgences || []).map(function(s) { return s.toUpperCase().trim(); });
+    var filtCategories = g.akuiteoCategories || [];
+    var filtTypes = g.akuiteoTypes || [];
+    var filtCdStatuts = g.akuiteoStatutsCustom || [];
+    var customBoolKeys = { 'A Faire': '1-boolean04', 'En cours': '1-boolean05', 'Terminée': '1-boolean07', 'En attente': '1-boolean08', 'A Planifier': '1-boolean09' };
 
     if (exclure.length > 0) {
       // Supabase ne supporte pas "not in" directement, on filtre côté client
@@ -2701,7 +2704,24 @@ async function loadCommandesFromSupabase() {
       if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
       if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
       if (societes.length > 0 && societes.indexOf(c.societe || '') < 0) return false;
-      if (agencesFilt.length > 0 && agencesFilt.indexOf((c.agence || '').toUpperCase()) < 0) return false;
+      // Custom data filters
+      var cd = c.custom_data;
+      if (filtCategories.length > 0) {
+        var cat = cd && cd['1-alpha05'] && cd['1-alpha05'].value;
+        if (!cat || filtCategories.indexOf(cat) < 0) return false;
+      }
+      if (filtTypes.length > 0) {
+        var typ = cd && cd['1-alpha06'] && cd['1-alpha06'].value;
+        if (!typ || filtTypes.indexOf(typ) < 0) return false;
+      }
+      if (filtCdStatuts.length > 0) {
+        var hasMatch = false;
+        for (var j = 0; j < filtCdStatuts.length; j++) {
+          var boolKey = customBoolKeys[filtCdStatuts[j]];
+          if (boolKey && cd && cd[boolKey] && cd[boolKey].value === 'true') { hasMatch = true; break; }
+        }
+        if (!hasMatch) return false;
+      }
       return true;
     });
 
@@ -4160,42 +4180,57 @@ async function loadAkuiteoFilterOptions() {
   var container = document.getElementById('stg-ak-filters-container');
   if (!container) return;
   try {
-    var result = await sbAuth.from('commandes').select('societe, agence, statut').limit(5000);
-    if (result.error) { container.innerHTML = '<div style="color:#dc2626;font-size:0.75rem;">Erreur chargement filtres: ' + result.error.message + '</div>'; return; }
-    var data = result.data || [];
-    var societes = {}, agences = {}, statuts = {};
-    data.forEach(function(c) {
+    // Paginate to get all commandes for distinct values
+    var allData = [], offset = 0, pageSize = 1000, hasMore = true;
+    while (hasMore) {
+      var result = await sbAuth.from('commandes').select('societe, statut, custom_data').range(offset, offset + pageSize - 1);
+      if (result.error) { container.innerHTML = '<div style="color:#dc2626;font-size:0.75rem;">Erreur: ' + result.error.message + '</div>'; return; }
+      allData = allData.concat(result.data || []);
+      hasMore = (result.data || []).length === pageSize;
+      offset += pageSize;
+    }
+
+    var societes = {}, statuts = {}, categories = {}, typesMission = {}, statutsCustom = {};
+    var customBoolFields = {
+      '1-boolean04': 'A Faire',
+      '1-boolean05': 'En cours',
+      '1-boolean07': 'Terminée',
+      '1-boolean08': 'En attente',
+      '1-boolean09': 'A Planifier'
+    };
+    allData.forEach(function(c) {
       if (c.societe) societes[c.societe] = (societes[c.societe] || 0) + 1;
-      if (c.agence) agences[c.agence] = (agences[c.agence] || 0) + 1;
       if (c.statut) statuts[c.statut] = (statuts[c.statut] || 0) + 1;
+      var d = c.custom_data;
+      if (d) {
+        if (d['1-alpha05'] && d['1-alpha05'].value) categories[d['1-alpha05'].value] = (categories[d['1-alpha05'].value] || 0) + 1;
+        if (d['1-alpha06'] && d['1-alpha06'].value) typesMission[d['1-alpha06'].value] = (typesMission[d['1-alpha06'].value] || 0) + 1;
+        Object.keys(customBoolFields).forEach(function(k) {
+          if (d[k] && d[k].value === 'true') statutsCustom[customBoolFields[k]] = (statutsCustom[customBoolFields[k]] || 0) + 1;
+        });
+      }
     });
 
     var g = settingsGeneral;
     var selectedSoc = g.akuiteoSocietes || [];
-    var selectedAg = g.akuiteoAgences || [];
     var selectedSt = g.akuiteoStatuts || [];
     var excludeSt = g.akuiteoExclure || [];
+    var selectedCat = g.akuiteoCategories || [];
+    var selectedTypes = g.akuiteoTypes || [];
+    var selectedCdSt = g.akuiteoStatutsCustom || [];
 
-    var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">';
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
 
     // Sociétés
-    html += '<div><label class="stg-filter-title">Sociétés</label>';
+    html += '<div><label class="stg-filter-title">Sociétés (' + Object.keys(societes).length + ')</label>';
     Object.keys(societes).sort().forEach(function(s) {
       var checked = selectedSoc.length === 0 || selectedSoc.indexOf(s) >= 0;
       html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-soc" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + societes[s] + ')</span></label>';
     });
     html += '</div>';
 
-    // Agences
-    html += '<div><label class="stg-filter-title">Agences</label>';
-    Object.keys(agences).sort().forEach(function(a) {
-      var checked = selectedAg.length === 0 || selectedAg.indexOf(a) >= 0;
-      html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-ag" value="' + a + '" ' + (checked ? 'checked' : '') + '> ' + a + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + agences[a] + ')</span></label>';
-    });
-    html += '</div>';
-
     // Statuts
-    html += '<div><label class="stg-filter-title">Statuts</label>';
+    html += '<div><label class="stg-filter-title">Statuts (' + Object.keys(statuts).length + ')</label>';
     var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
     Object.keys(statuts).sort().forEach(function(s) {
       var isExcluded = excludeSt.indexOf(s) >= 0;
@@ -4204,7 +4239,43 @@ async function loadAkuiteoFilterOptions() {
     });
     html += '</div>';
 
+    // Statuts commande (custom_data booleans)
+    if (Object.keys(statutsCustom).length > 0) {
+      html += '<div><label class="stg-filter-title">Statut commande (données perso.)</label>';
+      Object.keys(statutsCustom).sort().forEach(function(s) {
+        var checked = selectedCdSt.length === 0 || selectedCdSt.indexOf(s) >= 0;
+        html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-cdst" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + statutsCustom[s] + ')</span></label>';
+      });
+      html += '</div>';
+    }
+
+    // Catégories (custom_data 1-alpha05)
+    if (Object.keys(categories).length > 0) {
+      html += '<div><label class="stg-filter-title">Catégorie (données perso.)</label>';
+      Object.keys(categories).sort().forEach(function(s) {
+        var checked = selectedCat.length === 0 || selectedCat.indexOf(s) >= 0;
+        html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-cat" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + categories[s] + ')</span></label>';
+      });
+      html += '</div>';
+    }
+
+    // Types de mission (custom_data 1-alpha06)
+    if (Object.keys(typesMission).length > 0) {
+      html += '<div><label class="stg-filter-title">Type de mission (données perso.)</label>';
+      Object.keys(typesMission).sort().forEach(function(s) {
+        var checked = selectedTypes.length === 0 || selectedTypes.indexOf(s) >= 0;
+        html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-type" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + typesMission[s] + ')</span></label>';
+      });
+      html += '</div>';
+    }
+
+    // Message si pas de données custom
+    if (Object.keys(categories).length === 0 && Object.keys(typesMission).length === 0 && Object.keys(statutsCustom).length === 0) {
+      html += '<div style="grid-column:span 2;"><p style="font-size:0.72rem;color:var(--text-muted);font-style:italic;">Les données personnalisées (Catégorie, Type de mission, Statut commande) apparaîtront ici une fois synchronisées dans le CRM.</p></div>';
+    }
+
     html += '</div>';
+    html += '<div style="margin-top:8px;font-size:0.65rem;color:var(--text-muted);">' + allData.length + ' commandes analysées</div>';
     container.innerHTML = html;
   } catch(e) { container.innerHTML = '<div style="color:#dc2626;font-size:0.75rem;">Erreur: ' + e.message + '</div>'; }
 }
@@ -4446,11 +4517,15 @@ function saveGeneralSettings() {
   function getAllValues(cls) { var v=[]; document.querySelectorAll('.'+cls).forEach(function(cb){v.push(cb.value);}); return v; }
   var checkedSoc = getCheckedValues('ak-filter-soc');
   var allSoc = getAllValues('ak-filter-soc');
-  var checkedAg = getCheckedValues('ak-filter-ag');
-  var allAg = getAllValues('ak-filter-ag');
   var checkedSt = getCheckedValues('ak-filter-st');
   var allSt = getAllValues('ak-filter-st');
   var excludeSt = allSt.filter(function(s){ return checkedSt.indexOf(s) < 0; });
+  var checkedCat = getCheckedValues('ak-filter-cat');
+  var allCat = getAllValues('ak-filter-cat');
+  var checkedTypes = getCheckedValues('ak-filter-type');
+  var allTypes = getAllValues('ak-filter-type');
+  var checkedCdSt = getCheckedValues('ak-filter-cdst');
+  var allCdSt = getAllValues('ak-filter-cdst');
 
   migrateAgences();
   settingsGeneral = {
@@ -4459,9 +4534,11 @@ function saveGeneralSettings() {
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
     akuiteoSocietes: checkedSoc.length === allSoc.length ? [] : checkedSoc,
-    akuiteoAgences: checkedAg.length === allAg.length ? [] : checkedAg,
     akuiteoStatuts: checkedSt.length === allSt.length ? [] : checkedSt,
     akuiteoExclure: excludeSt,
+    akuiteoCategories: checkedCat.length === allCat.length ? [] : checkedCat,
+    akuiteoTypes: checkedTypes.length === allTypes.length ? [] : checkedTypes,
+    akuiteoStatutsCustom: checkedCdSt.length === allCdSt.length ? [] : checkedCdSt,
   };
   saveSettings(SETTINGS_KEYS.general, settingsGeneral);
   alert('Paramètres enregistrés !');
