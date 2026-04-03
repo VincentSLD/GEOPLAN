@@ -2688,7 +2688,6 @@ async function loadCommandesFromSupabase() {
     var filtCategories = g.akuiteoCategories || [];
     var filtTypes = g.akuiteoTypes || [];
     var filtCdStatuts = g.akuiteoStatutsCustom || [];
-    var customBoolKeys = { 'A Faire': '1-boolean04', 'En cours': '1-boolean05', 'Terminée': '1-boolean07', 'En attente': '1-boolean08', 'A Planifier': '1-boolean09' };
 
     if (exclure.length > 0) {
       // Supabase ne supporte pas "not in" directement, on filtre côté client
@@ -2715,12 +2714,8 @@ async function loadCommandesFromSupabase() {
         if (!typ || filtTypes.indexOf(typ) < 0) return false;
       }
       if (filtCdStatuts.length > 0) {
-        var hasMatch = false;
-        for (var j = 0; j < filtCdStatuts.length; j++) {
-          var boolKey = customBoolKeys[filtCdStatuts[j]];
-          if (boolKey && cd && cd[boolKey] && cd[boolKey].value === 'true') { hasMatch = true; break; }
-        }
-        if (!hasMatch) return false;
+        var cdSt = cd && cd['1-alpha17'] && cd['1-alpha17'].value;
+        if (!cdSt || filtCdStatuts.indexOf(cdSt) < 0) return false;
       }
       return true;
     });
@@ -4191,13 +4186,6 @@ async function loadAkuiteoFilterOptions() {
     }
 
     var societes = {}, statuts = {}, categories = {}, typesMission = {}, statutsCustom = {};
-    var customBoolFields = {
-      '1-boolean04': 'A Faire',
-      '1-boolean05': 'En cours',
-      '1-boolean07': 'Terminée',
-      '1-boolean08': 'En attente',
-      '1-boolean09': 'A Planifier'
-    };
     allData.forEach(function(c) {
       if (c.societe) societes[c.societe] = (societes[c.societe] || 0) + 1;
       if (c.statut) statuts[c.statut] = (statuts[c.statut] || 0) + 1;
@@ -4205,9 +4193,7 @@ async function loadAkuiteoFilterOptions() {
       if (d) {
         if (d['1-alpha05'] && d['1-alpha05'].value) categories[d['1-alpha05'].value] = (categories[d['1-alpha05'].value] || 0) + 1;
         if (d['1-alpha06'] && d['1-alpha06'].value) typesMission[d['1-alpha06'].value] = (typesMission[d['1-alpha06'].value] || 0) + 1;
-        Object.keys(customBoolFields).forEach(function(k) {
-          if (d[k] && d[k].value === 'true') statutsCustom[customBoolFields[k]] = (statutsCustom[customBoolFields[k]] || 0) + 1;
-        });
+        if (d['1-alpha17'] && d['1-alpha17'].value) statutsCustom[d['1-alpha17'].value] = (statutsCustom[d['1-alpha17'].value] || 0) + 1;
       }
     });
 
@@ -4241,7 +4227,7 @@ async function loadAkuiteoFilterOptions() {
 
     // Statuts commande (custom_data booleans)
     if (Object.keys(statutsCustom).length > 0) {
-      html += '<div><label class="stg-filter-title">Statut commande (données perso.)</label>';
+      html += '<div><label class="stg-filter-title">Statut de la commande</label>';
       Object.keys(statutsCustom).sort().forEach(function(s) {
         var checked = selectedCdSt.length === 0 || selectedCdSt.indexOf(s) >= 0;
         html += '<label class="stg-filter-option"><input type="checkbox" class="ak-filter-cdst" value="' + s + '" ' + (checked ? 'checked' : '') + '> ' + s + ' <span style="color:var(--text-muted);font-size:0.6rem;">(' + statutsCustom[s] + ')</span></label>';
