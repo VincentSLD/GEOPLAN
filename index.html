@@ -2675,7 +2675,7 @@ async function initCommandes() {
 
 async function loadCommandesFromSupabase() {
   try {
-    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date_creation, date_client, responsable_id, reference1, affaire_id');
+    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, societe, custom_data');
 
     // Appliquer filtres admin
     var g = settingsGeneral;
@@ -2687,7 +2687,7 @@ async function loadCommandesFromSupabase() {
       // Supabase ne supporte pas "not in" directement, on filtre côté client
     }
 
-    var result = await query.order('date_creation', { ascending: false }).limit(2000);
+    var result = await query.order('date', { ascending: false }).limit(2000);
     if (result.error) { console.error('[Commandes] Erreur Supabase:', result.error); return; }
     var data = result.data || [];
 
@@ -2697,9 +2697,9 @@ async function loadCommandesFromSupabase() {
       if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
       if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
       if (societes.length > 0) {
-        var ag = (c.agence || '').toUpperCase();
+        var soc = ((c.societe || '') + ' ' + (c.agence || '')).toUpperCase();
         var match = false;
-        for (var i = 0; i < societes.length; i++) { if (ag.indexOf(societes[i].toUpperCase()) >= 0) { match = true; break; } }
+        for (var i = 0; i < societes.length; i++) { if (soc.indexOf(societes[i].toUpperCase()) >= 0) { match = true; break; } }
         if (!match) return false;
       }
       return true;
@@ -2762,7 +2762,7 @@ function renderCommandesList() {
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
     html += '<td style="font-size:0.72rem;">' + (cmd.agence || '—') + '</td>';
     html += '<td><span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span></td>';
-    html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date_creation || cmd.date_client) + '</td>';
+    html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date || cmd.date_client) + '</td>';
     html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
     html += '</tr>';
   });
