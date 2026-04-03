@@ -2676,9 +2676,40 @@ async function initCommandes() {
   renderCommandesList();
 }
 
+var affairesMap = {};
+var marchesMap = {};
+
+async function loadAffairesMarches() {
+  // Charger affaires
+  var allAffaires = [], off = 0;
+  while (true) {
+    var r = await sbAuth.from('affaires').select('id, ref, nom, marche_id, client_id, client_name, date_debut, date_fin, montant, statut, agence, responsable_id, code_projet, responsable').range(off, off + 999);
+    if (r.error || !r.data || r.data.length === 0) break;
+    allAffaires = allAffaires.concat(r.data);
+    if (r.data.length < 1000) break;
+    off += 1000;
+  }
+  allAffaires.forEach(function(a) { affairesMap[a.id] = a; });
+
+  // Charger marchés
+  var allMarches = [], off2 = 0;
+  while (true) {
+    var r2 = await sbAuth.from('marches').select('id, ref, nom, client_id, client_name, date_debut, date_fin, montant, statut, agence, adresse, ville, code_postal, lat, lng, responsable_id').range(off2, off2 + 999);
+    if (r2.error || !r2.data || r2.data.length === 0) break;
+    allMarches = allMarches.concat(r2.data);
+    if (r2.data.length < 1000) break;
+    off2 += 1000;
+  }
+  allMarches.forEach(function(m) { marchesMap[m.id] = m; });
+  console.log('[Commandes] ' + allAffaires.length + ' affaires, ' + allMarches.length + ' marchés chargés');
+}
+
 async function loadCommandesFromSupabase() {
   try {
-    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, societe, custom_data');
+    // Charger affaires & marchés en parallèle
+    if (Object.keys(affairesMap).length === 0) await loadAffairesMarches();
+
+    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, marche_id, societe, custom_data');
 
     // Appliquer filtres admin
     var g = settingsGeneral;
@@ -2720,9 +2751,30 @@ async function loadCommandesFromSupabase() {
       return true;
     });
 
+    // Enrichir avec affaire et marché
+    commandesData.forEach(function(cmd) {
+      var affaire = cmd.affaire_id ? affairesMap[cmd.affaire_id] : null;
+      var marche = cmd.marche_id ? marchesMap[cmd.marche_id] : null;
+      // Si pas de marché direct, chercher via l'affaire
+      if (!marche && affaire && affaire.marche_id) marche = marchesMap[affaire.marche_id];
+      cmd._affaire = affaire;
+      cmd._marche = marche;
+      // Adresse du site (depuis marché)
+      if (marche) {
+        cmd._adresse = [marche.adresse, marche.code_postal, marche.ville].filter(Boolean).join(', ');
+        cmd._lat = marche.lat;
+        cmd._lng = marche.lng;
+      }
+      // Client (priorité: commande > affaire > marché)
+      if (!cmd.client_name && affaire) cmd.client_name = affaire.client_name;
+      if (!cmd.client_name && marche) cmd.client_name = marche.client_name;
+      // Responsable
+      if (affaire && affaire.responsable) cmd._responsable = affaire.responsable;
+    });
+
     commandesFiltered = commandesData.slice();
     commandesLoaded = true;
-    console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées depuis Supabase (après filtres)');
+    console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées (après filtres), ' + Object.keys(affairesMap).length + ' affaires, ' + Object.keys(marchesMap).length + ' marchés');
   } catch(e) { console.warn('[Commandes] Erreur:', e); }
 }
 
@@ -2744,7 +2796,11 @@ function filterCommandes() {
         (c.client_name || '').toLowerCase().indexOf(q) >= 0 ||
         (c.agence || '').toLowerCase().indexOf(q) >= 0 ||
         (c.description || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.projet || '').toLowerCase().indexOf(q) >= 0;
+        (c.projet || '').toLowerCase().indexOf(q) >= 0 ||
+        (c._adresse || '').toLowerCase().indexOf(q) >= 0 ||
+        (c._affaire && c._affaire.ref || '').toLowerCase().indexOf(q) >= 0 ||
+        (c._affaire && c._affaire.nom || '').toLowerCase().indexOf(q) >= 0 ||
+        (c._responsable || '').toLowerCase().indexOf(q) >= 0;
     });
   }
   renderCommandesList();
@@ -2766,17 +2822,29 @@ function renderCommandesList() {
   var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
   var statusColors = { en_cours: '#D97706', livree: '#16A34A', annulee: '#DC2626', confirmee: '#2563EB', expediee: '#0891B2' };
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Montant HT</th><th>Agence</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Date</th><th>Action</th></tr></thead><tbody>';
   commandesFiltered.forEach(function(cmd) {
     var sColor = statusColors[cmd.statut] || '#888';
     var sLabel = statusLabels[cmd.statut] || cmd.statut || '—';
+    var adresse = cmd._adresse || '';
+    var affRef = cmd._affaire ? cmd._affaire.ref : '';
+    var affNom = cmd._affaire ? cmd._affaire.nom : '';
+    var cdStatut = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value;
     html += '<tr>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
-    html += '<td><strong>' + (cmd.nom || cmd.description || '—') + '</strong></td>';
+    html += '<td><strong>' + (cmd.nom || cmd.description || '—') + '</strong>';
+    if (cmd._responsable) html += '<br><span style="font-size:0.65rem;color:var(--text-muted);">Resp: ' + cmd._responsable + '</span>';
+    html += '</td>';
     html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
+    html += '<td style="font-size:0.72rem;">' + (adresse ? '📍 ' + adresse : '<span style="color:var(--text-muted);">—</span>') + '</td>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
-    html += '<td style="font-size:0.72rem;">' + (cmd.agence || '—') + '</td>';
-    html += '<td><span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span></td>';
+    html += '<td>';
+    html += '<span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span>';
+    if (cdStatut) html += '<br><span style="font-size:0.6rem;color:var(--text-muted);">' + cdStatut + '</span>';
+    html += '</td>';
+    html += '<td style="font-size:0.7rem;">' + (affRef ? affRef : '—');
+    if (affNom) html += '<br><span style="font-size:0.62rem;color:var(--text-muted);">' + affNom.substring(0, 30) + '</span>';
+    html += '</td>';
     html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date || cmd.date_client) + '</td>';
     html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
     html += '</tr>';
@@ -2793,6 +2861,7 @@ function planifierCommande(cmdId) {
     openModal();
     document.getElementById('intTitle').value = (cmd.nom || cmd.description || cmd.ref || '');
     document.getElementById('intClient').value = cmd.client_name || '';
+    if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
     // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
     if (etudeSelect && cmd.projet) {
