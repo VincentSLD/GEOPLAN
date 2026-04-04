@@ -2305,6 +2305,52 @@ function loadVisibleWeather() {
   if (visibleInts.length > 0) loadWeatherForInterventions(visibleInts);
 }
 
+// ===== JOURS FÉRIÉS FRANÇAIS =====
+function getEasterDate(year) {
+  // Algorithme de Meeus/Jones/Butcher
+  var a=year%19, b=Math.floor(year/100), c=year%100;
+  var d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+  var g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  var i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  var m=Math.floor((a+11*h+22*l)/451);
+  var month=Math.floor((h+l-7*m+114)/31), day=((h+l-7*m+114)%31)+1;
+  return new Date(year, month-1, day);
+}
+
+function getJoursFeries(year) {
+  var easter = getEasterDate(year);
+  function addDays(d, n) { var r = new Date(d); r.setDate(r.getDate()+n); return r; }
+  function fmt(d) { return d.toISOString().split('T')[0]; }
+  return {
+    [fmt(new Date(year,0,1))]: 'Jour de l\'An',
+    [fmt(easter)]: 'Pâques',
+    [fmt(addDays(easter,1))]: 'Lundi de Pâques',
+    [fmt(new Date(year,4,1))]: 'Fête du Travail',
+    [fmt(new Date(year,4,8))]: 'Victoire 1945',
+    [fmt(addDays(easter,39))]: 'Ascension',
+    [fmt(addDays(easter,49))]: 'Pentecôte',
+    [fmt(addDays(easter,50))]: 'Lundi de Pentecôte',
+    [fmt(new Date(year,6,14))]: 'Fête nationale',
+    [fmt(new Date(year,7,15))]: 'Assomption',
+    [fmt(new Date(year,10,1))]: 'Toussaint',
+    [fmt(new Date(year,10,11))]: 'Armistice',
+    [fmt(new Date(year,11,25))]: 'Noël',
+  };
+}
+
+var _joursFeriesCache = {};
+function isJourFerie(dateStr) {
+  var year = parseInt(dateStr.substring(0, 4));
+  if (!_joursFeriesCache[year]) _joursFeriesCache[year] = getJoursFeries(year);
+  return _joursFeriesCache[year][dateStr] || null;
+}
+
+function jourFerieBadgeHTML(dateStr) {
+  var label = isJourFerie(dateStr);
+  if (!label) return '';
+  return '<div style="background:#fef3c7;color:#92400e;border:1px solid #fbbf2420;border-radius:6px;padding:3px 8px;font-size:0.6rem;font-weight:700;text-align:center;margin-bottom:3px;">🎌 ' + label + '</div>';
+}
+
 // ===== WEEK =====
 function renderWeek() {
   const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
@@ -2315,7 +2361,8 @@ function renderWeek() {
     const ds=d.toISOString().split('T')[0], it=ds===todayStr, iw=d.getDay()===0||d.getDay()===6;
     days.push({date:d,dateStr:ds,isToday:it,isWeekend:iw});
     const dn=['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
-    html+=`<div class="grid-header-cell ${it?'today':''} ${iw?'weekend':''}"><div class="day-name">${dn[d.getDay()]}</div><div class="day-num">${d.getDate()}</div></div>`;
+    const jf = isJourFerie(ds);
+    html+=`<div class="grid-header-cell ${it?'today':''} ${iw||jf?'weekend':''}"><div class="day-name">${dn[d.getDay()]}</div><div class="day-num">${d.getDate()}</div>${jf?'<div style="font-size:0.48rem;color:#92400e;font-weight:600;margin-top:1px;">'+jf+'</div>':''}</div>`;
   }
   const techs = getFilteredTechs();
   if (techs.length === 0) {
@@ -2334,7 +2381,9 @@ function renderWeek() {
     html+=`<div class="tech-cell"><div class="avatar" style="background:${tech.color}">${tech.initials}</div><div class="tech-info"><div class="tech-name">${tech.name}</div><div class="tech-role">${tech.role} · ${tech.base}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span><span class="tech-stat">${th.toFixed(0)}h</span><span class="tech-stat">${Math.floor(tt/60)}h${String(tt%60).padStart(2,'0')} route</span></div></div></div>`;
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-      html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
+      var dayFerie = isJourFerie(day.dateStr);
+      html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend||dayFerie?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
+      html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
       di.forEach((int,idx)=>{
         const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
@@ -2382,7 +2431,11 @@ function renderDay() {
     html+=`</div></div>`;
   }
   // Add tour button at the top
-  html = '<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);"><button class="btn btn-primary" onclick="launchDayTour()" style="font-size:0.72rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Lancer la tournée GPS</button><span style="font-size:0.72rem;color:var(--text-muted);">' + di.length + ' intervention(s) ce jour</span></div>' + html;
+  var dayJf = isJourFerie(ds);
+  var dayHeader = '<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">';
+  if (dayJf) dayHeader += '<span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700;">🎌 ' + dayJf + '</span>';
+  dayHeader += '<button class="btn btn-primary" onclick="launchDayTour()" style="font-size:0.72rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Lancer la tournée GPS</button><span style="font-size:0.72rem;color:var(--text-muted);">' + di.length + ' intervention(s) ce jour</span></div>';
+  html = dayHeader + html;
   c.innerHTML=html;
 }
 
@@ -2395,7 +2448,9 @@ function renderMonth() {
   for(let i=0;i<42;i++){
     const d=new Date(sd);d.setDate(sd.getDate()+i);
     const ds=d.toISOString().split('T')[0], di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId));
-    html+=`<div class="month-day ${d.getMonth()!==m?'other-month':''} ${ds===ts?'today':''}" onclick="currentDate=new Date('${ds}');switchView('day',document.querySelectorAll('.view-tab')[1])"><div class="month-day-num">${d.getDate()}</div>`;
+    var mJf = isJourFerie(ds);
+    html+=`<div class="month-day ${d.getMonth()!==m?'other-month':''} ${ds===ts?'today':''}" onclick="currentDate=new Date('${ds}');switchView('day',document.querySelectorAll('.view-tab')[1])" ${mJf?'style="background:#fef9e7;"':''}><div class="month-day-num">${d.getDate()}</div>`;
+    if (mJf) html += '<div style="font-size:0.45rem;color:#92400e;font-weight:600;margin-bottom:2px;">🎌 ' + mJf + '</div>';
     // Show absences for selected tech in month view
     if(selectedTechId){const ab=absenceBadgeHTML(selectedTechId,ds);if(ab)html+=ab;}
     di.slice(0,3).forEach(int=>{const c=TYPE_RAW[int.type];html+=`<div class="month-event" style="background:${c}12;color:${c};border-left:2px solid ${c}">${int.startTime} ${int.title.substring(0,15)}</div>`;});
