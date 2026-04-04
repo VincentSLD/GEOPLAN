@@ -14,7 +14,18 @@
       "WebFetch(domain:flespi.com)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:community.fabric.microsoft.com)",
-      "WebFetch(domain:portals.webfleet.com)"
+      "WebFetch(domain:portals.webfleet.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:geocarto.vercel.app)",
+      "Bash(npx vercel:*)",
+      "Bash(where npm:*)",
+      "Bash(where node:*)",
+      "Bash(where vercel:*)",
+      "Bash(cmd.exe /c \"where npm\")",
+      "Bash(cmd.exe /c \"where node\")",
+      "Bash(cmd.exe /c \"where vercel\")"
     ]
   }
 }

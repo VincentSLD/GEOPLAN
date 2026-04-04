@@ -2710,6 +2710,14 @@ function renderEtudesEmpty() {
 var commandesData = [];
 var commandesFiltered = [];
 var commandesLoaded = false;
+var commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {}); // { commandeId: geosoliaProjectId }
+
+function linkCommandeGeosolia(cmdId, geoId) {
+  if (geoId) { commandeGeosoliaLinks[cmdId] = geoId; }
+  else { delete commandeGeosoliaLinks[cmdId]; }
+  saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+  // Refresh just the row's geosolia link (no full re-render)
+}
 
 async function initCommandes() {
   if (!commandesLoaded) await loadCommandesFromSupabase();
@@ -2862,7 +2870,13 @@ function renderCommandesList() {
   var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
   var statusColors = { en_cours: '#D97706', livree: '#16A34A', annulee: '#DC2626', confirmee: '#2563EB', expediee: '#0891B2' };
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Date</th><th>Action</th></tr></thead><tbody>';
+  // Build geosolia options once
+  var geoOpts = '<option value="">—</option>';
+  geosoliaProjects.forEach(function(p) {
+    geoOpts += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '').substring(0, 30) + '</option>';
+  });
+
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Date</th><th>Géosolia</th><th>Action</th></tr></thead><tbody>';
   commandesFiltered.forEach(function(cmd) {
     var sColor = statusColors[cmd.statut] || '#888';
     var sLabel = statusLabels[cmd.statut] || cmd.statut || '—';
@@ -2870,6 +2884,7 @@ function renderCommandesList() {
     var affRef = cmd._affaire ? cmd._affaire.ref : '';
     var affNom = cmd._affaire ? cmd._affaire.nom : '';
     var cdStatut = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value;
+    var linkedGeo = commandeGeosoliaLinks[cmd.id] || '';
     html += '<tr>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
     html += '<td><strong>' + (cmd.nom || cmd.description || '—') + '</strong>';
@@ -2886,6 +2901,12 @@ function renderCommandesList() {
     if (affNom) html += '<br><span style="font-size:0.62rem;color:var(--text-muted);">' + affNom.substring(0, 30) + '</span>';
     html += '</td>';
     html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date || cmd.date_client) + '</td>';
+    html += '<td>';
+    html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
+    html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
+    html += '</select>';
+    if (linkedGeo) html += '<br><a href="https://geosolia.vercel.app/?project=' + linkedGeo + '" target="_blank" style="font-size:0.58rem;color:var(--gph-yellow);font-weight:700;">Ouvrir ↗</a>';
+    html += '</td>';
     html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
     html += '</tr>';
   });
@@ -2902,6 +2923,9 @@ function planifierCommande(cmdId) {
     document.getElementById('intTitle').value = (cmd.nom || cmd.description || cmd.ref || '');
     document.getElementById('intClient').value = cmd.client_name || '';
     if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
+    // Pré-sélectionner Géosolia si lié
+    var linkedGeo = commandeGeosoliaLinks[cmd.id];
+    if (linkedGeo) document.getElementById('intGeosolia').value = linkedGeo;
     // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
     if (etudeSelect && cmd.projet) {
@@ -3416,6 +3440,7 @@ async function loadAllSettingsFromSupabase() {
       vehicleAssignments = loadSettings('geoplan_vehicle_assign', {});
       vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
       interventions = loadSettings('geoplan_interventions', []);
+      commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {});
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
