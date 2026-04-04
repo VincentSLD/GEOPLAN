@@ -2050,48 +2050,101 @@ function haversineFallback(lat1, lon1, lat2, lon2) {
   return result;
 }
 
-function getTechCoords(tech) {
-  // Try settingsTeam GPS first
+function getTechDepartCoords(tech) {
   if (typeof settingsTeam !== 'undefined') {
-    const st = settingsTeam.find(t => t.id === tech.id);
-    if (st && st.lat && st.lon) return { lat: st.lat, lon: st.lon };
+    var st = settingsTeam.find(function(t) { return t.id === tech.id; });
+    if (st) {
+      // Use departure coords (lieu de départ matin)
+      if (st.departLat && st.departLon) return { lat: st.departLat, lon: st.departLon };
+      // Fallback to base coords
+      if (st.lat && st.lon) return { lat: st.lat, lon: st.lon };
+      // If departure is an agency, use agency coords
+      if (st.departAgenceId && typeof settingsGeneral !== 'undefined' && settingsGeneral.agences) {
+        var ag = settingsGeneral.agences.find(function(a) { return a.id === st.departAgenceId; });
+        if (ag && ag.lat && ag.lon) return { lat: ag.lat, lon: ag.lon };
+      }
+    }
   }
-  // Try LOCATION_COORDS from base name
   if (LOCATION_COORDS[tech.base]) return LOCATION_COORDS[tech.base];
-  for (const [key, coords] of Object.entries(LOCATION_COORDS)) {
-    if (tech.base.includes(key) || key.includes(tech.base)) return coords;
-  }
   return null;
 }
 
-async function computeTravelForIntervention(int, tech, prevInt) {
-  const intCoords = getCoordsForLocation(int.location);
-  const techCoords = getTechCoords(tech);
+function getTechArriveeCoords(tech) {
+  if (typeof settingsTeam !== 'undefined') {
+    var st = settingsTeam.find(function(t) { return t.id === tech.id; });
+    if (st) {
+      // Use arrival coords (lieu d'arrivée soir)
+      if (st.arriveeLat && st.arriveeLon) return { lat: st.arriveeLat, lon: st.arriveeLon };
+      // If arrival is an agency
+      if (st.arriveeAgenceId && typeof settingsGeneral !== 'undefined' && settingsGeneral.agences) {
+        var ag = settingsGeneral.agences.find(function(a) { return a.id === st.arriveeAgenceId; });
+        if (ag && ag.lat && ag.lon) return { lat: ag.lat, lon: ag.lon };
+      }
+      // Fallback to departure coords
+      if (st.departLat && st.departLon) return { lat: st.departLat, lon: st.departLon };
+      if (st.lat && st.lon) return { lat: st.lat, lon: st.lon };
+    }
+  }
+  if (LOCATION_COORDS[tech.base]) return LOCATION_COORDS[tech.base];
+  return null;
+}
 
-  if (!intCoords) return; // can't compute without intervention coords
+// Legacy compat
+function getTechCoords(tech) { return getTechDepartCoords(tech); }
 
-  // Travel TO: from tech base (or previous intervention) to this intervention
+function getInterventionCoords(int) {
+  // 1. GPS stored directly on intervention (from Géosolia or geocoding)
+  if (int._geoLat && int._geoLng) return { lat: int._geoLat, lon: int._geoLng };
+  // 2. Linked Geosolia project
+  if (int.geosoliaId && geosoliaDataMap[int.geosoliaId]) {
+    var gd = geosoliaDataMap[int.geosoliaId];
+    if (gd.projectLat && gd.projectLng) return { lat: gd.projectLat, lon: gd.projectLng };
+  }
+  // 3. Linked commande → marché GPS
+  if (int.commandeId) {
+    var cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
+    if (cmd && cmd._lat && cmd._lng) return { lat: cmd._lat, lon: cmd._lng };
+  }
+  // 4. Fallback: geocode from location string
+  return getCoordsForLocation(int.location);
+}
+
+async function computeTravelForIntervention(int, tech, prevInt, isLast) {
+  var intCoords = getInterventionCoords(int);
+  if (!intCoords) return;
+
+  // Travel TO: from departure point (or previous intervention)
   if (prevInt) {
-    const prevCoords = getCoordsForLocation(prevInt.location);
+    var prevCoords = getInterventionCoords(prevInt);
     if (prevCoords) {
-      const route = await getOSRMRoute(prevCoords.lat, prevCoords.lon, intCoords.lat, intCoords.lon);
+      var route = await getOSRMRoute(prevCoords.lat, prevCoords.lon, intCoords.lat, intCoords.lon);
       int.travelTo = route.durationMin;
       int.travelToKm = route.distanceKm;
       int.travelToFallback = route.fallback || false;
     }
-  } else if (techCoords) {
-    const route = await getOSRMRoute(techCoords.lat, techCoords.lon, intCoords.lat, intCoords.lon);
-    int.travelTo = route.durationMin;
-    int.travelToKm = route.distanceKm;
-    int.travelToFallback = route.fallback || false;
+  } else {
+    var departCoords = getTechDepartCoords(tech);
+    if (departCoords) {
+      var route = await getOSRMRoute(departCoords.lat, departCoords.lon, intCoords.lat, intCoords.lon);
+      int.travelTo = route.durationMin;
+      int.travelToKm = route.distanceKm;
+      int.travelToFallback = route.fallback || false;
+    }
   }
 
-  // Travel FROM: last intervention back to tech base (will be overridden if not last)
-  if (techCoords) {
-    const route = await getOSRMRoute(intCoords.lat, intCoords.lon, techCoords.lat, techCoords.lon);
-    int.travelFrom = route.durationMin;
-    int.travelFromKm = route.distanceKm;
-    int.travelFromFallback = route.fallback || false;
+  // Travel FROM: to arrival point (only for last intervention of the day)
+  if (isLast) {
+    var arriveeCoords = getTechArriveeCoords(tech);
+    if (arriveeCoords) {
+      var route = await getOSRMRoute(intCoords.lat, intCoords.lon, arriveeCoords.lat, arriveeCoords.lon);
+      int.travelFrom = route.durationMin;
+      int.travelFromKm = route.distanceKm;
+      int.travelFromFallback = route.fallback || false;
+    }
+  } else {
+    // Not last — travelFrom will be overridden by next intervention's travelTo
+    int.travelFrom = 0;
+    int.travelFromKm = 0;
   }
 }
 
@@ -2112,14 +2165,14 @@ async function computeAllTravel() {
     Object.values(byDate).forEach(dayInts => {
       dayInts.sort((a, b) => a.startTime.localeCompare(b.startTime));
       dayInts.forEach((int, idx) => {
-        tasks.push({ int, tech, prev: idx > 0 ? dayInts[idx-1] : null });
+        tasks.push({ int, tech, prev: idx > 0 ? dayInts[idx-1] : null, isLast: idx === dayInts.length - 1 });
       });
     });
   });
 
   // Sequential: allows osrmAvailable flag to work after first failure
   for (const t of tasks) {
-    await computeTravelForIntervention(t.int, t.tech, t.prev);
+    await computeTravelForIntervention(t.int, t.tech, t.prev, t.isLast);
   }
   renderCurrentView();
 }
