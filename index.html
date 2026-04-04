@@ -1586,11 +1586,16 @@ body::before {
   <div class="view-content" id="mapView">
     <div class="map-inline-container" id="mapInlineContainer">
       <div class="map-inline-header">
-        <div class="map-inline-info">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span style="font-weight:700;font-size:0.85rem;">Flotte GPH</span>
-          <span class="badge-count" id="fleetCountInline">0</span>
-          <span class="map-inline-status" id="mapInlineStatus"></span>
+        <div class="map-inline-info" style="gap:10px;">
+          <span style="font-weight:700;font-size:0.85rem;">Carte</span>
+          <input type="date" id="mapDate" onchange="renderMapTournees()" style="height:28px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">
+          <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=new Date().toISOString().split('T')[0];renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
+          <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;margin-left:8px;">
+            <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules Webfleet
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="mapShowTournees" checked onchange="renderMapTournees()"> Tournées
+          </label>
         </div>
         <div class="map-inline-actions">
           <button class="btn btn-ghost" onclick="syncFleetInline()">
@@ -3489,34 +3494,200 @@ function openFleet() {
   switchView('map', document.querySelector('.view-tab:last-child'));
 }
 
+var mapTourneeMarkers = [];
+var mapTourneeLines = [];
+var showFleetOnMap = true;
+
 function initFleetMap() {
-  if (fleetMap) { setTimeout(() => fleetMap.invalidateSize(), 200); return; }
+  // Set date picker to current date
+  var datePicker = document.getElementById('mapDate');
+  if (datePicker && !datePicker.value) datePicker.value = currentDate.toISOString().split('T')[0];
+
+  if (fleetMap) {
+    setTimeout(function() { fleetMap.invalidateSize(); renderMapTournees(); }, 200);
+    return;
+  }
   fleetMap = L.map('fleetMapInline').setView([46.8, -1.2], 8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap',
     maxZoom: 19
   }).addTo(fleetMap);
-  setTimeout(() => fleetMap.invalidateSize(), 300);
-  // Load cached or sync
+  setTimeout(function() { fleetMap.invalidateSize(); }, 300);
+
+  // Load fleet
   if (fleetData.length === 0) {
-    const cached = localStorage.getItem('geoplan_fleet');
+    var cached = localStorage.getItem('geoplan_fleet');
     if (cached) {
       try {
-        const parsed = JSON.parse(cached);
+        var parsed = JSON.parse(cached);
         fleetData = parsed.data || [];
-        const ageMin = Math.round((Date.now() - (parsed.ts || 0)) / 60000);
         renderFleetMarkers();
-        fleetMsg(`${fleetData.length} véhicules (cache ${ageMin < 60 ? ageMin + ' min' : Math.round(ageMin/60) + 'h'})`);
-        return;
       } catch(e) {}
     }
     syncFleet();
   } else {
     renderFleetMarkers();
   }
+
+  // Render tournees
+  setTimeout(function() { renderMapTournees(); }, 500);
 }
 
-function syncFleetInline() { syncFleet(); }
+function syncFleetInline() { syncFleet(); setTimeout(renderMapTournees, 1000); }
+
+function toggleFleetOnMap() {
+  showFleetOnMap = document.getElementById('mapShowFleet').checked;
+  fleetMarkers.forEach(function(m) {
+    if (showFleetOnMap) m.addTo(fleetMap);
+    else fleetMap.removeLayer(m);
+  });
+}
+
+function renderMapTournees() {
+  if (!fleetMap) return;
+
+  // Clear previous tournee layers
+  mapTourneeMarkers.forEach(function(m) { fleetMap.removeLayer(m); });
+  mapTourneeLines.forEach(function(l) { fleetMap.removeLayer(l); });
+  mapTourneeMarkers = [];
+  mapTourneeLines = [];
+
+  if (!document.getElementById('mapShowTournees').checked) { renderMapTourneeList(); return; }
+
+  var dateStr = document.getElementById('mapDate').value;
+  if (!dateStr) return;
+
+  var dayInts = interventions.filter(function(i) { return i.date === dateStr; });
+  if (dayInts.length === 0) { renderMapTourneeList(); return; }
+
+  // Group by tech
+  var byTech = {};
+  dayInts.forEach(function(i) {
+    if (!byTech[i.techId]) byTech[i.techId] = [];
+    byTech[i.techId].push(i);
+  });
+
+  var allBounds = [];
+
+  Object.keys(byTech).forEach(function(techId) {
+    var tech = TECHNICIANS.find(function(t) { return t.id === +techId; });
+    if (!tech) return;
+    var ints = byTech[techId].sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+    var color = tech.color || '#2563EB';
+    var routePoints = [];
+
+    // Departure point
+    var departCoords = getTechDepartCoords(tech);
+    if (departCoords) {
+      var depMarker = L.circleMarker([departCoords.lat, departCoords.lon], {
+        radius: 6, color: color, fillColor: '#fff', fillOpacity: 1, weight: 3
+      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Départ</span>');
+      mapTourneeMarkers.push(depMarker);
+      routePoints.push([departCoords.lat, departCoords.lon]);
+      allBounds.push([departCoords.lat, departCoords.lon]);
+    }
+
+    // Intervention points
+    ints.forEach(function(int, idx) {
+      var coords = getInterventionCoords(int);
+      if (!coords) return;
+      var num = idx + 1;
+      var marker = L.marker([coords.lat, coords.lon], {
+        icon: L.divIcon({
+          className: 'map-tour-marker',
+          html: '<div style="background:' + color + ';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);">' + num + '</div>',
+          iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
+        })
+      }).addTo(fleetMap).bindPopup(
+        '<div style="font-family:inherit;min-width:180px;">' +
+        '<strong style="font-size:0.82rem;">' + int.title + '</strong>' +
+        '<br><span style="font-size:0.72rem;color:#666;">👤 ' + tech.name + '</span>' +
+        '<br><span style="font-size:0.72rem;">⏱ ' + int.startTime + ' – ' + int.endTime + '</span>' +
+        '<br><span style="font-size:0.7rem;color:#888;">📍 ' + int.location + '</span>' +
+        (int.travelTo ? '<br><span style="font-size:0.65rem;color:#aaa;">🚗 Trajet: ' + int.travelTo + ' min' + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</span>' : '') +
+        '</div>'
+      );
+      mapTourneeMarkers.push(marker);
+      routePoints.push([coords.lat, coords.lon]);
+      allBounds.push([coords.lat, coords.lon]);
+    });
+
+    // Arrival point
+    var arriveeCoords = getTechArriveeCoords(tech);
+    if (arriveeCoords && ints.length > 0) {
+      routePoints.push([arriveeCoords.lat, arriveeCoords.lon]);
+      var arrMarker = L.circleMarker([arriveeCoords.lat, arriveeCoords.lon], {
+        radius: 6, color: color, fillColor: color, fillOpacity: 0.3, weight: 3
+      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Retour</span>');
+      mapTourneeMarkers.push(arrMarker);
+    }
+
+    // Draw route line
+    if (routePoints.length >= 2) {
+      var line = L.polyline(routePoints, {
+        color: color, weight: 3, opacity: 0.7, dashArray: '8,6'
+      }).addTo(fleetMap);
+      mapTourneeLines.push(line);
+    }
+  });
+
+  // Fit bounds
+  if (allBounds.length > 0) {
+    fleetMap.fitBounds(allBounds, { padding: [40, 40], maxZoom: 13 });
+  }
+
+  renderMapTourneeList();
+}
+
+function renderMapTourneeList() {
+  var listEl = document.getElementById('fleetListInline');
+  if (!listEl) return;
+  var dateStr = document.getElementById('mapDate').value || '';
+  var dayInts = interventions.filter(function(i) { return i.date === dateStr; });
+
+  var html = '<div class="fleet-list-header">Tournées ' + (dateStr ? new Date(dateStr+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) : '') + '</div>';
+
+  if (dayInts.length === 0) {
+    html += '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Aucune intervention ce jour</div>';
+    listEl.innerHTML = html;
+    return;
+  }
+
+  // Group by tech
+  var byTech = {};
+  dayInts.forEach(function(i) { if (!byTech[i.techId]) byTech[i.techId] = []; byTech[i.techId].push(i); });
+
+  Object.keys(byTech).forEach(function(techId) {
+    var tech = TECHNICIANS.find(function(t) { return t.id === +techId; });
+    if (!tech) return;
+    var ints = byTech[techId].sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+    var totalTravel = ints.reduce(function(s, i) { return s + (i.travelTo || 0) + (i.travelFrom || 0); }, 0);
+
+    html += '<div style="padding:8px 12px;background:' + tech.color + '10;border-bottom:1px solid var(--border);">';
+    html += '<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:' + tech.color + ';"></div>';
+    html += '<strong style="font-size:0.75rem;">' + tech.name + '</strong></div>';
+    html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;">' + ints.length + ' int. · ~' + totalTravel + ' min route</div>';
+    html += '</div>';
+
+    ints.forEach(function(int, idx) {
+      html += '<div class="fleet-list-item" onclick="if(fleetMap){';
+      var coords = getInterventionCoords(int);
+      if (coords) html += 'fleetMap.setView([' + coords.lat + ',' + coords.lon + '],14);';
+      html += '}" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 12px 6px 24px;">';
+      html += '<div style="font-size:0.72rem;font-weight:600;">' + (idx+1) + '. ' + int.title.substring(0, 30) + '</div>';
+      html += '<div style="font-size:0.62rem;color:var(--text-muted);">' + int.startTime + '–' + int.endTime + ' · 📍 ' + (int.location || '').split(',')[0] + '</div>';
+      if (int.travelTo) html += '<div style="font-size:0.58rem;color:var(--text-muted);">🚗 ' + int.travelTo + ' min' + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</div>';
+      html += '</div>';
+    });
+  });
+
+  // Show fleet count if visible
+  if (showFleetOnMap && fleetData.length > 0) {
+    html += '<div class="fleet-list-header" style="margin-top:8px;">Véhicules (' + fleetData.length + ')</div>';
+  }
+
+  listEl.innerHTML = html;
+}
 
 function toggleMapFullscreen() {
   const container = document.getElementById('mapInlineContainer');
