@@ -1681,7 +1681,8 @@ body::before {
         <div class="form-group"><label class="form-label">Trajet retour (min)</label><input class="form-input" id="intTravelReturn" type="number" value="30" min="0"></div>
       </div>
       <div class="form-group"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues Immobilier"></div>
-      <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia"><option value="">— Aucun projet —</option></select></div>
+      <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
+      <div id="intGeosoliaInfo" style="display:none;margin:-8px 0 12px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.75rem;"></div>
       <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="intNotes" placeholder="Matériel requis, consignes particulières..."></textarea></div>
     </div>
     <div class="modal-footer">
@@ -3120,15 +3121,71 @@ function launchDayTour() {
 
 // ═══ GÉOSOLIA ═══
 var geosoliaProjects = [];
+var geosoliaDataMap = {}; // { projectId: parsed project_data }
 
 async function loadGeosoliaProjects() {
   try {
-    var result = await sbAuth.from('geosolia_projects').select('id, project_ref, project_name').order('project_name');
+    var result = await sbAuth.from('geosolia_projects').select('id, project_ref, project_name, project_data').order('project_name');
     if (result.error) { console.warn('[Géosolia] Erreur:', result.error); return; }
     geosoliaProjects = result.data || [];
+    geosoliaProjects.forEach(function(p) {
+      if (p.project_data) geosoliaDataMap[p.id] = p.project_data;
+    });
     console.log('[Géosolia] ' + geosoliaProjects.length + ' projets chargés');
     populateGeosoliaSelect();
   } catch(e) { console.warn('[Géosolia] Erreur:', e); }
+}
+
+function getGeosoliaProgram(projectId) {
+  var d = geosoliaDataMap[projectId];
+  if (!d) return null;
+
+  // Count sondages by type from elements
+  var sondageCounts = {};
+  var sondageLabels = {
+    penetro_dyn: 'Pénétromètre dynamique',
+    penetro_stat: 'Pénétromètre statique',
+    tariere: 'Tarière',
+    carottage: 'Carottage',
+    pressiometre: 'Pressiomètre',
+    puits: 'Puits / Fouille',
+    scissometre: 'Scissomètre',
+    infiltration: 'Essai d\'infiltration',
+  };
+  (d.elements || []).forEach(function(e) {
+    if (e.type === 'sticker' && e.svgKey && sondageLabels[e.svgKey]) {
+      sondageCounts[e.svgKey] = (sondageCounts[e.svgKey] || 0) + 1;
+    }
+  });
+
+  // Sondage details (depth, refusal)
+  var sondageDetails = (d.sondages || []).map(function(s) {
+    return { name: s.name, type: s.type, depth: s.depth, refusal: s.refusal };
+  });
+
+  // Estimate terrain time (heuristic)
+  // ~30min per penetro, ~45min per tariere, ~60min per carottage/pressiometre, +30min setup
+  var timeEstimate = 30; // setup
+  Object.keys(sondageCounts).forEach(function(k) {
+    var n = sondageCounts[k];
+    if (k === 'penetro_dyn' || k === 'penetro_stat') timeEstimate += n * 30;
+    else if (k === 'tariere') timeEstimate += n * 45;
+    else if (k === 'carottage' || k === 'pressiometre') timeEstimate += n * 60;
+    else timeEstimate += n * 20;
+  });
+
+  return {
+    lat: d.projectLat || null,
+    lng: d.projectLng || null,
+    address: [d.projectAddr, d.projectCp, d.projectVille].filter(Boolean).join(', '),
+    ville: d.projectVille || '',
+    mission: d.projectMission || '',
+    sondageCounts: sondageCounts,
+    sondageLabels: sondageLabels,
+    sondageDetails: sondageDetails,
+    timeEstimateMin: timeEstimate,
+    totalSondages: sondageDetails.length,
+  };
 }
 
 function populateGeosoliaSelect() {
@@ -3138,6 +3195,74 @@ function populateGeosoliaSelect() {
   geosoliaProjects.forEach(function(p) {
     sel.innerHTML += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '') + '</option>';
   });
+}
+
+function onGeosoliaSelect() {
+  var geoId = document.getElementById('intGeosolia').value;
+  var infoDiv = document.getElementById('intGeosoliaInfo');
+  if (!geoId) { infoDiv.style.display = 'none'; return; }
+
+  var prog = getGeosoliaProgram(geoId);
+  if (!prog) { infoDiv.style.display = 'none'; return; }
+
+  // Auto-fill address if empty
+  var addrField = document.getElementById('intAddress');
+  if (prog.address && (!addrField.value || addrField.value.length < 3)) {
+    addrField.value = prog.address;
+  }
+
+  // Auto-fill duration: use estimated terrain time
+  var d = geosoliaDataMap[geoId];
+  var terrainTime = d.terrainTime || d.tempsEstime || d.estimatedTerrainTime || d.tempsTerrain || prog.timeEstimateMin;
+  if (terrainTime) {
+    // Set end time = start time + terrain time
+    var startTime = document.getElementById('intStart').value || '08:00';
+    var startMin = timeToMin(startTime);
+    var endMin = startMin + parseInt(terrainTime);
+    document.getElementById('intEnd').value = minToTime(endMin);
+  }
+
+  // Build program info display
+  var html = '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
+  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Mission</strong><br>' + (prog.mission || '—') + '</div>';
+  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Lieu</strong><br>📍 ' + (prog.address || '—') + '</div>';
+  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Temps estimé</strong><br>⏱ ' + (terrainTime || prog.timeEstimateMin) + ' min</div>';
+  html += '</div>';
+
+  // Sondages program
+  var counts = prog.sondageCounts;
+  var labels = prog.sondageLabels;
+  if (Object.keys(counts).length > 0) {
+    html += '<div style="margin-top:8px;"><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Programme sondages</strong>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">';
+    Object.keys(counts).forEach(function(k) {
+      html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:var(--bg-secondary);border:1px solid var(--border);">' + counts[k] + 'x ' + (labels[k] || k) + '</span>';
+    });
+    html += '</div></div>';
+  }
+
+  // Sondage details
+  if (prog.sondageDetails.length > 0) {
+    html += '<div style="margin-top:8px;"><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Détail</strong>';
+    html += '<div style="font-size:0.7rem;margin-top:3px;">';
+    prog.sondageDetails.forEach(function(s) {
+      html += '<span style="margin-right:10px;">' + s.name + ' (' + (labels[s.type] || s.type) + ', ' + s.depth + 'm' + (s.refusal ? ' — refus' : '') + ')</span>';
+    });
+    html += '</div></div>';
+  }
+
+  // Also auto-fill notes with program summary
+  var notesField = document.getElementById('intNotes');
+  if (!notesField.value) {
+    var noteLines = [];
+    noteLines.push('Mission: ' + (prog.mission || ''));
+    Object.keys(counts).forEach(function(k) { noteLines.push(counts[k] + 'x ' + (labels[k] || k)); });
+    prog.sondageDetails.forEach(function(s) { noteLines.push(s.name + ': ' + s.depth + 'm' + (s.refusal ? ' (refus)' : '')); });
+    notesField.value = noteLines.join('\n');
+  }
+
+  infoDiv.innerHTML = html;
+  infoDiv.style.display = 'block';
 }
 
 // Legacy compat
