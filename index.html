@@ -2160,8 +2160,19 @@ function getWorkStartTime(dateStr) {
   return '07:00';
 }
 
+function getLunchBreak(dateStr) {
+  if (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) {
+    var d = new Date(dateStr + 'T12:00:00');
+    var joursList = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    var jour = settingsGeneral.jours[joursList[d.getDay()]];
+    if (jour && jour.pauseDebut && jour.pauseFin) {
+      return { start: timeToMin(jour.pauseDebut), end: timeToMin(jour.pauseFin) };
+    }
+  }
+  return { start: timeToMin('12:00'), end: timeToMin('13:00') };
+}
+
 function recalculateSchedule() {
-  // Group by tech + date, then cascade: start time → travel → intervention → travel → ...
   var byTechDate = {};
   interventions.forEach(function(int) {
     var key = int.techId + ':' + int.date;
@@ -2172,29 +2183,38 @@ function recalculateSchedule() {
   var changed = false;
   Object.keys(byTechDate).forEach(function(key) {
     var dayInts = byTechDate[key];
-    // Sort by current startTime to maintain order
     dayInts.sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
 
     var workStart = getWorkStartTime(dayInts[0].date);
-    var cursor = timeToMin(workStart); // current time cursor in minutes
+    var lunch = getLunchBreak(dayInts[0].date);
+    var cursor = timeToMin(workStart);
 
     dayInts.forEach(function(int, idx) {
-      // Add travel time to get to this intervention
+      // Add travel time
       cursor += (int.travelTo || 0);
 
-      // Set start time
+      // If cursor falls during lunch break, push to after lunch
+      if (cursor >= lunch.start && cursor < lunch.end) {
+        cursor = lunch.end;
+      }
+
       var newStart = minToTime(cursor);
-      // Calculate duration from existing start/end
       var duration = timeToMin(int.endTime) - timeToMin(int.startTime);
-      if (duration <= 0) duration = 240; // default 4h
+      if (duration <= 0) duration = 240;
 
       if (int.startTime !== newStart) {
         int.startTime = newStart;
         changed = true;
       }
 
-      // Set end time = start + duration
-      cursor += duration;
+      // Check if intervention spans across lunch break
+      var endCursor = cursor + duration;
+      if (cursor < lunch.start && endCursor > lunch.start) {
+        // Intervention starts before lunch and would run into it — add lunch duration
+        endCursor += (lunch.end - lunch.start);
+      }
+
+      cursor = endCursor;
       var newEnd = minToTime(cursor);
       if (int.endTime !== newEnd) {
         int.endTime = newEnd;
