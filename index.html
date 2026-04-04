@@ -2393,7 +2393,7 @@ function renderWeek() {
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`;
       });
-      if(!di.length) html+=`<div style="height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.12;font-size:22px;font-weight:800;color:var(--gph-dark);" onclick="openModalForSlot(${tech.id},'${day.dateStr}')">+</div>`;
+      html+=`<div style="display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.15;font-size:18px;font-weight:800;color:var(--gph-dark);padding:4px 0;" onclick="openModalForSlot(${tech.id},'${day.dateStr}')" title="Ajouter une intervention">+</div>`;
       html+=`</div>`;
     });
   });
