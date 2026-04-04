@@ -1588,7 +1588,9 @@ body::before {
       <div class="map-inline-header">
         <div class="map-inline-info" style="gap:10px;">
           <span style="font-weight:700;font-size:0.85rem;">Carte</span>
+          <button class="nav-btn" onclick="navigateMapDate(-1)" title="Jour précédent"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
           <input type="date" id="mapDate" onchange="renderMapTournees()" style="height:28px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">
+          <button class="nav-btn" onclick="navigateMapDate(1)" title="Jour suivant"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
           <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=new Date().toISOString().split('T')[0];renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;margin-left:8px;">
             <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules Webfleet
@@ -3534,6 +3536,14 @@ function initFleetMap() {
 }
 
 function syncFleetInline() { syncFleet(); setTimeout(renderMapTournees, 1000); }
+
+function navigateMapDate(dir) {
+  var input = document.getElementById('mapDate');
+  var d = new Date(input.value + 'T12:00:00');
+  d.setDate(d.getDate() + dir);
+  input.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  renderMapTournees();
+}
 
 function toggleFleetOnMap() {
   showFleetOnMap = document.getElementById('mapShowFleet').checked;
