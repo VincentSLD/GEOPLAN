@@ -2494,41 +2494,110 @@ function renderWeek() {
 
 // ===== DAY =====
 function renderDay() {
-  const c=document.getElementById('dayTimeline'), ds=currentDate.toISOString().split('T')[0];
-  const di=interventions.filter(i=>i.date===ds&&(!selectedTechId||i.techId===selectedTechId)).sort((a,b)=>a.startTime.localeCompare(b.startTime));
-  const byT={};
-  di.forEach(i=>{if(!byT[i.techId])byT[i.techId]=[];byT[i.techId].push(i);});
-  const evts=[];
-  Object.entries(byT).forEach(([tid,ints])=>{
-    const tech=TECHNICIANS.find(t=>t.id===+tid);
-    ints.sort((a,b)=>a.startTime.localeCompare(b.startTime));
-    ints.forEach((int,idx)=>{
-      if(idx===0){const dm=timeToMin(int.startTime)-int.travelTo;evts.push({hour:Math.floor(dm/60),type:'ta',int,tech,dep:minToTime(dm),arr:int.startTime,dur:int.travelTo,from:tech.base});}
-      else{const g=timeToMin(int.startTime)-timeToMin(ints[idx-1].endTime);if(g>0)evts.push({hour:parseInt(ints[idx-1].endTime),type:'ti',int,tech,dep:ints[idx-1].endTime,arr:int.startTime,dur:g});}
-      evts.push({hour:parseInt(int.startTime),type:'int',int,tech});
-      if(idx===ints.length-1){const am=timeToMin(int.endTime)+int.travelFrom;evts.push({hour:parseInt(int.endTime),type:'tr',int,tech,dep:int.endTime,arr:minToTime(am),dur:int.travelFrom,to:tech.base});}
-    });
-  });
-  let html='';
-  for(let h=5;h<=21;h++){
-    const he=evts.filter(e=>e.hour===h);
-    html+=`<div class="day-hour-row"><div class="day-hour-label">${String(h).padStart(2,'0')}:00</div><div class="day-hour-content">`;
-    he.forEach(ev=>{
-      if(!showTravel && ev.type!=='int') return;
-      if(ev.type==='ta') html+=`<div class="day-travel-block travel-aller"><div class="dt-icon">🚗</div><div class="dt-info"><div class="dt-label">Trajet depuis ${ev.from}</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
-      else if(ev.type==='ti') html+=`<div class="day-travel-block travel-inter"><div class="dt-icon">🔄</div><div class="dt-info"><div class="dt-label">Trajet inter-site</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
-      else if(ev.type==='tr') html+=`<div class="day-travel-block travel-retour"><div class="dt-icon">🏠</div><div class="dt-info"><div class="dt-label">Retour vers ${ev.to}</div><div class="dt-detail">👤 ${ev.tech.name} · ${ev.dur} min</div></div><div class="dt-time">${ev.dep} → ${ev.arr}</div></div>`;
-      else { const tp=TYPES[ev.int.type]; html+=`<div class="day-block" style="border-left-color:${TYPE_RAW[ev.int.type]};background:${TYPE_RAW[ev.int.type]}0A" onclick="openDetail(${ev.int.id})"><div class="day-block-time" style="color:${TYPE_RAW[ev.int.type]}">${ev.int.startTime} – ${ev.int.endTime} <span data-weather-int="${ev.int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(ev.int))}</span></div><div class="day-block-title">${ev.int.title}</div><div class="day-block-tech">👤 ${ev.tech.name} · 📍 ${ev.int.location.split(',')[0]}</div></div>`; }
-    });
-    html+=`</div></div>`;
-  }
-  // Add tour button at the top
+  var c = document.getElementById('dayTimeline'), ds = currentDate.toISOString().split('T')[0];
+  var di = interventions.filter(function(i) { return i.date === ds && (!selectedTechId || i.techId === selectedTechId); }).sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+
+  var PX_PER_MIN = 1.8; // scale: 1 minute = 1.8px
+  var START_HOUR = 5, END_HOUR = 21;
+  var totalHeight = (END_HOUR - START_HOUR) * 60 * PX_PER_MIN;
+
+  // Group by tech
+  var byT = {};
+  di.forEach(function(i) { if (!byT[i.techId]) byT[i.techId] = []; byT[i.techId].push(i); });
+  var techIds = Object.keys(byT);
+
+  // Header
   var dayJf = isJourFerie(ds);
-  var dayHeader = '<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">';
-  if (dayJf) dayHeader += '<span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700;">🎌 ' + dayJf + '</span>';
-  dayHeader += '<button class="btn btn-primary" onclick="launchDayTour()" style="font-size:0.72rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Lancer la tournée GPS</button><span style="font-size:0.72rem;color:var(--text-muted);">' + di.length + ' intervention(s) ce jour</span></div>';
-  html = dayHeader + html;
-  c.innerHTML=html;
+  var html = '<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;">';
+  if (dayJf) html += '<span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700;">🎌 ' + dayJf + '</span>';
+  html += '<button class="btn btn-primary" onclick="launchDayTour()" style="font-size:0.72rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Lancer la tournée GPS</button>';
+  html += '<span style="font-size:0.72rem;color:var(--text-muted);">' + di.length + ' intervention(s) · ' + techIds.length + ' technicien(s)</span></div>';
+
+  // Timeline container
+  html += '<div style="display:flex;flex:1;overflow:auto;">';
+
+  // Hour labels column
+  html += '<div style="width:50px;min-width:50px;position:relative;height:' + totalHeight + 'px;border-right:1px solid var(--border);">';
+  for (var h = START_HOUR; h <= END_HOUR; h++) {
+    var top = (h - START_HOUR) * 60 * PX_PER_MIN;
+    html += '<div style="position:absolute;top:' + top + 'px;right:6px;font-size:0.62rem;font-family:\'DM Mono\',monospace;color:var(--text-muted);line-height:1;">' + String(h).padStart(2, '0') + ':00</div>';
+  }
+  html += '</div>';
+
+  // One column per tech
+  var techs = techIds.map(function(tid) { return TECHNICIANS.find(function(t) { return t.id === +tid; }); }).filter(Boolean);
+  if (techs.length === 0) techs = getFilteredTechs();
+
+  techs.forEach(function(tech) {
+    var ints = (byT[tech.id] || []).sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+    var color = tech.color || '#2563EB';
+
+    html += '<div style="flex:1;min-width:160px;position:relative;height:' + totalHeight + 'px;border-right:1px solid var(--border);">';
+
+    // Tech header (sticky)
+    html += '<div style="position:sticky;top:0;z-index:2;background:var(--bg-secondary);padding:4px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">';
+    html += '<div style="width:20px;height:20px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;">' + tech.initials + '</div>';
+    html += '<span style="font-size:0.72rem;font-weight:600;">' + tech.name + '</span></div>';
+
+    // Hour grid lines
+    for (var h2 = START_HOUR; h2 <= END_HOUR; h2++) {
+      var top2 = (h2 - START_HOUR) * 60 * PX_PER_MIN;
+      html += '<div style="position:absolute;left:0;right:0;top:' + top2 + 'px;border-top:1px solid ' + (h2 === 12 ? 'var(--gph-yellow)' : 'var(--border)') + ';opacity:' + (h2 === 12 ? '0.5' : '0.3') + ';"></div>';
+    }
+
+    // Lunch break zone
+    var lunch = getLunchBreak(ds);
+    var lunchTop = (lunch.start - START_HOUR * 60) * PX_PER_MIN;
+    var lunchH = (lunch.end - lunch.start) * PX_PER_MIN;
+    html += '<div style="position:absolute;left:0;right:0;top:' + lunchTop + 'px;height:' + lunchH + 'px;background:rgba(245,197,24,0.06);border-top:1px dashed var(--gph-yellow);border-bottom:1px dashed var(--gph-yellow);display:flex;align-items:center;justify-content:center;font-size:0.55rem;color:var(--text-muted);font-weight:600;pointer-events:none;">PAUSE</div>';
+
+    // Travel & intervention blocks
+    ints.forEach(function(int, idx) {
+      // Travel TO block
+      if (showTravel && int.travelTo > 0) {
+        var travelStartMin = timeToMin(int.startTime) - int.travelTo;
+        var tTop = (travelStartMin - START_HOUR * 60) * PX_PER_MIN;
+        var tH = Math.max(int.travelTo * PX_PER_MIN, 18);
+        var tLabel = idx === 0 ? '🚗 Trajet aller' : '🔄 Inter-site';
+        var tColor = idx === 0 ? '#e0f2fe' : '#f0fdf4';
+        html += '<div style="position:absolute;left:4px;right:4px;top:' + tTop + 'px;height:' + tH + 'px;background:' + tColor + ';border:1px solid ' + color + '30;border-radius:4px;padding:2px 6px;font-size:0.58rem;overflow:hidden;opacity:0.8;display:flex;align-items:center;gap:4px;">';
+        html += '<span>' + tLabel + '</span><span style="font-family:\'DM Mono\',monospace;">' + int.travelTo + 'min</span>';
+        if (int.travelToKm) html += '<span style="opacity:0.6;">' + int.travelToKm + 'km</span>';
+        html += '</div>';
+      }
+
+      // Intervention block
+      var intStartMin = timeToMin(int.startTime);
+      var intEndMin = timeToMin(int.endTime);
+      var intDur = intEndMin - intStartMin;
+      var iTop = (intStartMin - START_HOUR * 60) * PX_PER_MIN;
+      var iH = Math.max(intDur * PX_PER_MIN, 30);
+      var typeColor = TYPE_RAW[int.type] || color;
+
+      html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeColor + '12;border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" onclick="openDetail(' + int.id + ')">';
+      html += '<div style="font-size:0.65rem;font-weight:700;color:' + typeColor + ';">' + int.startTime + ' – ' + int.endTime;
+      html += ' <span data-weather-int="' + int.id + '" data-weather-size="sm">' + weatherBadgeHTML(getWeatherForInt(int)) + '</span></div>';
+      html += '<div style="font-size:0.72rem;font-weight:600;margin-top:2px;">' + int.title + '</div>';
+      if (iH > 50) html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-top:1px;">📍 ' + (int.location || '').split(',')[0] + '</div>';
+      if (iH > 70) html += '<div style="font-size:0.62rem;color:var(--text-muted);">🏢 ' + (int.client || '') + '</div>';
+      html += '</div>';
+
+      // Travel FROM (return) — only for last intervention
+      if (showTravel && idx === ints.length - 1 && int.travelFrom > 0) {
+        var retTop = (intEndMin - START_HOUR * 60) * PX_PER_MIN;
+        var retH = Math.max(int.travelFrom * PX_PER_MIN, 18);
+        html += '<div style="position:absolute;left:4px;right:4px;top:' + retTop + 'px;height:' + retH + 'px;background:#fef2f2;border:1px solid ' + color + '30;border-radius:4px;padding:2px 6px;font-size:0.58rem;overflow:hidden;opacity:0.8;display:flex;align-items:center;gap:4px;">';
+        html += '<span>🏠 Retour</span><span style="font-family:\'DM Mono\',monospace;">' + int.travelFrom + 'min</span>';
+        if (int.travelFromKm) html += '<span style="opacity:0.6;">' + int.travelFromKm + 'km</span>';
+        html += '</div>';
+      }
+    });
+
+    html += '</div>';
+  });
+
+  html += '</div>'; // end flex container
+  c.innerHTML = html;
 }
 
 // ===== MONTH =====
