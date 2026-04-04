@@ -2320,7 +2320,7 @@ function getEasterDate(year) {
 function getJoursFeries(year) {
   var easter = getEasterDate(year);
   function addDays(d, n) { var r = new Date(d); r.setDate(r.getDate()+n); return r; }
-  function fmt(d) { return d.toISOString().split('T')[0]; }
+  function fmt(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   return {
     [fmt(new Date(year,0,1))]: 'Jour de l\'An',
     [fmt(easter)]: 'Pâques',
