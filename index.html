@@ -1952,7 +1952,7 @@ function weatherBadgeHTML(weather, size='sm') {
 async function loadWeatherForInterventions(ints) {
   const toFetch = [];
   for (const int of ints) {
-    const coords = getCoordsForLocation(int.location);
+    const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
     if (!coords) continue;
     const cacheKey = `${coords.lat},${coords.lon},${int.date}`;
     if (!weatherCache[cacheKey]) {
@@ -1974,7 +1974,7 @@ async function loadWeatherForInterventions(ints) {
       const id = parseInt(el.dataset.weatherInt);
       const int = interventions.find(i => i.id === id);
       if (!int) return;
-      const coords = getCoordsForLocation(int.location);
+      const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
       if (!coords) return;
       const w = weatherCache[`${coords.lat},${coords.lon},${int.date}`];
       if (w) el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm');
@@ -1983,7 +1983,7 @@ async function loadWeatherForInterventions(ints) {
 }
 
 function getWeatherForInt(int) {
-  const coords = getCoordsForLocation(int.location);
+  const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
   if (!coords) return null;
   return weatherCache[`${coords.lat},${coords.lon},${int.date}`] || null;
 }
