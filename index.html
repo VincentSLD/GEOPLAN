@@ -3211,9 +3211,9 @@ function onGeosoliaSelect() {
     addrField.value = prog.address;
   }
 
-  // Auto-fill duration: use estimated terrain time
+  // Auto-fill duration: use Geosolia terrain time or heuristic estimate
   var d = geosoliaDataMap[geoId];
-  var terrainTime = d.terrainTime || d.tempsEstime || d.estimatedTerrainTime || d.tempsTerrain || prog.timeEstimateMin;
+  var terrainTime = d.estimatedTerrainMinutes || d.terrainTime || d.tempsEstime || d.estimatedTerrainTime || d.tempsTerrain || prog.timeEstimateMin;
   if (terrainTime) {
     // Set end time = start time + terrain time
     var startTime = document.getElementById('intStart').value || '08:00';
