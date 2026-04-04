@@ -1681,6 +1681,7 @@ body::before {
         <div class="form-group"><label class="form-label">Trajet retour (min)</label><input class="form-input" id="intTravelReturn" type="number" value="30" min="0"></div>
       </div>
       <div class="form-group"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues Immobilier"></div>
+      <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia"><option value="">— Aucun projet —</option></select></div>
       <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="intNotes" placeholder="Matériel requis, consignes particulières..."></textarea></div>
     </div>
     <div class="modal-footer">
@@ -2142,7 +2143,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); }
+function init() { syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2400,6 +2401,9 @@ function saveIntervention(){
     marcheId: cmd && cmd._marche ? cmd._marche.id : null,
     marcheRef: cmd && cmd._marche ? cmd._marche.ref : null,
     marcheAdresse: cmd && cmd._adresse ? cmd._adresse : null,
+    geosoliaId: document.getElementById('intGeosolia').value || null,
+    geosoliaRef: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_ref : null; })(),
+    geosoliaName: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_name : null; })(),
   };
   if(editingId){const idx=interventions.findIndex(i=>i.id===editingId);if(idx>=0)interventions[idx]=data;}else interventions.push(data);
   saveSettings('geoplan_interventions', interventions);
@@ -2426,6 +2430,7 @@ function openDetail(id){
     ${int.commandeRef ? `<div class="detail-field"><div class="detail-field-label">Commande</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📋 ${int.commandeRef}</div></div>` : ''}
     ${int.affaireRef ? `<div class="detail-field"><div class="detail-field-label">Affaire</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📂 ${int.affaireRef}</div></div>` : ''}
     ${int.marcheRef ? `<div class="detail-field"><div class="detail-field-label">Marché</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📑 ${int.marcheRef}${int.marcheAdresse ? '<br><span style="font-family:inherit;font-size:0.75rem;color:var(--text-muted);">📍 ' + int.marcheAdresse + '</span>' : ''}</div></div>` : ''}
+    ${int.geosoliaId ? `<div class="detail-field"><div class="detail-field-label">Projet Géosolia</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><span style="font-family:'DM Mono',monospace;font-size:0.82rem;">🌍 ${int.geosoliaRef || ''} — ${int.geosoliaName || ''}</span><a href="https://geosolia.vercel.app/?project=${int.geosoliaId}" target="_blank" style="font-size:0.7rem;color:var(--gph-yellow);font-weight:700;text-decoration:none;border:1px solid var(--gph-yellow);padding:2px 8px;border-radius:4px;">Ouvrir</a></div></div>` : ''}
     <div class="detail-field"><div class="detail-field-label">Temps de trajet</div>
       <div style="display:flex;gap:8px;margin-top:6px;">
         <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;"><div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Aller</div><div style="font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--gph-dark);">${int.travelTo}<span style="font-size:0.7rem;color:var(--text-muted);"> min</span></div></div>
@@ -2460,6 +2465,7 @@ function editIntervention(id){
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
   else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';}
+  document.getElementById('intGeosolia').value=i.geosoliaId||'';
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);saveSettings('geoplan_interventions',interventions);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
@@ -3024,6 +3030,28 @@ function populateCommandeSelect() {
   commandesData.forEach(function(c) {
     var label = (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 50);
     sel.innerHTML += '<option value="' + c.id + '">' + label + '</option>';
+  });
+}
+
+// ═══ GÉOSOLIA ═══
+var geosoliaProjects = [];
+
+async function loadGeosoliaProjects() {
+  try {
+    var result = await sbAuth.from('geosolia_projects').select('id, project_ref, project_name').order('project_name');
+    if (result.error) { console.warn('[Géosolia] Erreur:', result.error); return; }
+    geosoliaProjects = result.data || [];
+    console.log('[Géosolia] ' + geosoliaProjects.length + ' projets chargés');
+    populateGeosoliaSelect();
+  } catch(e) { console.warn('[Géosolia] Erreur:', e); }
+}
+
+function populateGeosoliaSelect() {
+  var sel = document.getElementById('intGeosolia');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Aucun projet —</option>';
+  geosoliaProjects.forEach(function(p) {
+    sel.innerHTML += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '') + '</option>';
   });
 }
 
