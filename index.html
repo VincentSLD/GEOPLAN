@@ -2286,7 +2286,7 @@ function renderWeek() {
         const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
-        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location">📍 ${int.location.split(',')[0]}</div></div>`;
+        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div></div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`;
       });
@@ -2327,6 +2327,8 @@ function renderDay() {
     });
     html+=`</div></div>`;
   }
+  // Add tour button at the top
+  html = '<div style="padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);"><button class="btn btn-primary" onclick="launchDayTour()" style="font-size:0.72rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Lancer la tournée GPS</button><span style="font-size:0.72rem;color:var(--text-muted);">' + di.length + ' intervention(s) ce jour</span></div>' + html;
   c.innerHTML=html;
 }
 
@@ -2424,7 +2426,7 @@ function openDetail(id){
     </div>
     <div class="detail-field"><div class="detail-field-label">Géotechnicien</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><div style="background:${tech.color};width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">${tech.initials}</div>${tech.name} <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem;">· ${tech.base}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Date & horaires</div><div class="detail-field-value">${new Date(int.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style="font-family:'DM Mono',monospace;font-size:0.88rem;margin-top:3px;color:var(--gph-dark);font-weight:500;">${int.startTime} – ${int.endTime}</div></div>
-    <div class="detail-field"><div class="detail-field-label">Lieu</div><div class="detail-field-value">📍 ${int.location}</div></div>
+    <div class="detail-field"><div class="detail-field-label">Lieu</div><div class="detail-field-value"><a href="#" onclick="navigateToAddress('${int.location.replace(/'/g, "\\'")}');return false;" style="color:var(--text-primary);text-decoration:none;display:flex;align-items:center;gap:6px;">📍 ${int.location} <span style="font-size:0.65rem;color:var(--gph-yellow);font-weight:700;border:1px solid var(--gph-yellow);padding:1px 6px;border-radius:4px;">GPS ➜</span></a></div></div>
     ${showWeather ? `<div class="detail-field"><div class="detail-field-label">Météo sur site</div><div class="detail-field-value" data-weather-int="${int.id}" data-weather-size="lg">${weatherBadgeHTML(getWeatherForInt(int), 'lg') || '<span style="font-size:0.75rem;color:var(--text-muted);font-style:italic;">Chargement...</span>'}</div></div>` : ''}
     <div class="detail-field"><div class="detail-field-label">Client</div><div class="detail-field-value">🏢 ${int.client}</div></div>
     ${int.commandeRef ? `<div class="detail-field"><div class="detail-field-label">Commande</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📋 ${int.commandeRef}</div></div>` : ''}
@@ -3031,6 +3033,65 @@ function populateCommandeSelect() {
     var label = (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 50);
     sel.innerHTML += '<option value="' + c.id + '">' + label + '</option>';
   });
+}
+
+// ═══ NAVIGATION GPS ═══
+function getGpsUrl(address, lat, lon) {
+  var app = (settingsGeneral.gpsApp || 'auto');
+  var dest = lat && lon ? lat + ',' + lon : encodeURIComponent(address);
+  var destAddr = encodeURIComponent(address);
+
+  if (app === 'waze') {
+    return lat && lon
+      ? 'https://www.waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes'
+      : 'https://www.waze.com/ul?q=' + destAddr + '&navigate=yes';
+  }
+  if (app === 'apple') {
+    return 'https://maps.apple.com/?daddr=' + destAddr;
+  }
+  if (app === 'google') {
+    return 'https://www.google.com/maps/dir/?api=1&destination=' + destAddr;
+  }
+  // Auto: detect platform
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) return 'https://maps.apple.com/?daddr=' + destAddr;
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + destAddr;
+}
+
+function navigateToAddress(address, lat, lon) {
+  var url = getGpsUrl(address, lat, lon);
+  window.open(url, '_blank');
+}
+
+function launchDayTour() {
+  var ds = currentDate.toISOString().split('T')[0];
+  var techId = selectedTechId || (TECHNICIANS.length > 0 ? TECHNICIANS[0].id : null);
+  if (!techId) { alert('Sélectionnez un technicien'); return; }
+
+  var dayInts = interventions.filter(function(i) { return i.date === ds && i.techId === techId; })
+    .sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+
+  if (dayInts.length === 0) { alert('Aucune intervention ce jour pour ce technicien'); return; }
+
+  // Build multi-stop URL
+  var app = settingsGeneral.gpsApp || 'auto';
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  if (app === 'google' || (app === 'auto' && !isIOS)) {
+    // Google Maps supports waypoints
+    var addresses = dayInts.map(function(i) { return encodeURIComponent(i.location); });
+    var destination = addresses.pop();
+    var waypoints = addresses.join('|');
+    var url = 'https://www.google.com/maps/dir/?api=1&destination=' + destination;
+    if (waypoints) url += '&waypoints=' + waypoints;
+    window.open(url, '_blank');
+  } else if (app === 'waze') {
+    // Waze only supports single destination - open first stop
+    navigateToAddress(dayInts[0].location);
+  } else {
+    // Apple Maps - open first stop
+    navigateToAddress(dayInts[0].location);
+  }
 }
 
 // ═══ GÉOSOLIA ═══
@@ -4289,6 +4350,19 @@ function renderSettingsGeneral() {
       <h4>Jours et horaires de travail</h4>
       ${joursHtml}
     </div>
+    </div>
+    <div class="stg-general-section">
+      <h4>Navigation GPS</h4>
+      <div class="stg-general-grid">
+        <div class="stg-general-field"><label>Application GPS par défaut</label>
+          <select id="stg-gps-app">
+            <option value="auto" ${(g.gpsApp||'auto')==='auto'?'selected':''}>Automatique (détection appareil)</option>
+            <option value="google" ${g.gpsApp==='google'?'selected':''}>Google Maps</option>
+            <option value="waze" ${g.gpsApp==='waze'?'selected':''}>Waze</option>
+            <option value="apple" ${g.gpsApp==='apple'?'selected':''}>Apple Plans</option>
+          </select>
+        </div>
+      </div>
     <div class="stg-general-section">
       <h4>Paramètres de calcul</h4>
       <div class="stg-general-grid">
@@ -4659,6 +4733,7 @@ function saveGeneralSettings() {
   settingsGeneral = {
     ...settingsGeneral,
     jours,
+    gpsApp: document.getElementById('stg-gps-app').value,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
     akuiteoSocietes: checkedSoc.length === allSoc.length ? [] : checkedSoc,
