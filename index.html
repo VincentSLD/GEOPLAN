@@ -2149,32 +2149,96 @@ async function computeTravelForIntervention(int, tech, prevInt, isLast) {
   }
 }
 
+function getWorkStartTime(dateStr) {
+  // Get configured start time for this day of week
+  if (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) {
+    var d = new Date(dateStr + 'T12:00:00');
+    var joursList = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    var jour = settingsGeneral.jours[joursList[d.getDay()]];
+    if (jour && jour.actif && jour.debut) return jour.debut;
+  }
+  return '07:00';
+}
+
+function recalculateSchedule() {
+  // Group by tech + date, then cascade: start time → travel → intervention → travel → ...
+  var byTechDate = {};
+  interventions.forEach(function(int) {
+    var key = int.techId + ':' + int.date;
+    if (!byTechDate[key]) byTechDate[key] = [];
+    byTechDate[key].push(int);
+  });
+
+  var changed = false;
+  Object.keys(byTechDate).forEach(function(key) {
+    var dayInts = byTechDate[key];
+    // Sort by current startTime to maintain order
+    dayInts.sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+
+    var workStart = getWorkStartTime(dayInts[0].date);
+    var cursor = timeToMin(workStart); // current time cursor in minutes
+
+    dayInts.forEach(function(int, idx) {
+      // Add travel time to get to this intervention
+      cursor += (int.travelTo || 0);
+
+      // Set start time
+      var newStart = minToTime(cursor);
+      // Calculate duration from existing start/end
+      var duration = timeToMin(int.endTime) - timeToMin(int.startTime);
+      if (duration <= 0) duration = 240; // default 4h
+
+      if (int.startTime !== newStart) {
+        int.startTime = newStart;
+        changed = true;
+      }
+
+      // Set end time = start + duration
+      cursor += duration;
+      var newEnd = minToTime(cursor);
+      if (int.endTime !== newEnd) {
+        int.endTime = newEnd;
+        changed = true;
+      }
+    });
+  });
+
+  if (changed) {
+    saveSettings('geoplan_interventions', interventions);
+  }
+}
+
 async function computeAllTravel() {
-  const byTech = {};
-  interventions.forEach(int => {
+  var byTech = {};
+  interventions.forEach(function(int) {
     if (!byTech[int.techId]) byTech[int.techId] = [];
     byTech[int.techId].push(int);
   });
 
   // Build ordered list of tasks
-  const tasks = [];
-  Object.entries(byTech).forEach(([techId, ints]) => {
-    const tech = TECHNICIANS.find(t => t.id === +techId);
+  var tasks = [];
+  Object.entries(byTech).forEach(function(entry) {
+    var techId = entry[0], ints = entry[1];
+    var tech = TECHNICIANS.find(function(t) { return t.id === +techId; });
     if (!tech) return;
-    const byDate = {};
-    ints.forEach(i => { if (!byDate[i.date]) byDate[i.date] = []; byDate[i.date].push(i); });
-    Object.values(byDate).forEach(dayInts => {
-      dayInts.sort((a, b) => a.startTime.localeCompare(b.startTime));
-      dayInts.forEach((int, idx) => {
-        tasks.push({ int, tech, prev: idx > 0 ? dayInts[idx-1] : null, isLast: idx === dayInts.length - 1 });
+    var byDate = {};
+    ints.forEach(function(i) { if (!byDate[i.date]) byDate[i.date] = []; byDate[i.date].push(i); });
+    Object.values(byDate).forEach(function(dayInts) {
+      dayInts.sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+      dayInts.forEach(function(int, idx) {
+        tasks.push({ int: int, tech: tech, prev: idx > 0 ? dayInts[idx-1] : null, isLast: idx === dayInts.length - 1 });
       });
     });
   });
 
   // Sequential: allows osrmAvailable flag to work after first failure
-  for (const t of tasks) {
-    await computeTravelForIntervention(t.int, t.tech, t.prev, t.isLast);
+  for (var i = 0; i < tasks.length; i++) {
+    await computeTravelForIntervention(tasks[i].int, tasks[i].tech, tasks[i].prev, tasks[i].isLast);
   }
+
+  // Recalculate schedule: cascade start times based on travel + duration
+  recalculateSchedule();
+
   renderCurrentView();
 }
 
@@ -2492,7 +2556,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+dur;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value=currentDate.toISOString().split('T')[0];['intTitle','intAddress','intClient','intNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('intStart').value='08:00';document.getElementById('intDuration').value='240';document.getElementById('intEnd').value='12:00';document.getElementById('intTravel').value='30';document.getElementById('intTravelReturn').value='30';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value=currentDate.toISOString().split('T')[0];['intTitle','intAddress','intClient','intNotes'].forEach(id=>document.getElementById(id).value='');var defStart=getWorkStartTime(currentDate.toISOString().split('T')[0]);document.getElementById('intStart').value=defStart;document.getElementById('intDuration').value='240';document.getElementById('intEnd').value='12:00';document.getElementById('intTravel').value='30';document.getElementById('intTravelReturn').value='30';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
