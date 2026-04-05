@@ -2212,8 +2212,14 @@ function recalculateSchedule() {
       }
 
       var newStart = minToTime(cursor);
-      var duration = timeToMin(int.endTime) - timeToMin(int.startTime);
-      if (duration <= 0) duration = 240;
+      // Always use stored duration (never recalculate from start/end to avoid drift)
+      var duration = int.duration || 0;
+      if (duration <= 0) {
+        // Fallback for old interventions without stored duration
+        duration = timeToMin(int.endTime) - timeToMin(int.startTime);
+        if (duration <= 0) duration = 240;
+        int.duration = duration; // store it for next time
+      }
 
       if (int.startTime !== newStart) {
         int.startTime = newStart;
@@ -2707,6 +2713,7 @@ function saveIntervention(){
     date:document.getElementById('intDate').value,
     startTime:document.getElementById('intStart').value,
     endTime:document.getElementById('intEnd').value,
+    duration:parseInt(document.getElementById('intDuration').value)||0,
     techId:parseInt(document.getElementById('intTech').value),
     location:document.getElementById('intAddress').value||'Adresse non renseignée',
     client:document.getElementById('intClient').value||'-',
@@ -2781,8 +2788,7 @@ function editIntervention(id){
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
   document.getElementById('intDate').value=i.date;document.getElementById('intStart').value=i.startTime;
   document.getElementById('intEnd').value=i.endTime;
-  var dur=timeToMin(i.endTime)-timeToMin(i.startTime);if(dur<=0)dur=240;
-  document.getElementById('intDuration').value=dur;
+  document.getElementById('intDuration').value=i.duration || (timeToMin(i.endTime)-timeToMin(i.startTime)) || 240;
   document.getElementById('intTech').value=i.techId;
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
