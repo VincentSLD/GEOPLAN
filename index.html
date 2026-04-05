@@ -2306,7 +2306,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
+function init() { syncTeamToTechnicians(); syncTypesToApp(); syncCommandeGeosoliaFromInterventions(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2739,6 +2739,7 @@ function saveIntervention(){
   };
   if(editingId){const idx=interventions.findIndex(i=>i.id===editingId);if(idx>=0)interventions[idx]=data;}else interventions.push(data);
   saveSettings('geoplan_interventions', interventions);
+  syncCommandeGeosoliaFromInterventions();
   closeModal();renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
 }
 
@@ -3048,7 +3049,20 @@ function linkCommandeGeosolia(cmdId, geoId) {
   if (geoId) { commandeGeosoliaLinks[cmdId] = geoId; }
   else { delete commandeGeosoliaLinks[cmdId]; }
   saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
-  // Refresh just the row's geosolia link (no full re-render)
+}
+
+// Sync commande↔geosolia links from interventions
+function syncCommandeGeosoliaFromInterventions() {
+  var changed = false;
+  interventions.forEach(function(int) {
+    if (int.commandeId && int.geosoliaId) {
+      if (commandeGeosoliaLinks[int.commandeId] !== int.geosoliaId) {
+        commandeGeosoliaLinks[int.commandeId] = int.geosoliaId;
+        changed = true;
+      }
+    }
+  });
+  if (changed) saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
 }
 
 async function initCommandes() {
