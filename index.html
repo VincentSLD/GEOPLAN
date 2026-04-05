@@ -2801,6 +2801,7 @@ function editIntervention(id){
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
   else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
+  onGeosoliaSelect();
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);saveSettings('geoplan_interventions',interventions);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
@@ -3271,7 +3272,7 @@ function planifierCommande(cmdId) {
     if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
     // Pré-sélectionner Géosolia si lié
     var linkedGeo = commandeGeosoliaLinks[cmd.id];
-    if (linkedGeo) document.getElementById('intGeosolia').value = linkedGeo;
+    if (linkedGeo) { document.getElementById('intGeosolia').value = linkedGeo; onGeosoliaSelect(); }
     // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
     if (etudeSelect && cmd.projet) {
