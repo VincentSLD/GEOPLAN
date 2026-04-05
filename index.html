@@ -2763,7 +2763,7 @@ function openDetail(id){
     ${int.commandeRef ? `<div class="detail-field"><div class="detail-field-label">Commande</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📋 ${int.commandeRef}</div></div>` : ''}
     ${int.affaireRef ? `<div class="detail-field"><div class="detail-field-label">Affaire</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📂 ${int.affaireRef}</div></div>` : ''}
     ${int.marcheRef ? `<div class="detail-field"><div class="detail-field-label">Marché</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📑 ${int.marcheRef}${int.marcheAdresse ? '<br><span style="font-family:inherit;font-size:0.75rem;color:var(--text-muted);">📍 ' + int.marcheAdresse + '</span>' : ''}</div></div>` : ''}
-    ${int.geosoliaId ? `<div class="detail-field"><div class="detail-field-label">Projet Géosolia</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><span style="font-family:'DM Mono',monospace;font-size:0.82rem;">🌍 ${int.geosoliaRef || ''} — ${int.geosoliaName || ''}</span><a href="https://geosolia.vercel.app/?project=${int.geosoliaId}" target="_blank" style="font-size:0.7rem;color:var(--gph-yellow);font-weight:700;text-decoration:none;border:1px solid var(--gph-yellow);padding:2px 8px;border-radius:4px;">Ouvrir</a></div></div>` : ''}
+    ${int.geosoliaId ? `<div class="detail-field"><div class="detail-field-label">Projet Géosolia</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-family:'DM Mono',monospace;font-size:0.82rem;">🌍 ${int.geosoliaRef || ''} — ${int.geosoliaName || ''}</span><a href="https://geosolia.vercel.app/?project=${int.geosoliaId}" target="_blank" style="font-size:0.7rem;color:var(--gph-yellow);font-weight:700;text-decoration:none;border:1px solid var(--gph-yellow);padding:2px 8px;border-radius:4px;">Ouvrir</a></div>${(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px;margin-top:4px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()}</div>` : ''}
     <div class="detail-field"><div class="detail-field-label">Temps de trajet</div>
       <div style="display:flex;gap:8px;margin-top:6px;">
         <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;"><div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Aller</div><div style="font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--gph-dark);">${int.travelTo}<span style="font-size:0.7rem;color:var(--text-muted);"> min</span></div></div>
@@ -3535,7 +3535,98 @@ function getGeosoliaProgram(projectId) {
     timeEstimateMin: finalTime,
     timeIsReal: !!realTime,
     totalSondages: sondageDetails.length,
+    // Enquête terrain
+    emprise: d.projectEmprise || '',
+    typologie: d.projectTypologie || '',
+    niveaux: d.projectNiveaux || '',
+    programPenetros: d.programPenetros || 0,
+    programTarieres: d.programTarieres || 0,
+    programRecoFondation: d.programRecoFondation || 0,
+    programSondagePelle: d.programSondagePelle || 0,
+    pelleNecessaire: d.pelleNecessaire || false,
+    pelleGereeClient: d.pelleGereeClient || false,
+    laboratoire: d.laboratoire || false,
+    liquefaction: d.liquefaction || false,
+    estimatedReportMin: d.estimatedReportMinutes ? parseInt(d.estimatedReportMinutes) : null,
+    estimatedReviewMin: d.estimatedReviewMinutes ? parseInt(d.estimatedReviewMinutes) : null,
+    infoGeotechnicien: d.infoGeotechnicien || '',
   };
+}
+
+function renderGeosoliaEnquete(prog) {
+  var html = '';
+  var field = function(label, val) { return val ? '<div style="flex:1;min-width:120px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;">' + label + '</strong><span style="font-size:0.78rem;">' + val + '</span></div>' : ''; };
+  var badge = function(label, active, color) { return '<span style="padding:2px 8px;border-radius:8px;font-size:0.62rem;font-weight:600;' + (active ? 'background:' + color + '15;color:' + color + ';border:1px solid ' + color + '30;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);opacity:0.4;') + '">' + label + '</span>'; };
+
+  // Ligne 1 : Mission, Lieu, Temps
+  html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
+  html += field('Type de mission', prog.mission || '—');
+  html += field('Lieu', '📍 ' + (prog.address || '—'));
+  var timeLabel = prog.timeEstimateMin + ' min' + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.55rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.55rem;">(estimé)</span>');
+  html += field('Temps terrain', '⏱ ' + timeLabel);
+  html += '</div>';
+
+  // Ligne 2 : Emprise, Typologie, Niveaux
+  if (prog.emprise || prog.typologie || prog.niveaux) {
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
+    html += field('Emprise au sol', prog.emprise);
+    html += field('Typologie', prog.typologie);
+    html += field('Nombre de niveaux', prog.niveaux);
+    html += '</div>';
+  }
+
+  // Ligne 3 : Programme de reconnaissance
+  var hasProg = prog.programPenetros || prog.programTarieres || prog.programRecoFondation || prog.programSondagePelle || Object.keys(prog.sondageCounts).length > 0;
+  if (hasProg) {
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme de reconnaissance</strong>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    if (prog.programPenetros) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#eff6ff;border:1px solid #2563EB30;color:#2563EB;">' + prog.programPenetros + ' Pénétro.</span>';
+    if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
+    if (prog.programRecoFondation) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fef3c7;border:1px solid #D9770630;color:#D97706;">' + prog.programRecoFondation + ' Reco fond.</span>';
+    if (prog.programSondagePelle) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fce7f3;border:1px solid #DB277730;color:#DB2777;">' + prog.programSondagePelle + ' Sondage pelle</span>';
+    // Also show sondages from plan elements
+    var counts = prog.sondageCounts; var labels = prog.sondageLabels;
+    Object.keys(counts).forEach(function(k) {
+      html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:var(--bg-secondary);border:1px solid var(--border);">' + counts[k] + 'x ' + (labels[k] || k) + ' (plan)</span>';
+    });
+    html += '</div></div>';
+  }
+
+  // Sondage details
+  if (prog.sondageDetails.length > 0) {
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">Détail sondages</strong>';
+    html += '<div style="font-size:0.7rem;">';
+    prog.sondageDetails.forEach(function(s) {
+      html += '<span style="margin-right:10px;">' + s.name + ' (' + (labels[s.type] || s.type) + ', ' + s.depth + 'm' + (s.refusal ? ' — refus' : '') + ')</span>';
+    });
+    html += '</div></div>';
+  }
+
+  // Ligne 4 : Options (badges oui/non)
+  html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+  html += badge('Pelle nécessaire', prog.pelleNecessaire, '#D97706');
+  html += badge('Gérée par client', prog.pelleGereeClient, '#0891B2');
+  html += badge('Laboratoire', prog.laboratoire, '#7C3AED');
+  html += badge('Liquéfaction', prog.liquefaction, '#DC2626');
+  html += '</div>';
+
+  // Ligne 5 : Temps rapport + relecture
+  if (prog.estimatedReportMin || prog.estimatedReviewMin) {
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
+    if (prog.estimatedReportMin) html += field('Temps rapport', '📝 ' + prog.estimatedReportMin + ' min');
+    if (prog.estimatedReviewMin) html += field('Temps relecture', '👁 ' + prog.estimatedReviewMin + ' min');
+    html += '</div>';
+  }
+
+  // Ligne 6 : Infos géotechnicien
+  if (prog.infoGeotechnicien) {
+    html += '<div style="margin-top:4px;padding:8px;background:#fffbeb;border:1px solid #fbbf2430;border-radius:4px;font-size:0.72rem;">';
+    html += '<strong style="font-size:0.6rem;text-transform:uppercase;color:#92400e;">ℹ Infos géotechnicien</strong><br>';
+    html += prog.infoGeotechnicien.replace(/\n/g, '<br>');
+    html += '</div>';
+  }
+
+  return html;
 }
 
 function populateGeosoliaSelect() {
@@ -3567,42 +3658,28 @@ function onGeosoliaSelect() {
     updateEndFromDuration();
   }
 
-  // Build program info display
-  var html = '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
-  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Mission</strong><br>' + (prog.mission || '—') + '</div>';
-  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Lieu</strong><br>📍 ' + (prog.address || '—') + '</div>';
-  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Temps terrain</strong><br>⏱ ' + prog.timeEstimateMin + ' min' + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.6rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.6rem;">(estimé)</span>') + '</div>';
-  html += '</div>';
+  // Build full enquête display
+  var html = renderGeosoliaEnquete(prog);
 
-  // Sondages program
-  var counts = prog.sondageCounts;
-  var labels = prog.sondageLabels;
-  if (Object.keys(counts).length > 0) {
-    html += '<div style="margin-top:8px;"><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Programme sondages</strong>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">';
-    Object.keys(counts).forEach(function(k) {
-      html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:var(--bg-secondary);border:1px solid var(--border);">' + counts[k] + 'x ' + (labels[k] || k) + '</span>';
-    });
-    html += '</div></div>';
-  }
-
-  // Sondage details
-  if (prog.sondageDetails.length > 0) {
-    html += '<div style="margin-top:8px;"><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Détail</strong>';
-    html += '<div style="font-size:0.7rem;margin-top:3px;">';
-    prog.sondageDetails.forEach(function(s) {
-      html += '<span style="margin-right:10px;">' + s.name + ' (' + (labels[s.type] || s.type) + ', ' + s.depth + 'm' + (s.refusal ? ' — refus' : '') + ')</span>';
-    });
-    html += '</div></div>';
-  }
-
-  // Also auto-fill notes with program summary
+  // Auto-fill notes with program summary
   var notesField = document.getElementById('intNotes');
   if (!notesField.value) {
     var noteLines = [];
     noteLines.push('Mission: ' + (prog.mission || ''));
+    if (prog.emprise) noteLines.push('Emprise: ' + prog.emprise);
+    if (prog.typologie) noteLines.push('Typologie: ' + prog.typologie);
+    if (prog.niveaux) noteLines.push('Niveaux: ' + prog.niveaux);
+    if (prog.programPenetros) noteLines.push(prog.programPenetros + ' pénétromètre(s)');
+    if (prog.programTarieres) noteLines.push(prog.programTarieres + ' tarière(s)');
+    if (prog.programRecoFondation) noteLines.push(prog.programRecoFondation + ' reco fondation');
+    if (prog.programSondagePelle) noteLines.push(prog.programSondagePelle + ' sondage(s) pelle');
+    var counts = prog.sondageCounts; var labels = prog.sondageLabels;
     Object.keys(counts).forEach(function(k) { noteLines.push(counts[k] + 'x ' + (labels[k] || k)); });
     prog.sondageDetails.forEach(function(s) { noteLines.push(s.name + ': ' + s.depth + 'm' + (s.refusal ? ' (refus)' : '')); });
+    if (prog.pelleNecessaire) noteLines.push('⚠ Pelle nécessaire' + (prog.pelleGereeClient ? ' (gérée par le client)' : ''));
+    if (prog.laboratoire) noteLines.push('Laboratoire nécessaire');
+    if (prog.liquefaction) noteLines.push('Étude de liquéfaction');
+    if (prog.infoGeotechnicien) noteLines.push('---\n' + prog.infoGeotechnicien);
     notesField.value = noteLines.join('\n');
   }
 
