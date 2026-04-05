@@ -3452,6 +3452,10 @@ function getGeosoliaProgram(projectId) {
     else timeEstimate += n * 20;
   });
 
+  // Use real terrain time from Geosolia if available, otherwise heuristic
+  var realTime = d.estimatedTerrainMinutes || d.terrainTime || d.tempsEstime || null;
+  var finalTime = realTime ? parseInt(realTime) : timeEstimate;
+
   return {
     lat: d.projectLat || null,
     lng: d.projectLng || null,
@@ -3461,7 +3465,8 @@ function getGeosoliaProgram(projectId) {
     sondageCounts: sondageCounts,
     sondageLabels: sondageLabels,
     sondageDetails: sondageDetails,
-    timeEstimateMin: timeEstimate,
+    timeEstimateMin: finalTime,
+    timeIsReal: !!realTime,
     totalSondages: sondageDetails.length,
   };
 }
@@ -3489,11 +3494,9 @@ function onGeosoliaSelect() {
     addrField.value = prog.address;
   }
 
-  // Auto-fill duration: use Geosolia terrain time or heuristic estimate
-  var d = geosoliaDataMap[geoId];
-  var terrainTime = d.estimatedTerrainMinutes || d.terrainTime || d.tempsEstime || d.estimatedTerrainTime || d.tempsTerrain || prog.timeEstimateMin;
-  if (terrainTime) {
-    document.getElementById('intDuration').value = parseInt(terrainTime);
+  // Auto-fill duration from Geosolia
+  if (prog.timeEstimateMin) {
+    document.getElementById('intDuration').value = prog.timeEstimateMin;
     updateEndFromDuration();
   }
 
@@ -3501,7 +3504,7 @@ function onGeosoliaSelect() {
   var html = '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
   html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Mission</strong><br>' + (prog.mission || '—') + '</div>';
   html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Lieu</strong><br>📍 ' + (prog.address || '—') + '</div>';
-  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Temps estimé</strong><br>⏱ ' + (terrainTime || prog.timeEstimateMin) + ' min</div>';
+  html += '<div><strong style="font-size:0.65rem;text-transform:uppercase;color:var(--text-muted);">Temps terrain</strong><br>⏱ ' + prog.timeEstimateMin + ' min' + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.6rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.6rem;">(estimé)</span>') + '</div>';
   html += '</div>';
 
   // Sondages program
