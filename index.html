@@ -1319,14 +1319,19 @@ body::before {
 .ai-action-block { margin:10px 0; border:2px solid var(--gph-yellow); border-radius:10px; overflow:hidden; background:var(--bg-card); }
 .ai-action-header { padding:8px 12px; background:var(--gph-yellow-light); font-size:0.75rem; font-weight:800; color:var(--gph-dark); border-bottom:1px solid rgba(245,197,24,0.3); }
 .ai-action-item { display:flex; align-items:center; justify-content:space-between; padding:7px 12px; border-bottom:1px solid var(--border); gap:8px; }
-.ai-action-item.applied { opacity:0.5; }
+.ai-action-item.applied { background:#f0fdf4; }
+.ai-action-item.rejected { background:#fef2f2; opacity:0.5; }
 .ai-action-label { font-size:0.75rem; font-weight:500; color:var(--text-primary); flex:1; }
-.ai-action-apply-btn { padding:4px 12px; border:1px solid var(--gph-yellow); border-radius:6px; background:var(--bg-card); color:var(--gph-dark); font-size:0.68rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
-.ai-action-apply-btn:hover { background:var(--gph-yellow); }
-.ai-action-apply-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.ai-action-btns { display:flex; gap:4px; }
+.ai-action-yes { padding:4px 12px; border:1px solid #16A34A; border-radius:6px; background:#f0fdf4; color:#16A34A; font-size:0.68rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+.ai-action-yes:hover { background:#16A34A; color:#fff; }
+.ai-action-no { padding:4px 12px; border:1px solid #DC2626; border-radius:6px; background:#fef2f2; color:#DC2626; font-size:0.68rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+.ai-action-no:hover { background:#DC2626; color:#fff; }
+.ai-action-result { font-size:0.65rem; font-weight:700; white-space:nowrap; }
 .ai-action-apply-all-btn { display:block; width:100%; padding:8px; border:none; background:linear-gradient(135deg,var(--gph-primary),#333); color:var(--gph-yellow); font-size:0.75rem; font-weight:800; cursor:pointer; font-family:inherit; transition:all 0.15s; }
 .ai-action-apply-all-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
 .ai-action-apply-all-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.ai-action-progress { padding:6px 12px; font-size:0.68rem; color:var(--text-muted); font-weight:600; text-align:center; border-top:1px solid var(--border); }
 
 /* Settings */
 /* Settings inline view */
@@ -5644,15 +5649,20 @@ function renderMarkdown(text) {
       if (!Array.isArray(actions) || actions.length === 0) return;
       const actionsId = 'ai-actions-' + Date.now() + '-' + i;
       let actHtml = `<div class="ai-action-block" id="${actionsId}">`;
-      actHtml += `<div class="ai-action-header">📋 Modifications proposées</div>`;
+      actHtml += `<div class="ai-action-header">📋 ${actions.length} modification(s) proposée(s) — Accepter ou refuser chacune</div>`;
       actions.forEach((a, j) => {
         const icon = a.action === 'create' ? '➕' : a.action === 'delete' ? '🗑️' : '🔄';
+        const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
         actHtml += `<div class="ai-action-item" id="${actionsId}-item-${j}">
           <span class="ai-action-label">${icon} ${a.label || 'Action ' + (j+1)}</span>
-          <button class="ai-action-apply-btn" onclick="applyAIAction(${JSON.stringify(a).replace(/"/g, '&quot;')}, '${actionsId}-item-${j}')">Appliquer</button>
+          <div class="ai-action-btns">
+            <button class="ai-action-yes" onclick="acceptAIAction(${aJson}, '${actionsId}', ${j})">✓ Oui</button>
+            <button class="ai-action-no" onclick="rejectAIAction('${actionsId}', ${j})">✗ Non</button>
+          </div>
         </div>`;
       });
-      actHtml += `<button class="ai-action-apply-all-btn" onclick="applyAllAIActions(${JSON.stringify(actions).replace(/"/g, '&quot;')}, '${actionsId}')">✅ Tout appliquer</button>`;
+      actHtml += `<div class="ai-action-progress" id="${actionsId}-progress">0 / ${actions.length} traitée(s)</div>`;
+      actHtml += `<button class="ai-action-apply-all-btn" onclick="acceptAllAIActions(${JSON.stringify(actions).replace(/"/g, '&quot;')}, '${actionsId}')">✅ Tout accepter</button>`;
       actHtml += `</div>`;
       html = html.replace(`%%ACTION_BLOCK_${i}%%`, actHtml);
     } catch(e) {
@@ -5687,64 +5697,90 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ═══ ACTIONS IA APPLICABLES ═══
-function applyAIAction(action, itemId) {
-  const itemEl = document.getElementById(itemId);
-  const btn = itemEl ? itemEl.querySelector('.ai-action-apply-btn') : null;
-
+function executeAIAction(action) {
   if (action.action === 'move') {
-    const int = interventions.find(i => i.id === action.id);
-    if (!int) { if (btn) btn.textContent = '❌ Introuvable'; return; }
+    var int = interventions.find(function(i) { return i.id === action.id; });
+    if (!int) return false;
     if (action.date) int.date = action.date;
     if (action.startTime) int.startTime = action.startTime;
     if (action.endTime) int.endTime = action.endTime;
     if (action.techId) int.techId = action.techId;
     if (action.location) int.location = action.location;
+    if (action.duration) int.duration = action.duration;
   } else if (action.action === 'create') {
-    const newId = Math.max(...interventions.map(i => i.id), 0) + 1;
+    var newId = Math.max.apply(null, interventions.map(function(i){return i.id;}).concat([0])) + 1;
     interventions.push({
-      id: newId,
-      title: action.title || 'Nouvelle intervention',
-      type: action.type || 'sondage',
-      date: action.date,
-      startTime: action.startTime || '08:00',
-      endTime: action.endTime || '12:00',
-      techId: action.techId,
-      location: action.location || '',
-      client: action.client || '-',
-      travelTo: 30, travelFrom: 30,
-      status: 'planned',
-      notes: action.notes || '',
+      id: newId, title: action.title || 'Nouvelle intervention',
+      type: action.type || 'sondage', date: action.date,
+      startTime: action.startTime || '08:00', endTime: action.endTime || '12:00',
+      duration: action.duration || 240, techId: action.techId,
+      location: action.location || '', client: action.client || '-',
+      travelTo: 30, travelFrom: 30, status: 'planned', notes: action.notes || '',
     });
   } else if (action.action === 'delete') {
-    const idx = interventions.findIndex(i => i.id === action.id);
-    if (idx < 0) { if (btn) btn.textContent = '❌ Introuvable'; return; }
+    var idx = interventions.findIndex(function(i) { return i.id === action.id; });
+    if (idx < 0) return false;
     interventions.splice(idx, 1);
   }
-
-  saveSettings('geoplan_interventions', interventions);
-
-  // Visual feedback
-  if (itemEl) {
-    itemEl.classList.add('applied');
-    if (btn) { btn.textContent = '✓ Appliqué'; btn.disabled = true; }
-  }
-
-  renderCurrentView();
-  updateTodayCount();
-  populateSidebar();
-  computeAllTravel();
+  return true;
 }
 
-function applyAllAIActions(actions, blockId) {
-  actions.forEach((a, j) => {
-    const itemId = blockId + '-item-' + j;
-    const itemEl = document.getElementById(itemId);
-    if (itemEl && !itemEl.classList.contains('applied')) {
-      applyAIAction(a, itemId);
+function updateAIActionProgress(blockId) {
+  var block = document.getElementById(blockId);
+  if (!block) return;
+  var items = block.querySelectorAll('.ai-action-item');
+  var done = block.querySelectorAll('.ai-action-item.applied, .ai-action-item.rejected').length;
+  var total = items.length;
+  var progressEl = document.getElementById(blockId + '-progress');
+  if (progressEl) {
+    var accepted = block.querySelectorAll('.ai-action-item.applied').length;
+    var rejected = block.querySelectorAll('.ai-action-item.rejected').length;
+    progressEl.textContent = done + ' / ' + total + ' traitée(s) — ' + accepted + ' acceptée(s), ' + rejected + ' refusée(s)';
+  }
+  if (done === total) {
+    var allBtn = block.querySelector('.ai-action-apply-all-btn');
+    if (allBtn) { allBtn.textContent = '✅ Toutes les modifications traitées'; allBtn.disabled = true; }
+  }
+}
+
+function acceptAIAction(action, blockId, idx) {
+  var itemId = blockId + '-item-' + idx;
+  var itemEl = document.getElementById(itemId);
+  if (!itemEl || itemEl.classList.contains('applied') || itemEl.classList.contains('rejected')) return;
+
+  var success = executeAIAction(action);
+  itemEl.classList.add('applied');
+  var btns = itemEl.querySelector('.ai-action-btns');
+  if (btns) btns.innerHTML = '<span class="ai-action-result" style="color:#16A34A;">✓ Accepté</span>';
+
+  if (success) {
+    saveSettings('geoplan_interventions', interventions);
+    renderCurrentView();
+    updateTodayCount();
+    populateSidebar();
+    computeAllTravel();
+  }
+  updateAIActionProgress(blockId);
+}
+
+function rejectAIAction(blockId, idx) {
+  var itemId = blockId + '-item-' + idx;
+  var itemEl = document.getElementById(itemId);
+  if (!itemEl || itemEl.classList.contains('applied') || itemEl.classList.contains('rejected')) return;
+
+  itemEl.classList.add('rejected');
+  var btns = itemEl.querySelector('.ai-action-btns');
+  if (btns) btns.innerHTML = '<span class="ai-action-result" style="color:#DC2626;">✗ Refusé</span>';
+  updateAIActionProgress(blockId);
+}
+
+function acceptAllAIActions(actions, blockId) {
+  actions.forEach(function(a, j) {
+    var itemEl = document.getElementById(blockId + '-item-' + j);
+    if (itemEl && !itemEl.classList.contains('applied') && !itemEl.classList.contains('rejected')) {
+      acceptAIAction(a, blockId, j);
     }
   });
-  const allBtn = document.querySelector(`#${blockId} .ai-action-apply-all-btn`);
-  if (allBtn) { allBtn.textContent = '✅ Toutes les modifications appliquées'; allBtn.disabled = true; }
 }
 
 // ═══ AUTHENTIFICATION SUPABASE (même base que GéoCarto) ═══
