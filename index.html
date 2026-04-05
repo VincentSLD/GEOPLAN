@@ -2499,10 +2499,15 @@ function renderWeek() {
       var lunchInserted = false;
       var lunch = getLunchBreak(day.dateStr);
       di.forEach((int,idx)=>{
-        // Insert lunch badge between morning and afternoon interventions
-        if(showLunch && !lunchInserted && timeToMin(int.startTime) >= lunch.start) {
-          html+=lunchBadgeHTML(day.dateStr);
-          lunchInserted = true;
+        // Insert lunch AFTER an intervention that ends before/during lunch, BEFORE one that starts after lunch
+        if(showLunch && !lunchInserted) {
+          var intStart = timeToMin(int.startTime);
+          var prevEnd = idx > 0 ? timeToMin(di[idx-1].endTime) : 0;
+          // Lunch goes here if: previous intervention ended before lunch end AND this one starts after lunch start
+          if(intStart >= lunch.start || (idx > 0 && prevEnd <= lunch.start && intStart >= lunch.start)) {
+            html+=lunchBadgeHTML(day.dateStr);
+            lunchInserted = true;
+          }
         }
         const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
         html+=`<div class="int-group">`;
@@ -2510,9 +2515,18 @@ function renderWeek() {
         html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div></div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`;
+        // Insert lunch AFTER this intervention if it ends during/before lunch and next starts after
+        if(showLunch && !lunchInserted) {
+          var thisEnd = timeToMin(int.endTime);
+          var nextStart = idx < di.length-1 ? timeToMin(di[idx+1].startTime) : 9999;
+          if(thisEnd <= lunch.end && nextStart >= lunch.start) {
+            html+=lunchBadgeHTML(day.dateStr);
+            lunchInserted = true;
+          }
+        }
       });
-      // If no afternoon intervention, show lunch at end if there are morning ones
-      if(showLunch && !lunchInserted && di.length > 0) { html+=lunchBadgeHTML(day.dateStr); }
+      // Show lunch after all interventions if all are morning and lunch not yet shown
+      if(showLunch && !lunchInserted && di.length > 0 && timeToMin(di[di.length-1].endTime) <= lunch.end) { html+=lunchBadgeHTML(day.dateStr); lunchInserted=true; }
       html+=`<div style="display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.15;font-size:18px;font-weight:800;color:var(--gph-dark);padding:4px 0;" onclick="openModalForSlot(${tech.id},'${day.dateStr}')" title="Ajouter une intervention">+</div>`;
       html+=`</div>`;
     });
