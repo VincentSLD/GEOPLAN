@@ -406,6 +406,8 @@ body::before {
   transition: background var(--transition);
 }
 .day-cell:hover { background: var(--bg-card-hover); }
+.lunch-bar { position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,transparent 30%,#f5c518 30%,#f5c518 70%,transparent 70%); z-index:1; pointer-events:none; }
+.lunch-bar-label { position:absolute; top:50%; left:6px; transform:translateY(-50%); background:#fef9e7; color:#92400e; font-size:0.5rem; font-weight:700; padding:1px 4px; border-radius:3px; border:1px solid #f5c51840; white-space:nowrap; pointer-events:auto; }
 .day-cell.today-col { background: var(--gph-yellow-light); }
 .day-cell.today-col:hover { background: #fdf4d0; }
 .day-cell.weekend-col { background: #fafaf6; }
@@ -2458,15 +2460,6 @@ function jourFerieBadgeHTML(dateStr) {
   return '<div style="background:#fef3c7;color:#92400e;border:1px solid #fbbf2420;border-radius:6px;padding:3px 8px;font-size:0.6rem;font-weight:700;text-align:center;margin-bottom:3px;">🎌 ' + label + '</div>';
 }
 
-function lunchBadgeHTML(dateStr) {
-  if (!showLunch) return '';
-  var lunch = getLunchBreak(dateStr);
-  var debut = minToTime(lunch.start);
-  var fin = minToTime(lunch.end);
-  var dur = lunch.end - lunch.start;
-  return '<div style="background:#fef9e7;color:#92400e;border:1px dashed rgba(245,197,24,0.4);border-radius:4px;padding:3px 6px;font-size:0.55rem;font-weight:600;text-align:center;margin:2px 0;">🍽 Pause ' + debut + '–' + fin + ' (' + dur + 'min)</div>';
-}
-
 // ===== WEEK =====
 function renderWeek() {
   const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
@@ -2498,41 +2491,26 @@ function renderWeek() {
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
       var dayFerie = isJourFerie(day.dateStr);
-      html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend||dayFerie?'weekend-col':''}" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
+      var lunch = getLunchBreak(day.dateStr);
+      html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend||dayFerie?'weekend-col':''}" style="position:relative;" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
+      // Lunch indicator: yellow bar on left side + small label
+      if(showLunch && di.length > 0) {
+        html+=`<div class="lunch-bar" title="Pause ${minToTime(lunch.start)}–${minToTime(lunch.end)}"><span class="lunch-bar-label">🍽 ${minToTime(lunch.start)}</span></div>`;
+      }
       html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
-      var lunchInserted = false;
-      var lunch = getLunchBreak(day.dateStr);
       di.forEach((int,idx)=>{
-        // Insert lunch AFTER an intervention that ends before/during lunch, BEFORE one that starts after lunch
-        if(showLunch && !lunchInserted) {
-          var intStart = timeToMin(int.startTime);
-          var prevEnd = idx > 0 ? timeToMin(di[idx-1].endTime) : 0;
-          // Lunch goes here if: previous intervention ended before lunch end AND this one starts after lunch start
-          if(intStart >= lunch.start || (idx > 0 && prevEnd <= lunch.start && intStart >= lunch.start)) {
-            html+=lunchBadgeHTML(day.dateStr);
-            lunchInserted = true;
-          }
-        }
         const type=TYPES[int.type]||{label:int.type||'?',class:''}, sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
+        // Check if this intervention overlaps lunch
+        var intS = timeToMin(int.startTime), intE = timeToMin(int.endTime);
+        var overlapsLunch = showLunch && intS < lunch.end && intE > lunch.start;
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
-        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" ${compAlert?'style="border:2px solid #DC2626;"':''}><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ Compétence '+compAlert.mission+'</div>':''}</div>`;
+        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" style="${compAlert?'border:2px solid #DC2626;':''}${overlapsLunch?'border-left:3px solid #f5c518;':''}"><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ Compétence '+compAlert.mission+'</div>':''}</div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
-        html+=`</div>`;
-        // Insert lunch AFTER this intervention if it ends during/before lunch and next starts after
-        if(showLunch && !lunchInserted) {
-          var thisEnd = timeToMin(int.endTime);
-          var nextStart = idx < di.length-1 ? timeToMin(di[idx+1].startTime) : 9999;
-          if(thisEnd <= lunch.end && nextStart >= lunch.start) {
-            html+=lunchBadgeHTML(day.dateStr);
-            lunchInserted = true;
-          }
-        }
+        html+=`</div>`
       });
-      // Show lunch after all interventions if all are morning and lunch not yet shown
-      if(showLunch && !lunchInserted && di.length > 0 && timeToMin(di[di.length-1].endTime) <= lunch.end) { html+=lunchBadgeHTML(day.dateStr); lunchInserted=true; }
       html+=`<div style="display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.15;font-size:18px;font-weight:800;color:var(--gph-dark);padding:4px 0;" onclick="openModalForSlot(${tech.id},'${day.dateStr}')" title="Ajouter une intervention">+</div>`;
       html+=`</div>`;
     });
