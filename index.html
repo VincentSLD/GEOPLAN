@@ -3567,21 +3567,6 @@ function renderGeosoliaEnquete(prog) {
     if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
     if (prog.programRecoFondation) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fef3c7;border:1px solid #D9770630;color:#D97706;">' + prog.programRecoFondation + ' Reco fond.</span>';
     if (prog.programSondagePelle) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fce7f3;border:1px solid #DB277730;color:#DB2777;">' + prog.programSondagePelle + ' Sondage pelle</span>';
-    // Also show sondages from plan elements
-    var counts = prog.sondageCounts; var labels = prog.sondageLabels;
-    Object.keys(counts).forEach(function(k) {
-      html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:var(--bg-secondary);border:1px solid var(--border);">' + counts[k] + 'x ' + (labels[k] || k) + ' (plan)</span>';
-    });
-    html += '</div></div>';
-  }
-
-  // Sondage details
-  if (prog.sondageDetails.length > 0) {
-    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">Détail sondages</strong>';
-    html += '<div style="font-size:0.7rem;">';
-    prog.sondageDetails.forEach(function(s) {
-      html += '<span style="margin-right:10px;">' + s.name + ' (' + (labels[s.type] || s.type) + ', ' + s.depth + 'm' + (s.refusal ? ' — refus' : '') + ')</span>';
-    });
     html += '</div></div>';
   }
 
@@ -3697,9 +3682,6 @@ function onGeosoliaSelect() {
     if (prog.programTarieres) noteLines.push(prog.programTarieres + ' tarière(s)');
     if (prog.programRecoFondation) noteLines.push(prog.programRecoFondation + ' reco fondation');
     if (prog.programSondagePelle) noteLines.push(prog.programSondagePelle + ' sondage(s) pelle');
-    var counts = prog.sondageCounts; var labels = prog.sondageLabels;
-    Object.keys(counts).forEach(function(k) { noteLines.push(counts[k] + 'x ' + (labels[k] || k)); });
-    prog.sondageDetails.forEach(function(s) { noteLines.push(s.name + ': ' + s.depth + 'm' + (s.refusal ? ' (refus)' : '')); });
     if (prog.pelleNecessaire) noteLines.push('⚠ Pelle nécessaire' + (prog.pelleGereeClient ? ' (gérée par le client)' : ''));
     if (prog.laboratoire) noteLines.push('Laboratoire nécessaire');
     if (prog.liquefaction) noteLines.push('Étude de liquéfaction');
