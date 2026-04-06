@@ -2514,7 +2514,7 @@ function renderWeek() {
             lunchInserted = true;
           }
         }
-        const type=TYPES[int.type], sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
+        const type=TYPES[int.type]||{label:int.type||'?',class:''}, sc=int.status==='inprogress'?'status-inprogress':int.status==='done'?'status-done':'status-planned';
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
@@ -2746,13 +2746,14 @@ function saveIntervention(){
 // ===== DETAIL =====
 function openDetail(id){
   const int=interventions.find(i=>i.id===id);if(!int)return;
-  const tech=TECHNICIANS.find(t=>t.id===int.techId), type=TYPES[int.type];
+  const tech=TECHNICIANS.find(t=>t.id===int.techId);if(!tech)return;
+  const type=TYPES[int.type]||{label:int.type||'Intervention',class:''};
   const sl={planned:'Planifié',inprogress:'En cours',done:'Terminé'};
   const depMin=timeToMin(int.startTime)-int.travelTo, arrMin=timeToMin(int.endTime)+int.travelFrom;
   document.getElementById('detailTitle').textContent=int.title;
   document.getElementById('detailBody').innerHTML=`
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;">
-      <span style="padding:4px 12px;border-radius:16px;font-size:0.62rem;font-weight:700;background:${TYPE_RAW[int.type]}12;color:${TYPE_RAW[int.type]}">${type.label}</span>
+      <span style="padding:4px 12px;border-radius:16px;font-size:0.62rem;font-weight:700;background:${(TYPE_RAW[int.type]||'#888')}12;color:${TYPE_RAW[int.type]||'#888'}">${type.label}</span>
       <span style="padding:4px 12px;border-radius:16px;font-size:0.62rem;font-weight:700;" class="status-${int.status}-badge">${sl[int.status]}</span>
     </div>
     ${(function(){ var alert=checkCompetenceAlert(int); return alert ? '<div style="background:#fef2f2;border:1px solid #DC262630;border-radius:var(--radius-xs);padding:8px 12px;margin-bottom:16px;font-size:0.75rem;color:#DC2626;font-weight:600;">⚠ Alerte compétence : <strong>'+alert.techName+'</strong> n\'a pas la compétence <strong>'+alert.mission+'</strong> dans son profil</div>' : ''; })()}
