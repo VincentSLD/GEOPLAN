@@ -2727,7 +2727,6 @@ function openDetail(id){
   const tech=TECHNICIANS.find(t=>t.id===int.techId);if(!tech)return;
   const type=TYPES[int.type]||{label:int.type||'Intervention',class:''};
   const sl={planned:'Planifié',inprogress:'En cours',done:'Terminé'};
-  const depMin=timeToMin(int.startTime)-int.travelTo, arrMin=timeToMin(int.endTime)+int.travelFrom;
   document.getElementById('detailTitle').textContent=int.title;
   document.getElementById('detailBody').innerHTML=`
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;">
@@ -2745,22 +2744,7 @@ function openDetail(id){
     ${int.affaireRef ? `<div class="detail-field"><div class="detail-field-label">Affaire</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📂 ${int.affaireRef}</div></div>` : ''}
     ${int.marcheRef ? `<div class="detail-field"><div class="detail-field-label">Marché</div><div class="detail-field-value" style="font-family:'DM Mono',monospace;font-size:0.82rem;">📑 ${int.marcheRef}${int.marcheAdresse ? '<br><span style="font-family:inherit;font-size:0.75rem;color:var(--text-muted);">📍 ' + int.marcheAdresse + '</span>' : ''}</div></div>` : ''}
     ${int.geosoliaId ? `<div class="detail-field"><div class="detail-field-label">Projet Géosolia</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-family:'DM Mono',monospace;font-size:0.82rem;">🌍 ${int.geosoliaRef || ''} — ${int.geosoliaName || ''}</span><a href="https://geosolia.vercel.app/?project=${int.geosoliaId}" target="_blank" style="font-size:0.7rem;color:var(--gph-yellow);font-weight:700;text-decoration:none;border:1px solid var(--gph-yellow);padding:2px 8px;border-radius:4px;">Ouvrir</a></div>${(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px;margin-top:4px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()}</div>` : ''}
-    <div class="detail-field"><div class="detail-field-label">Temps de trajet</div>
-      <div style="display:flex;gap:8px;margin-top:6px;">
-        <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;"><div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Aller</div><div style="font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--gph-dark);">${int.travelTo}<span style="font-size:0.7rem;color:var(--text-muted);"> min</span></div></div>
-        <div style="flex:1;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;"><div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;">Retour</div><div style="font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--gph-dark);">${int.travelFrom}<span style="font-size:0.7rem;color:var(--text-muted);"> min</span></div></div>
-        <div style="flex:1;padding:10px;background:var(--gph-yellow-light);border:1px solid rgba(245,197,24,0.3);border-radius:var(--radius-sm);text-align:center;"><div style="font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gph-dark);margin-bottom:3px;">Total</div><div style="font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:500;color:var(--gph-dark);">${int.travelTo+int.travelFrom}<span style="font-size:0.7rem;color:var(--text-muted);"> min</span></div></div>
-      </div>
-    </div>
-    <div class="detail-field"><div class="detail-field-label">Déroulement</div>
-      <div style="margin-top:6px;">
-        <div class="timeline-item"><div class="timeline-time">${minToTime(depMin)}</div><div class="timeline-desc">🚗 Départ de ${tech.base} · ${int.travelTo} min</div></div>
-        <div class="timeline-item"><div class="timeline-time">${int.startTime}</div><div class="timeline-desc">⛏️ Début intervention</div></div>
-        <div class="timeline-item"><div class="timeline-time">${int.endTime}</div><div class="timeline-desc">✅ Fin intervention</div></div>
-        <div class="timeline-item"><div class="timeline-time">${minToTime(arrMin)}</div><div class="timeline-desc">🏠 Retour à ${tech.base} · ${int.travelFrom} min</div></div>
-      </div>
-    </div>
-    ${int.notes?`<div class="detail-field"><div class="detail-field-label">Notes</div><div style="font-size:0.8rem;color:var(--text-secondary);">${int.notes}</div></div>`:''}
+    ${int.notes?`<div class="detail-field"><div class="detail-field-label">Notes</div><div style="font-size:0.8rem;color:var(--text-secondary);white-space:pre-wrap;">${int.notes}</div></div>`:''}
     <div style="display:flex;gap:8px;margin-top:24px;">
       <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;">✏️ Modifier</button>
       <button class="btn btn-ghost" onclick="deleteIntervention(${int.id})" style="color:#DC2626;border-color:rgba(220,38,38,0.3);">🗑 Supprimer</button>
