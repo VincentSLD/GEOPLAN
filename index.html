@@ -1671,7 +1671,7 @@ body::before {
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label class="form-label">Type d'intervention</label>
-          <select class="form-select" id="intType"><option value="sondage">Sondage</option><option value="essai">Essai in-situ</option><option value="prelevement">Prélèvement</option><option value="reconnaissance">Reconnaissance</option><option value="suivi">Suivi chantier</option><option value="labo">Labo</option><option value="urgent">Urgent</option></select></div>
+          <select class="form-select" id="intType"></select></div>
         <div class="form-group"><label class="form-label">Statut</label>
           <select class="form-select" id="intStatus"><option value="planned">Planifié</option><option value="inprogress">En cours</option><option value="done">Terminé</option></select></div>
       </div>
@@ -2302,7 +2302,7 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { syncTeamToTechnicians(); syncTypesToApp(); syncCommandeGeosoliaFromInterventions(); populateSidebar(); populateTechSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
+function init() { syncTeamToTechnicians(); syncTypesToApp(); syncCommandeGeosoliaFromInterventions(); populateSidebar(); populateTechSelect(); populateTypeSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2350,6 +2350,7 @@ function getFilteredTechs() {
   return techs;
 }
 function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name} (${t.base})</option>`).join(''); }
+function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML=settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
 function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===TODAY.toISOString().split('T')[0]).length; }
 
 function navigate(dir) {
