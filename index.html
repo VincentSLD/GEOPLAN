@@ -1634,6 +1634,7 @@ body::before {
         <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
         <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
         <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
+        <button class="settings-tab" onclick="switchSettingsTab('flags',this)">Drapeaux</button>
         <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
         <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
       </div>
@@ -1641,6 +1642,7 @@ body::before {
         <div class="settings-content active" id="settingsTeam"></div>
         <div class="settings-content" id="settingsVehicles"></div>
         <div class="settings-content" id="settingsTypes"></div>
+        <div class="settings-content" id="settingsFlags"></div>
         <div class="settings-content" id="settingsGroups"></div>
         <div class="settings-content" id="settingsGeneral"></div>
       </div>
@@ -1691,6 +1693,7 @@ body::before {
       </div>
       <div class="form-group"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues Immobilier"></div>
       <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
+      <div class="form-group"><label class="form-label">Drapeaux</label><div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div>
       <div id="intGeosoliaInfo" style="display:none;margin:-8px 0 12px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.75rem;"></div>
       <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="intNotes" placeholder="Matériel requis, consignes particulières..."></textarea></div>
     </div>
@@ -2515,7 +2518,7 @@ function renderWeek() {
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
-        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" ${compAlert?'style="border:2px solid #DC2626;"':''}><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ Compétence '+compAlert.mission+'</div>':''}</div>`;
+        html+=`<div class="intervention ${type.class}" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" ${compAlert?'style="border:2px solid #DC2626;"':''}><div class="int-time"><span class="status-dot ${sc}"></span> ${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ Compétence '+compAlert.mission+'</div>':''}</div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`;
         // Insert lunch AFTER this intervention if it ends during/before lunch and next starts after
@@ -2697,7 +2700,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+dur;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -2728,6 +2731,7 @@ function saveIntervention(){
     geosoliaId: document.getElementById('intGeosolia').value || null,
     geosoliaRef: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_ref : null; })(),
     geosoliaName: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_name : null; })(),
+    flags: getSelectedFlags(),
   };
   // Vérifier compétence avant sauvegarde
   var compWarn = checkCompetenceAlert(data);
@@ -2752,6 +2756,7 @@ function openDetail(id){
       <span style="padding:4px 12px;border-radius:16px;font-size:0.62rem;font-weight:700;" class="status-${int.status}-badge">${sl[int.status]}</span>
     </div>
     ${(function(){ var alert=checkCompetenceAlert(int); return alert ? '<div style="background:#fef2f2;border:1px solid #DC262630;border-radius:var(--radius-xs);padding:8px 12px;margin-bottom:16px;font-size:0.75rem;color:#DC2626;font-weight:600;">⚠ Alerte compétence : <strong>'+alert.techName+'</strong> n\'a pas la compétence <strong>'+alert.mission+'</strong> dans son profil</div>' : ''; })()}
+    ${int.flags && int.flags.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">' + int.flags.map(function(fid){ var f=settingsFlags.find(function(x){return x.id===fid;}); return f ? '<span style="display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:0.68rem;font-weight:600;background:'+f.color+'15;color:'+f.color+';border:1px solid '+f.color+'30;"><span style="width:8px;height:8px;border-radius:50%;background:'+f.color+';"></span>'+f.label+'</span>' : ''; }).join('') + '</div>' : ''}
     <div class="detail-field"><div class="detail-field-label">Géotechnicien</div><div class="detail-field-value" style="display:flex;align-items:center;gap:8px;"><div style="background:${tech.color};width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;">${tech.initials}</div>${tech.name} <span style="color:var(--text-muted);font-weight:400;font-size:0.75rem;">· ${tech.base}</span></div></div>
     <div class="detail-field"><div class="detail-field-label">Date & horaires</div><div class="detail-field-value">${new Date(int.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style="font-family:'DM Mono',monospace;font-size:0.88rem;margin-top:3px;color:var(--gph-dark);font-weight:500;">${int.startTime} – ${int.endTime}</div></div>
     <div class="detail-field"><div class="detail-field-label">Lieu</div><div class="detail-field-value"><a href="#" onclick="navigateToAddress('${int.location.replace(/'/g, "\\'")}');return false;" style="color:var(--text-primary);text-decoration:none;display:flex;align-items:center;gap:6px;">📍 ${int.location} <span style="font-size:0.65rem;color:var(--gph-yellow);font-weight:700;border:1px solid var(--gph-yellow);padding:1px 6px;border-radius:4px;">GPS ➜</span></a></div></div>
@@ -2799,6 +2804,7 @@ function editIntervention(id){
   else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
+  populateFlagsCheckboxes(i.flags||[]);
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);saveSettings('geoplan_interventions',interventions);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
@@ -3627,6 +3633,47 @@ function renderGeosoliaEnquete(prog) {
   return html;
 }
 
+function populateFlagsCheckboxes(selectedFlags) {
+  var c = document.getElementById('intFlagsContainer');
+  if (!c) return;
+  var sel = selectedFlags || [];
+  c.innerHTML = settingsFlags.map(function(f) {
+    var checked = sel.indexOf(f.id) >= 0;
+    return '<label style="display:flex;align-items:center;gap:4px;font-size:0.72rem;cursor:pointer;padding:3px 8px;border-radius:8px;border:1px solid ' + (checked ? f.color : 'var(--border)') + ';background:' + (checked ? f.color + '12' : 'transparent') + ';">' +
+      '<input type="checkbox" class="flag-check" value="' + f.id + '" ' + (checked ? 'checked' : '') + ' style="display:none;">' +
+      '<span style="width:10px;height:10px;border-radius:50%;background:' + f.color + ';flex-shrink:0;"></span> ' + f.label + '</label>';
+  }).join('');
+  // Toggle style on click
+  c.querySelectorAll('label').forEach(function(lbl) {
+    lbl.addEventListener('click', function() {
+      setTimeout(function() {
+        var cb = lbl.querySelector('input');
+        var f = settingsFlags.find(function(x) { return x.id === cb.value; });
+        if (f) {
+          lbl.style.borderColor = cb.checked ? f.color : 'var(--border)';
+          lbl.style.background = cb.checked ? f.color + '12' : 'transparent';
+        }
+      }, 10);
+    });
+  });
+}
+
+function getSelectedFlags() {
+  var flags = [];
+  document.querySelectorAll('.flag-check:checked').forEach(function(cb) { flags.push(cb.value); });
+  return flags;
+}
+
+function renderFlagDots(flagIds) {
+  if (!flagIds || flagIds.length === 0) return '';
+  return '<span style="display:inline-flex;gap:2px;margin-left:4px;">' +
+    flagIds.map(function(fid) {
+      var f = settingsFlags.find(function(x) { return x.id === fid; });
+      if (!f) return '';
+      return '<span title="' + f.label + '" style="width:8px;height:8px;border-radius:50%;background:' + f.color + ';display:inline-block;"></span>';
+    }).join('') + '</span>';
+}
+
 function populateGeosoliaSelect() {
   var sel = document.getElementById('intGeosolia');
   if (!sel) return;
@@ -4160,6 +4207,7 @@ async function loadAllSettingsFromSupabase() {
       vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
       interventions = loadSettings('geoplan_interventions', []);
       commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {});
+      settingsFlags = loadSettings('geoplan_flags', []);
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
@@ -4221,9 +4269,9 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('#settingsTabsInline .settings-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#settingsBodyInline .settings-content').forEach(c => c.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', groups: 'settingsGroups', general: 'settingsGeneral' };
+  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', flags: 'settingsFlags', groups: 'settingsGroups', general: 'settingsGeneral' };
   document.getElementById(map[tab]).classList.add('active');
-  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
+  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, flags: renderSettingsFlags, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
 }
 
 // --- Sub-form (inline, replaces list with form + back button) ---
@@ -5041,7 +5089,63 @@ function syncTypesToApp() {
   renderCurrentView();
 }
 
-// ======== TAB 4: GROUPES / ÉQUIPES ========
+// ======== TAB 4: DRAPEAUX ========
+var settingsFlags = loadSettings('geoplan_flags', []);
+
+function renderSettingsFlags() {
+  var c = document.getElementById('settingsFlags');
+  var html = '<div class="stg-toolbar"><h3>Drapeaux (' + settingsFlags.length + ')</h3><button class="stg-add-btn" onclick="editFlag(null)">+ Ajouter</button></div>';
+  html += '<table class="stg-table"><thead><tr><th></th><th>Label</th><th>Identifiant</th><th>Actions</th></tr></thead><tbody>';
+  settingsFlags.forEach(function(f) {
+    html += '<tr><td><span class="stg-color-dot" style="background:' + f.color + '"></span></td>';
+    html += '<td><strong>' + f.label + '</strong></td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;">' + f.id + '</td>';
+    html += '<td><div class="stg-actions"><button class="stg-btn-edit" onclick="editFlag(\'' + f.id + '\')">Modifier</button><button class="stg-btn-del" onclick="deleteFlag(\'' + f.id + '\')">Suppr.</button></div></td></tr>';
+  });
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+function editFlag(id) {
+  var f = id ? settingsFlags.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
+  var palette = ['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'];
+  var colorPicker = palette.map(function(c) {
+    return '<div data-color="' + c + '" onclick="document.getElementById(\'stf-fcolor\').value=\'' + c + '\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:' + c + ';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);' + (f.color === c ? 'outline:3px solid var(--gph-dark);' : '') + '"></div>';
+  }).join('');
+  openStgForm('<h3>' + (id ? 'Modifier' : 'Ajouter') + ' un drapeau</h3>' +
+    '<div class="stg-form-grid">' +
+    '<div class="stg-form-field"><label>Label</label><input id="stf-flabel" value="' + f.label + '"></div>' +
+    '<div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-fid" value="' + f.id + '" ' + (id ? 'disabled' : '') + ' placeholder="ex: urgent_client"></div>' +
+    '<div class="stg-form-field span2"><label>Couleur</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' + colorPicker + '</div><input type="hidden" id="stf-fcolor" value="' + f.color + '"></div>' +
+    '</div>' +
+    '<div class="stg-form-actions"><button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button><button class="stg-form-save" onclick="saveFlag(\'' + (id || '') + '\')">Enregistrer</button></div>');
+}
+
+function saveFlag(id) {
+  var label = document.getElementById('stf-flabel').value.trim();
+  var newId = id || document.getElementById('stf-fid').value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (!label || !newId) { alert('Label et identifiant requis'); return; }
+  var data = { id: newId, label: label, color: document.getElementById('stf-fcolor').value };
+  if (id) {
+    var idx = settingsFlags.findIndex(function(x) { return x.id === id; });
+    if (idx >= 0) settingsFlags[idx] = data;
+  } else {
+    if (settingsFlags.find(function(x) { return x.id === newId; })) { alert('Cet identifiant existe déjà'); return; }
+    settingsFlags.push(data);
+  }
+  saveSettings('geoplan_flags', settingsFlags);
+  closeStgForm();
+  renderSettingsFlags();
+}
+
+function deleteFlag(id) {
+  if (!confirm('Supprimer ce drapeau ?')) return;
+  settingsFlags = settingsFlags.filter(function(x) { return x.id !== id; });
+  saveSettings('geoplan_flags', settingsFlags);
+  renderSettingsFlags();
+}
+
+// ======== TAB 5: GROUPES / ÉQUIPES ========
 function renderSettingsGroups() {
   const c = document.getElementById('settingsGroups');
   let html = `<div class="stg-toolbar"><h3>Groupes / Équipes (${settingsGroups.length})</h3><button class="stg-add-btn" onclick="editGroup(null)">+ Ajouter</button></div>`;
