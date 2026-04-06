@@ -4554,16 +4554,14 @@ function importLuccaCollab(luccaId) {
   renderSettingsTeam();
 }
 
-// Types de mission Géosolia (standards + dynamiques)
+// Types de mission Géosolia
 var MISSION_TYPES_DEFAULT = [
-  'G1_ES', 'G1_PGC', 'G2_AVP', 'G2_PRO', 'G2_DCE_ACT', 'G3', 'G4', 'G5',
-  'DIAG', 'INFRA', 'EXE', 'EXPERTISE', 'AMIANTE', 'POLLUTION'
+  'G1_REGAR', 'G1_PGC', 'EXE_PLUS', 'G2_AVP', 'G2_AVP_PRO', 'G3', 'G4', 'G5'
 ];
 var MISSION_TYPE_LABELS = {
-  G1_ES: 'G1 ES', G1_PGC: 'G1 PGC', G2_AVP: 'G2 AVP', G2_PRO: 'G2 PRO',
-  G2_DCE_ACT: 'G2 DCE/ACT', G3: 'G3', G4: 'G4', G5: 'G5',
-  DIAG: 'Diagnostic', INFRA: 'Infrastructure', EXE: 'Exécution',
-  EXPERTISE: 'Expertise', AMIANTE: 'Amiante', POLLUTION: 'Pollution'
+  G1_REGAR: 'G1 REGAR', G1_PGC: 'G1 PGC', EXE_PLUS: 'EXE+',
+  G2_AVP: 'G2 AVP', G2_AVP_PRO: 'G2 AVP + PRO',
+  G3: 'G3', G4: 'G4', G5: 'G5'
 };
 
 function getAllMissionTypes() {
@@ -4587,6 +4585,11 @@ function getCompetencesChecks(teamMember) {
   }).join('');
 }
 
+function normalizeMission(m) {
+  if (!m) return '';
+  return m.toUpperCase().replace(/[\s_\-]+/g, '_').replace(/\+/g, '_PLUS');
+}
+
 function checkCompetenceAlert(int) {
   if (!int.geosoliaId) return null;
   var prog = getGeosoliaProgram(int.geosoliaId);
@@ -4594,8 +4597,10 @@ function checkCompetenceAlert(int) {
   var tech = settingsTeam.find(function(t) { return t.id === int.techId; });
   if (!tech) return null;
   var competences = tech.competences || [];
-  if (competences.length === 0) return null; // pas de compétences définies = pas d'alerte
-  if (competences.indexOf(prog.mission) >= 0) return null; // compétent
+  if (competences.length === 0) return null;
+  var missionNorm = normalizeMission(prog.mission);
+  var hasCompetence = competences.some(function(c) { return normalizeMission(c) === missionNorm; });
+  if (hasCompetence) return null;
   var label = MISSION_TYPE_LABELS[prog.mission] || prog.mission;
   return { mission: label, techName: tech.prenom + ' ' + tech.nom };
 }
