@@ -5108,7 +5108,7 @@ function renderSettingsFlags() {
 
 function editFlag(id) {
   var f = id ? settingsFlags.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
-  var palette = ['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'];
+  var palette = ['#FDE047','#BEF264','#A3E635','#4ADE80','#86EFAC','#6EE7B7','#5EEAD4','#7DD3FC','#93C5FD','#2563EB','#FDA4AF','#F9A8D4','#F472B6','#DB2777','#EA580C','#FDBA74','#D97706','#DC2626','#78716C','#6B21A8','#84703C','#1E293B'];
   var colorPicker = palette.map(function(c) {
     return '<div data-color="' + c + '" onclick="document.getElementById(\'stf-fcolor\').value=\'' + c + '\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:' + c + ';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);' + (f.color === c ? 'outline:3px solid var(--gph-dark);' : '') + '"></div>';
   }).join('');
