@@ -3201,6 +3201,15 @@ async function loadCommandesFromSupabase() {
       if (affaire && affaire.responsable) cmd._responsable = affaire.responsable;
     });
 
+    // Tri par DLR croissante (plus urgentes en premier)
+    commandesData.sort(function(a, b) {
+      var dlrA = a.custom_data && a.custom_data['1-date01'] && a.custom_data['1-date01'].value || '';
+      var dlrB = b.custom_data && b.custom_data['1-date01'] && b.custom_data['1-date01'].value || '';
+      if (!dlrA && !dlrB) return 0;
+      if (!dlrA) return 1;
+      if (!dlrB) return -1;
+      return dlrA.localeCompare(dlrB);
+    });
     commandesFiltered = commandesData.slice();
     commandesLoaded = true;
     console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées (après filtres), ' + Object.keys(affairesMap).length + ' affaires, ' + Object.keys(marchesMap).length + ' marchés');
