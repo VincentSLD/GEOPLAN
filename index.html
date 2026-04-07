@@ -1545,7 +1545,7 @@ body::before {
     <div style="position:relative;margin-right:6px;">
       <input type="text" id="globalSearch" placeholder="Rechercher..." oninput="onGlobalSearch()" style="height:30px;width:160px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px 0 28px;font-size:0.72rem;font-family:inherit;outline:none;" onfocus="this.style.borderColor='var(--gph-yellow)'" onblur="this.style.borderColor='var(--border)';setTimeout(function(){document.getElementById('globalSearchResults').style.display='none';},200)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="position:absolute;left:8px;top:8px;color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <div id="globalSearchResults" style="display:none;position:absolute;top:100%;left:0;width:360px;max-height:320px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xs);box-shadow:var(--shadow-lg);z-index:200;margin-top:4px;"></div>
+      <div id="globalSearchResults" style="display:none;position:fixed;top:46px;left:260px;width:360px;max-height:400px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xs);box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:9999;"></div>
     </div>
     <div class="view-tabs">
       <button class="view-tab active" onclick="switchView('week',this)">Semaine</button>
