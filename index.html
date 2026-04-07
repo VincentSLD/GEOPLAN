@@ -2108,13 +2108,13 @@ function getTechArriveeCoords(tech) {
 function getTechCoords(tech) { return getTechDepartCoords(tech); }
 
 function getInterventionCoords(int) {
-  // 1. GPS saved from Geosolia on the intervention
-  if (int.geosoliaLat && int.geosoliaLng) return { lat: int.geosoliaLat, lon: int.geosoliaLng };
-  // 2. Linked Geosolia project (live data)
+  // 1. Linked Geosolia project (live data — always up to date)
   if (int.geosoliaId && geosoliaDataMap[int.geosoliaId]) {
     var gd = geosoliaDataMap[int.geosoliaId];
     if (gd.projectLat && gd.projectLng) return { lat: gd.projectLat, lon: gd.projectLng };
   }
+  // 2. GPS saved from Geosolia on the intervention (fallback if live not loaded)
+  if (int.geosoliaLat && int.geosoliaLng) return { lat: int.geosoliaLat, lon: int.geosoliaLng };
   // 3. Linked commande → marché GPS
   if (int.commandeId) {
     var cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
