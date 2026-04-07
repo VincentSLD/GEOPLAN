@@ -1542,6 +1542,11 @@ body::before {
     <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
+    <div style="position:relative;margin-right:6px;">
+      <input type="text" id="globalSearch" placeholder="Rechercher..." oninput="onGlobalSearch()" style="height:30px;width:160px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px 0 28px;font-size:0.72rem;font-family:inherit;outline:none;" onfocus="this.style.borderColor='var(--gph-yellow)'" onblur="this.style.borderColor='var(--border)';setTimeout(function(){document.getElementById('globalSearchResults').style.display='none';},200)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="position:absolute;left:8px;top:8px;color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div id="globalSearchResults" style="display:none;position:absolute;top:100%;left:0;width:360px;max-height:320px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xs);box-shadow:var(--shadow-lg);z-index:200;margin-top:4px;"></div>
+    </div>
     <div class="view-tabs">
       <button class="view-tab active" onclick="switchView('week',this)">Semaine</button>
       <button class="view-tab" onclick="switchView('day',this)">Jour</button>
@@ -2351,6 +2356,66 @@ function getFilteredTechs() {
 }
 function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name} (${t.base})</option>`).join(''); }
 function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML=settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
+
+// ===== RECHERCHE GLOBALE =====
+var _searchTimer = null;
+function onGlobalSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(doGlobalSearch, 200);
+}
+
+function doGlobalSearch() {
+  var q = (document.getElementById('globalSearch').value || '').toLowerCase().trim();
+  var container = document.getElementById('globalSearchResults');
+  if (!q || q.length < 2) { container.style.display = 'none'; return; }
+
+  var results = interventions.filter(function(int) {
+    return (int.title || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.location || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.client || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.commandeRef || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.geosoliaName || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.geosoliaRef || '').toLowerCase().indexOf(q) >= 0 ||
+      (int.notes || '').toLowerCase().indexOf(q) >= 0;
+  }).sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); }).slice(0, 15);
+
+  if (results.length === 0) {
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Aucun résultat</div>';
+    container.style.display = 'block';
+    return;
+  }
+
+  var html = '';
+  results.forEach(function(int) {
+    var tech = TECHNICIANS.find(function(t) { return t.id === int.techId; });
+    var type = TYPES[int.type] || { label: int.type || '?' };
+    var typeColor = TYPE_RAW[int.type] || '#888';
+    var dateStr = int.date ? new Date(int.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    html += '<div onclick="goToIntervention(' + int.id + ')" style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background=\'var(--bg-card-hover)\'" onmouseout="this.style.background=\'\'">';
+    html += '<div style="display:flex;align-items:center;gap:6px;">';
+    html += '<span style="width:8px;height:8px;border-radius:50%;background:' + typeColor + ';flex-shrink:0;"></span>';
+    html += '<strong style="font-size:0.78rem;flex:1;">' + (int.title || '?') + '</strong>';
+    html += '<span style="font-size:0.65rem;color:var(--text-muted);">' + dateStr + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;">';
+    if (tech) html += '👤 ' + tech.name + ' · ';
+    if (int.location) html += '📍 ' + int.location.split(',')[0] + ' · ';
+    html += type.label;
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+function goToIntervention(id) {
+  var int = interventions.find(function(i) { return i.id === id; });
+  if (!int) return;
+  document.getElementById('globalSearch').value = '';
+  document.getElementById('globalSearchResults').style.display = 'none';
+  currentDate = new Date(int.date + 'T12:00:00');
+  switchView('week', document.querySelectorAll('.view-tab')[0]);
+  setTimeout(function() { openDetail(id); }, 300);
+}
 function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===TODAY.toISOString().split('T')[0]).length; }
 
 function navigate(dir) {
