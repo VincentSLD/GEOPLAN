@@ -3258,12 +3258,17 @@ function renderCommandesList() {
   });
 
   var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Date</th><th>Géosolia</th><th>Action</th></tr></thead><tbody>';
+  // Build index of planned commandes
+  var plannedCmds = {};
+  interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
+
   commandesFiltered.forEach(function(cmd) {
     var sColor = statusColors[cmd.statut] || '#888';
     var sLabel = statusLabels[cmd.statut] || cmd.statut || '—';
     var adresse = cmd._adresse || '';
     var affRef = cmd._affaire ? cmd._affaire.ref : '';
     var affNom = cmd._affaire ? cmd._affaire.nom : '';
+    var planned = plannedCmds[cmd.id] || [];
     var cdStatut = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value;
     var linkedGeo = commandeGeosoliaLinks[cmd.id] || '';
     html += '<tr>';
@@ -3288,7 +3293,14 @@ function renderCommandesList() {
     html += '</select>';
     if (linkedGeo) html += '<br><a href="https://geosolia.vercel.app/?project=' + linkedGeo + '" target="_blank" style="font-size:0.58rem;color:var(--gph-yellow);font-weight:700;">Ouvrir ↗</a>';
     html += '</td>';
-    html += '<td><button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')">Planifier</button></td>';
+    html += '<td>';
+    if (planned.length > 0) {
+      html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1px solid #16a34a30;">✓ ' + planned.length + ' int.</span>';
+      var nextDate = planned.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');})[0];
+      if (nextDate && nextDate.date) html += '<br><span style="font-size:0.58rem;color:var(--text-muted);">' + new Date(nextDate.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + '</span>';
+    }
+    html += ' <button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;">' + (planned.length > 0 ? '+' : 'Planifier') + '</button>';
+    html += '</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
