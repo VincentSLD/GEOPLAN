@@ -2108,9 +2108,9 @@ function getTechArriveeCoords(tech) {
 function getTechCoords(tech) { return getTechDepartCoords(tech); }
 
 function getInterventionCoords(int) {
-  // 1. GPS stored directly on intervention (from Géosolia or geocoding)
-  if (int._geoLat && int._geoLng) return { lat: int._geoLat, lon: int._geoLng };
-  // 2. Linked Geosolia project
+  // 1. GPS saved from Geosolia on the intervention
+  if (int.geosoliaLat && int.geosoliaLng) return { lat: int.geosoliaLat, lon: int.geosoliaLng };
+  // 2. Linked Geosolia project (live data)
   if (int.geosoliaId && geosoliaDataMap[int.geosoliaId]) {
     var gd = geosoliaDataMap[int.geosoliaId];
     if (gd.projectLat && gd.projectLng) return { lat: gd.projectLat, lon: gd.projectLng };
@@ -2710,6 +2710,8 @@ function saveIntervention(){
     geosoliaId: document.getElementById('intGeosolia').value || null,
     geosoliaRef: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_ref : null; })(),
     geosoliaName: (function(){ var s=document.getElementById('intGeosolia'); var p=geosoliaProjects.find(function(x){return x.id===s.value;}); return p ? p.project_name : null; })(),
+    geosoliaLat: (function(){ var gid=document.getElementById('intGeosolia').value; if(gid&&geosoliaDataMap[gid]){var d=geosoliaDataMap[gid]; if(d.projectLat)return d.projectLat;} return null; })(),
+    geosoliaLng: (function(){ var gid=document.getElementById('intGeosolia').value; if(gid&&geosoliaDataMap[gid]){var d=geosoliaDataMap[gid]; if(d.projectLng)return d.projectLng;} return null; })(),
     flags: getSelectedFlags(),
   };
   // Vérifier compétence avant sauvegarde
