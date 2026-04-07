@@ -3229,6 +3229,8 @@ function filterCommandes() {
         (c._adresse || '').toLowerCase().indexOf(q) >= 0 ||
         (c._affaire && c._affaire.ref || '').toLowerCase().indexOf(q) >= 0 ||
         (c._affaire && c._affaire.nom || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || '').toLowerCase().indexOf(q) >= 0 ||
+        (c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || '').toLowerCase().indexOf(q) >= 0 ||
         (c._responsable || '').toLowerCase().indexOf(q) >= 0;
     });
   }
@@ -3257,7 +3259,7 @@ function renderCommandesList() {
     geoOpts += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '').substring(0, 30) + '</option>';
   });
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Date</th><th>Géosolia</th><th>Action</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Type mission</th><th>DLR</th><th>Apporteur</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Géosolia</th><th>Action</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
@@ -3278,6 +3280,14 @@ function renderCommandesList() {
     html += '</td>';
     html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
     html += '<td style="font-size:0.72rem;">' + (adresse ? '📍 ' + adresse : '<span style="color:var(--text-muted);">—</span>') + '</td>';
+    var cdTypeMission = cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '';
+    var cdDlr = cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || '';
+    var cdApporteur = cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || cmd.apporteur_affaire || '';
+    var dlrFormatted = cdDlr ? new Date(cdDlr).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'2-digit'}) : '—';
+    var dlrWarn = cdDlr && new Date(cdDlr) < new Date(Date.now() + 7*86400000) ? 'color:#DC2626;font-weight:700;' : '';
+    html += '<td style="font-size:0.7rem;">' + (cdTypeMission || '—') + '</td>';
+    html += '<td style="font-size:0.7rem;' + dlrWarn + '">' + dlrFormatted + '</td>';
+    html += '<td style="font-size:0.7rem;">' + (cdApporteur || '—') + '</td>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
     html += '<td>';
     html += '<span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span>';
@@ -3286,7 +3296,6 @@ function renderCommandesList() {
     html += '<td style="font-size:0.7rem;">' + (affRef ? affRef : '—');
     if (affNom) html += '<br><span style="font-size:0.62rem;color:var(--text-muted);">' + affNom.substring(0, 30) + '</span>';
     html += '</td>';
-    html += '<td style="font-size:0.72rem;">' + fmtDate(cmd.date || cmd.date_client) + '</td>';
     html += '<td>';
     html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
     html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
