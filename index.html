@@ -3313,11 +3313,17 @@ function renderCommandesList() {
     html += '</td>';
     html += '<td>';
     if (planned.length > 0) {
-      html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1px solid #16a34a30;">✓ ' + planned.length + ' int.</span>';
-      var nextDate = planned.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');})[0];
-      if (nextDate && nextDate.date) html += '<br><span style="font-size:0.58rem;color:var(--text-muted);">' + new Date(nextDate.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + '</span>';
+      planned.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+      planned.forEach(function(p) {
+        var pDate = p.date ? new Date(p.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
+        var pTech = TECHNICIANS.find(function(t){return t.id===p.techId;});
+        html += '<div onclick="goToIntervention('+p.id+')" style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:2px 0;" title="Voir l\'intervention">';
+        html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1px solid #16a34a30;">✓ ' + pDate + '</span>';
+        if (pTech) html += '<span style="font-size:0.55rem;color:var(--text-muted);">' + pTech.name.split(' ')[0] + '</span>';
+        html += '</div>';
+      });
     }
-    html += ' <button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;">' + (planned.length > 0 ? '+' : 'Planifier') + '</button>';
+    html += '<button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;margin-top:2px;">' + (planned.length > 0 ? '+' : 'Planifier') + '</button>';
     html += '</td>';
     html += '</tr>';
   });
