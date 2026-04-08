@@ -3268,7 +3268,7 @@ function renderCommandesList() {
     geoOpts += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '').substring(0, 30) + '</option>';
   });
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Type mission</th><th>DLR</th><th>Apporteur</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Géosolia</th><th>Action</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Type mission</th><th>DLR</th><th>Apporteur</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
@@ -3323,7 +3323,7 @@ function renderCommandesList() {
         html += '</div>';
       });
     }
-    html += '<button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;margin-top:2px;">' + (planned.length > 0 ? '+' : 'Planifier') + '</button>';
+    html += '<button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;margin-top:2px;">' + (planned.length > 0 ? '+' : 'A planifier') + '</button>';
     html += '</td>';
     html += '</tr>';
   });
