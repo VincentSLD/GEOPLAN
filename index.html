@@ -3331,6 +3331,8 @@ function planifierCommande(cmdId) {
   switchView('week', document.querySelectorAll('.view-tab')[0]);
   setTimeout(function() {
     openModal();
+    document.getElementById('intCommande').value = cmdId;
+    onCommandeSelect();
     document.getElementById('intTitle').value = (cmd.nom || cmd.description || cmd.ref || '');
     document.getElementById('intClient').value = cmd.client_name || '';
     if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
