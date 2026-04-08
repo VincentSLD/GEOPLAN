@@ -1688,13 +1688,13 @@ body::before {
         <div class="form-group"><label class="form-label">Marché</label><input class="form-input" id="intMarche" placeholder="Réf. marché" readonly style="background:var(--bg-primary);"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="intDate" type="date"></div>
+        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required></div>
         <div class="form-group"><label class="form-label">Heure début</label><input class="form-input" id="intStart" type="time" value="08:00" onchange="updateEndFromDuration()"></div>
         <div class="form-group"><label class="form-label">Durée terrain (min)</label><input class="form-input" id="intDuration" type="number" value="240" min="15" step="15" onchange="updateEndFromDuration()"></div>
         <input type="hidden" id="intEnd" value="12:00">
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Géotechnicien</label><select class="form-select" id="intTech"></select></div>
+        <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
         <div class="form-group"><label class="form-label">Trajet aller (min)</label><input class="form-input" id="intTravel" type="number" value="30" min="0"></div>
         <div class="form-group"><label class="form-label">Trajet retour (min)</label><input class="form-input" id="intTravelReturn" type="number" value="30" min="0"></div>
       </div>
@@ -2875,6 +2875,7 @@ function saveIntervention(){
   };
   // Vérifier champs obligatoires
   if (!data.date) { alert('La date est obligatoire'); return; }
+  if (!data.techId) { alert('Le géotechnicien est obligatoire'); return; }
 
   // Vérifier compétence avant sauvegarde
   var compWarn = checkCompetenceAlert(data);
