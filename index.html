@@ -1830,7 +1830,90 @@ function timeToMin(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
 function minToTime(m) { if(m<0)m+=1440; return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
 
 // Interventions — loaded from Supabase or empty
-let interventions = loadSettings('geoplan_interventions', []);
+var interventions = [];
+
+// ===== INTERVENTIONS SUPABASE =====
+function intToRow(int) {
+  return {
+    id: int.id, title: int.title || '', type: int.type || '', date: int.date || null,
+    start_time: int.startTime || '', end_time: int.endTime || '', duration: int.duration || 0,
+    tech_id: int.techId || null, location: int.location || '', client: int.client || '',
+    travel_to: int.travelTo || 0, travel_from: int.travelFrom || 0,
+    travel_to_km: int.travelToKm || null, travel_from_km: int.travelFromKm || null,
+    status: int.status || 'planned', notes: int.notes || '',
+    commande_id: int.commandeId || null, commande_ref: int.commandeRef || null,
+    affaire_id: int.affaireId || null, affaire_ref: int.affaireRef || null,
+    marche_id: int.marcheId || null, marche_ref: int.marcheRef || null,
+    marche_adresse: int.marcheAdresse || null,
+    geosolia_id: int.geosoliaId || null, geosolia_ref: int.geosoliaRef || null,
+    geosolia_name: int.geosoliaName || null,
+    geosolia_lat: int.geosoliaLat || null, geosolia_lng: int.geosoliaLng || null,
+    flags: int.flags || [],
+    updated_at: new Date().toISOString(),
+    updated_by: currentAuthUser ? currentAuthUser.email : null,
+  };
+}
+
+function rowToInt(row) {
+  return {
+    id: row.id, title: row.title, type: row.type, date: row.date,
+    startTime: row.start_time, endTime: row.end_time, duration: row.duration,
+    techId: row.tech_id, location: row.location, client: row.client,
+    travelTo: row.travel_to, travelFrom: row.travel_from,
+    travelToKm: row.travel_to_km, travelFromKm: row.travel_from_km,
+    status: row.status, notes: row.notes,
+    commandeId: row.commande_id, commandeRef: row.commande_ref,
+    affaireId: row.affaire_id, affaireRef: row.affaire_ref,
+    marcheId: row.marche_id, marcheRef: row.marche_ref,
+    marcheAdresse: row.marche_adresse,
+    geosoliaId: row.geosolia_id, geosoliaRef: row.geosolia_ref,
+    geosoliaName: row.geosolia_name,
+    geosoliaLat: row.geosolia_lat, geosoliaLng: row.geosolia_lng,
+    flags: row.flags || [],
+  };
+}
+
+async function loadInterventionsFromSupabase() {
+  try {
+    var result = await sbAuth.from('geoplan_interventions').select('*').order('date', { ascending: true });
+    if (result.error) { console.error('[Interventions] Erreur Supabase:', result.error.message); return; }
+    interventions = (result.data || []).map(rowToInt);
+    console.log('[Interventions] ' + interventions.length + ' interventions chargées depuis Supabase');
+  } catch(e) { console.warn('[Interventions] Erreur:', e); }
+}
+
+async function saveInterventionToSupabase(int) {
+  try {
+    var row = intToRow(int);
+    if (!row.created_by) row.created_by = currentAuthUser ? currentAuthUser.email : null;
+    var result = await sbAuth.from('geoplan_interventions').upsert(row, { onConflict: 'id' });
+    if (result.error) console.error('[Interventions] Erreur sauvegarde:', result.error.message);
+  } catch(e) { console.warn('[Interventions] Erreur save:', e); }
+}
+
+async function deleteInterventionFromSupabase(id) {
+  try {
+    var result = await sbAuth.from('geoplan_interventions').delete().eq('id', id);
+    if (result.error) console.error('[Interventions] Erreur suppression:', result.error.message);
+  } catch(e) { console.warn('[Interventions] Erreur delete:', e); }
+}
+
+async function migrateInterventionsToSupabase() {
+  // Migrate from old geoplan_settings JSONB format
+  var old = loadSettings('geoplan_interventions', []);
+  if (old.length > 0 && interventions.length === 0) {
+    console.log('[Interventions] Migration: ' + old.length + ' interventions depuis localStorage vers Supabase');
+    for (var i = 0; i < old.length; i++) {
+      var row = intToRow(old[i]);
+      row.created_by = 'migration';
+      delete row.id; // let Supabase auto-generate
+      await sbAuth.from('geoplan_interventions').insert(row);
+    }
+    await loadInterventionsFromSupabase();
+    localStorage.removeItem('geoplan_interventions');
+    console.log('[Interventions] Migration terminée: ' + interventions.length + ' interventions');
+  }
+}
 let currentView = 'week', currentDate = new Date(TODAY), editingId = null;
 let selectedTechId = null; // null = all technicians
 let selectedGroupId = null; // null = all groups
@@ -2249,7 +2332,8 @@ function recalculateSchedule() {
   });
 
   if (changed) {
-    saveSettings('geoplan_interventions', interventions);
+    // Save all changed interventions to Supabase
+    interventions.forEach(function(int) { saveInterventionToSupabase(int); });
   }
 }
 
@@ -2307,7 +2391,17 @@ function renderTravelBetween(prev, next) {
 }
 
 // ===== INIT =====
-function init() { syncTeamToTechnicians(); syncTypesToApp(); syncCommandeGeosoliaFromInterventions(); populateSidebar(); populateTechSelect(); populateTypeSelect(); updateTopbarDate(); renderCurrentView(); updateTodayCount(); computeAllTravel(); loadLuccaCollabs().then(() => { renderCurrentView(); }); loadCommandesFromSupabase().then(() => { populateCommandeSelect(); }); loadGeosoliaProjects(); }
+async function init() {
+  syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); populateTypeSelect(); updateTopbarDate();
+  // Load interventions from Supabase
+  await loadInterventionsFromSupabase();
+  await migrateInterventionsToSupabase();
+  syncCommandeGeosoliaFromInterventions();
+  renderCurrentView(); updateTodayCount(); computeAllTravel();
+  loadLuccaCollabs().then(function() { renderCurrentView(); });
+  loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
+  loadGeosoliaProjects();
+}
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
   const grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
@@ -2751,7 +2845,7 @@ function saveIntervention(){
   var cmdId = document.getElementById('intCommande').value || null;
   var cmd = cmdId ? commandesData.find(function(c){return c.id===cmdId;}) : null;
   const data={
-    id:editingId||(Math.max(...interventions.map(i=>i.id),0)+1),
+    id:editingId||null,
     title:document.getElementById('intTitle').value||'Nouvelle intervention',
     type:document.getElementById('intType').value,
     date:document.getElementById('intDate').value,
@@ -2783,8 +2877,30 @@ function saveIntervention(){
   var compWarn = checkCompetenceAlert(data);
   if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
 
-  if(editingId){const idx=interventions.findIndex(i=>i.id===editingId);if(idx>=0)interventions[idx]=data;}else interventions.push(data);
-  saveSettings('geoplan_interventions', interventions);
+  if(editingId){
+    data.id = editingId;
+    var idx=interventions.findIndex(function(i){return i.id===editingId;});
+    if(idx>=0) interventions[idx]=data;
+  } else {
+    delete data.id; // let Supabase auto-generate
+  }
+  // Save to Supabase
+  (async function(){
+    try {
+      if (editingId) {
+        await saveInterventionToSupabase(data);
+      } else {
+        var row = intToRow(data);
+        row.created_by = currentAuthUser ? currentAuthUser.email : null;
+        delete row.id;
+        var result = await sbAuth.from('geoplan_interventions').insert(row).select();
+        if (result.data && result.data[0]) {
+          data.id = result.data[0].id;
+          interventions.push(data);
+        }
+      }
+    } catch(e) { console.warn('[Interventions] Erreur save:', e); }
+  })();
   syncCommandeGeosoliaFromInterventions();
   closeModal();renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
 }
@@ -2838,7 +2954,7 @@ function editIntervention(id){
   populateFlagsCheckboxes(i.flags||[]);
   document.getElementById('modalOverlay').classList.add('active');
 }
-function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(i=>i.id!==id);saveSettings('geoplan_interventions',interventions);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
+function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(function(i){return i.id!==id;});deleteInterventionFromSupabase(id);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
@@ -4233,8 +4349,6 @@ async function loadAllSettingsFromSupabase() {
       if (va) saveSettingsToSupabase('geoplan_vehicle_assign', va);
       const ve = loadSettings('geoplan_vehicle_extras', null);
       if (ve) saveSettingsToSupabase('geoplan_vehicle_extras', ve);
-      const ints = loadSettings('geoplan_interventions', null);
-      if (ints && ints.length > 0) saveSettingsToSupabase('geoplan_interventions', ints);
       return;
     }
     // Apply Supabase data to localStorage and memory
@@ -4256,7 +4370,6 @@ async function loadAllSettingsFromSupabase() {
       settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
       vehicleAssignments = loadSettings('geoplan_vehicle_assign', {});
       vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
-      interventions = loadSettings('geoplan_interventions', []);
       commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {});
       settingsFlags = loadSettings('geoplan_flags', []);
       syncTeamToTechnicians();
@@ -6067,7 +6180,8 @@ function acceptAIAction(action, blockId, idx) {
   if (btns) btns.innerHTML = '<span class="ai-action-result" style="color:#16A34A;">✓ Accepté</span>';
 
   if (success) {
-    saveSettings('geoplan_interventions', interventions);
+    // Save changed interventions to Supabase
+    interventions.forEach(function(int) { saveInterventionToSupabase(int); });
     renderCurrentView();
     updateTodayCount();
     populateSidebar();
