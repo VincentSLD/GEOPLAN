@@ -2873,6 +2873,9 @@ function saveIntervention(){
     geosoliaLng: (function(){ var gid=document.getElementById('intGeosolia').value; if(gid&&geosoliaDataMap[gid]){var d=geosoliaDataMap[gid]; if(d.projectLng)return d.projectLng;} return null; })(),
     flags: getSelectedFlags(),
   };
+  // Vérifier champs obligatoires
+  if (!data.date) { alert('La date est obligatoire'); return; }
+
   // Vérifier compétence avant sauvegarde
   var compWarn = checkCompetenceAlert(data);
   if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
