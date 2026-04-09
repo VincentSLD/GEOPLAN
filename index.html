@@ -2656,8 +2656,11 @@ function renderWeek() {
       html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
       if (di.length > 0) {
-        var ws = getWorkStartTime(day.dateStr);
-        html += `<div style="font-size:0.5rem;color:var(--text-muted);padding:1px 4px;margin-bottom:2px;">📅 ${ws} – ${minToTime(lunch.end > lunch.start ? lunch.start : 720)} | 🍽 ${minToTime(lunch.start)}–${minToTime(lunch.end)}</div>`;
+        var dayTravelMin = di.reduce(function(s,i){return s+(i.travelTo||0)+(i.travelFrom||0);},0);
+        var dayIntMin = di.reduce(function(s,i){return s+(i.duration||(timeToMin(i.endTime)-timeToMin(i.startTime))||0);},0);
+        var dayTotalMin = dayTravelMin + dayIntMin;
+        var fmtDur = function(m){return m>=60?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''):m+'min';};
+        html += `<div style="font-size:0.5rem;color:var(--text-muted);padding:1px 4px;margin-bottom:2px;">⏱ ${fmtDur(dayTotalMin)} (${fmtDur(dayIntMin)} terrain + ${fmtDur(dayTravelMin)} route)</div>`;
       }
       di.forEach((int,idx)=>{
         const type=TYPES[int.type]||{label:int.type||'?',class:''};
