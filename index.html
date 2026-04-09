@@ -2640,7 +2640,9 @@ function renderWeek() {
     const wi=interventions.filter(i=>i.techId===tech.id&&days.some(d=>d.dateStr===i.date));
     const tt=wi.reduce((s,i)=>s+i.travelTo+i.travelFrom,0);
     const th=wi.reduce((s,i)=>{const[sh,sm]=i.startTime.split(':').map(Number),[eh,em]=i.endTime.split(':').map(Number);return s+(eh-sh)+(em-sm)/60;},0);
-    html+=`<div class="tech-cell"><div class="avatar" style="background:${tech.color}">${tech.initials}</div><div class="tech-info"><div class="tech-name">${tech.name}</div><div class="tech-role">${tech.role} · ${tech.base}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span><span class="tech-stat">${th.toFixed(0)}h</span><span class="tech-stat">${Math.floor(tt/60)}h${String(tt%60).padStart(2,'0')} route</span></div></div></div>`;
+    var totalMin = Math.round(th*60) + tt;
+    var totalLabel = totalMin >= 60 ? Math.floor(totalMin/60)+'h'+(totalMin%60?String(totalMin%60).padStart(2,'0'):'') : totalMin+'min';
+    html+=`<div class="tech-cell"><div class="avatar" style="background:${tech.color}">${tech.initials}</div><div class="tech-info"><div class="tech-name">${tech.name}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span><span class="tech-stat">⏱ ${totalLabel}</span></div></div></div>`;
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
       var dayFerie = isJourFerie(day.dateStr);
