@@ -576,7 +576,7 @@ body::before {
 }
 .modal-close:hover { background: rgba(220,38,38,0.08); color: #DC2626; border-color: rgba(220,38,38,0.3); }
 .modal-body { padding: 20px 24px; }
-.form-group { margin-bottom: 14px; }
+.form-group { margin-bottom: 8px; }
 .form-label {
   display: block;
   font-size: 0.62rem;
@@ -1681,36 +1681,30 @@ body::before {
       <h2 id="modalTitle">Nouvelle intervention</h2>
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding:14px 20px;">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Type d'intervention</label>
-          <select class="form-select" id="intType"></select></div>
-        <div class="form-group"><label class="form-label">Statut</label>
-          <select class="form-select" id="intStatus"></select></div>
+        <div class="form-group"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
+        <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
       </div>
-      <div class="form-group"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
-      <div class="form-group"><label class="form-label">Intitulé / Étude</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
-      <div class="form-group"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Ex: 12 rue des Lilas, 44000 Nantes" autocomplete="off"></div></div>
+      <div class="form-group"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Affaire</label><input class="form-input" id="intAffaire" placeholder="Réf. affaire" readonly style="background:var(--bg-primary);"></div>
-        <div class="form-group"><label class="form-label">Marché</label><input class="form-input" id="intMarche" placeholder="Réf. marché" readonly style="background:var(--bg-primary);"></div>
+        <div class="form-group"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues Immobilier"></div>
+        <div class="form-group"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required></div>
-        <div class="form-group"><label class="form-label">Heure début</label><input class="form-input" id="intStart" type="time" value="08:00" onchange="updateEndFromDuration()"></div>
-        <div class="form-group"><label class="form-label">Durée terrain (min)</label><input class="form-input" id="intDuration" type="number" value="240" min="15" step="15" onchange="updateEndFromDuration()"></div>
-        <input type="hidden" id="intEnd" value="12:00">
-      </div>
+      <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
-        <div class="form-group"><label class="form-label">Trajet aller (min)</label><input class="form-input" id="intTravel" type="number" value="30" min="0"></div>
-        <div class="form-group"><label class="form-label">Trajet retour (min)</label><input class="form-input" id="intTravelReturn" type="number" value="30" min="0"></div>
+        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required></div>
+        <div class="form-group"><label class="form-label">Durée (min)</label><input class="form-input" id="intDuration" type="number" min="15" step="15" onchange="updateEndFromDuration()" style="width:80px;"></div>
       </div>
-      <div class="form-group"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues Immobilier"></div>
-      <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
-      <div class="form-group"><label class="form-label">Drapeaux</label><div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div></div>
-      <div id="intGeosoliaInfo" style="display:none;margin:-8px 0 12px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.75rem;"></div>
-      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="intNotes" placeholder="Matériel requis, consignes particulières..."></textarea></div>
+      <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="intType"></select></div>
+        <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="intStatus"></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Drapeaux</label><div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;"></div></div>
+      <div id="intGeosoliaInfo" style="display:none;margin:4px 0 8px;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.72rem;"></div>
+      <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
