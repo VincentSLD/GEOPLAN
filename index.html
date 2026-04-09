@@ -289,11 +289,11 @@ body::before {
 .btn-dark:hover { background: #333; }
 
 /* ========== GRID ========== */
-.planning-container { flex: 1; overflow: auto; }
+.planning-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .planning-grid {
   display: grid;
-  grid-template-columns: 194px repeat(7, 1fr);
-  min-width: 100%;
+  grid-template-columns: 140px repeat(5, 1fr) repeat(2, 0.5fr);
+  width: 100%;
 }
 
 .grid-corner {
@@ -897,7 +897,7 @@ body::before {
 /* Tablet */
 @media (max-width: 1100px) {
   .sidebar { width: 220px; min-width: 220px; }
-  .planning-grid { grid-template-columns: 160px repeat(7, 1fr); }
+  .planning-grid { grid-template-columns: 120px repeat(5, 1fr) repeat(2, 0.4fr); }
   .tech-cell { min-height: 110px; padding: 8px 10px; }
   .tech-name { font-size: 0.75rem; }
   .tech-stats { gap: 3px; }
@@ -950,8 +950,7 @@ body::before {
 
   /* Week grid mobile: horizontal scroll */
   .planning-grid {
-    grid-template-columns: 120px repeat(7, 140px);
-    min-width: auto;
+    grid-template-columns: 100px repeat(5, 1fr) repeat(2, 0.4fr);
   }
   .grid-corner { padding: 8px; }
   .grid-corner span { font-size: 0.5rem; }
@@ -1022,7 +1021,7 @@ body::before {
 
 /* Small phone */
 @media (max-width: 420px) {
-  .planning-grid { grid-template-columns: 90px repeat(7, 120px); }
+  .planning-grid { grid-template-columns: 80px repeat(5, 1fr) repeat(2, 0.3fr); }
   .tech-cell .avatar { width: 24px; height: 24px; font-size: 8px; }
   .tech-name { font-size: 0.62rem; }
   .tech-role { display: none; }
