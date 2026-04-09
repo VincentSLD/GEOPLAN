@@ -2303,19 +2303,13 @@ function recalculateSchedule() {
       // Add travel time
       cursor += (int.travelTo || 0);
 
-      // If cursor falls during lunch break, push to after lunch
-      if (cursor >= lunch.start && cursor < lunch.end) {
-        cursor = lunch.end;
-      }
-
       var newStart = minToTime(cursor);
       // Always use stored duration (never recalculate from start/end to avoid drift)
       var duration = int.duration || 0;
       if (duration <= 0) {
-        // Fallback for old interventions without stored duration
         duration = timeToMin(int.endTime) - timeToMin(int.startTime);
         if (duration <= 0) duration = 240;
-        int.duration = duration; // store it for next time
+        int.duration = duration;
       }
 
       if (int.startTime !== newStart) {
@@ -2323,14 +2317,7 @@ function recalculateSchedule() {
         changed = true;
       }
 
-      // Check if intervention spans across lunch break
-      var endCursor = cursor + duration;
-      if (cursor < lunch.start && endCursor > lunch.start) {
-        // Intervention starts before lunch and would run into it — add lunch duration
-        endCursor += (lunch.end - lunch.start);
-      }
-
-      cursor = endCursor;
+      cursor += duration;
       var newEnd = minToTime(cursor);
       if (int.endTime !== newEnd) {
         int.endTime = newEnd;
@@ -2672,6 +2659,10 @@ function renderWeek() {
       // Lunch indicator: yellow bar on left side + small label
       html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
+      if (di.length > 0) {
+        var ws = getWorkStartTime(day.dateStr);
+        html += `<div style="font-size:0.5rem;color:var(--text-muted);padding:1px 4px;margin-bottom:2px;">📅 ${ws} – ${minToTime(lunch.end > lunch.start ? lunch.start : 720)} | 🍽 ${minToTime(lunch.start)}–${minToTime(lunch.end)}</div>`;
+      }
       di.forEach((int,idx)=>{
         const type=TYPES[int.type]||{label:int.type||'?',class:''};
         var statusObj = settingsStatuts.find(function(s){return s.id===int.status;});
