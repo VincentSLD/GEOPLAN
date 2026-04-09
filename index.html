@@ -1664,6 +1664,7 @@ body::before {
         <button class="settings-tab active" onclick="switchSettingsTab('team',this)">Équipe</button>
         <button class="settings-tab" onclick="switchSettingsTab('vehicles',this)">Véhicules</button>
         <button class="settings-tab" onclick="switchSettingsTab('types',this)">Types d'intervention</button>
+        <button class="settings-tab" onclick="switchSettingsTab('statuts',this)">Statuts</button>
         <button class="settings-tab" onclick="switchSettingsTab('flags',this)">Drapeaux</button>
         <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
         <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
@@ -1672,6 +1673,7 @@ body::before {
         <div class="settings-content active" id="settingsTeam"></div>
         <div class="settings-content" id="settingsVehicles"></div>
         <div class="settings-content" id="settingsTypes"></div>
+        <div class="settings-content" id="settingsStatuts"></div>
         <div class="settings-content" id="settingsFlags"></div>
         <div class="settings-content" id="settingsGroups"></div>
         <div class="settings-content" id="settingsGeneral"></div>
@@ -1701,7 +1703,7 @@ body::before {
         <div class="form-group"><label class="form-label">Type d'intervention</label>
           <select class="form-select" id="intType"></select></div>
         <div class="form-group"><label class="form-label">Statut</label>
-          <select class="form-select" id="intStatus"><option value="planned">Planifié</option><option value="inprogress">En cours</option><option value="done">Terminé</option></select></div>
+          <select class="form-select" id="intStatus"></select></div>
       </div>
       <div class="form-group"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
       <div class="form-group"><label class="form-label">Intitulé / Étude</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
@@ -2415,7 +2417,7 @@ function renderTravelBetween(prev, next) {
 
 // ===== INIT =====
 async function init() {
-  syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); populateTypeSelect(); updateTopbarDate();
+  syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); populateTypeSelect(); populateStatusSelect(); updateTopbarDate();
   // Load interventions from Supabase
   await loadInterventionsFromSupabase();
   await migrateInterventionsToSupabase();
@@ -4411,6 +4413,7 @@ async function loadAllSettingsFromSupabase() {
       vehicleExtras = loadSettings('geoplan_vehicle_extras', {});
       commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {});
       settingsFlags = loadSettings('geoplan_flags', []);
+      settingsStatuts = loadSettings('geoplan_statuts', settingsStatuts);
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
@@ -4472,9 +4475,9 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('#settingsTabsInline .settings-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#settingsBodyInline .settings-content').forEach(c => c.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', flags: 'settingsFlags', groups: 'settingsGroups', general: 'settingsGeneral' };
+  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', statuts: 'settingsStatuts', flags: 'settingsFlags', groups: 'settingsGroups', general: 'settingsGeneral' };
   document.getElementById(map[tab]).classList.add('active');
-  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, flags: renderSettingsFlags, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
+  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, statuts: renderSettingsStatuts, flags: renderSettingsFlags, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
 }
 
 // --- Sub-form (inline, replaces list with form + back button) ---
@@ -5292,7 +5295,77 @@ function syncTypesToApp() {
   renderCurrentView();
 }
 
-// ======== TAB 4: DRAPEAUX ========
+// ======== TAB 4: STATUTS ========
+var settingsStatuts = loadSettings('geoplan_statuts', [
+  { id: 'planned', label: 'Planifié', color: '#2563EB' },
+  { id: 'inprogress', label: 'En cours', color: '#D97706' },
+  { id: 'done', label: 'Terminé', color: '#16A34A' },
+]);
+
+function renderSettingsStatuts() {
+  var c = document.getElementById('settingsStatuts');
+  var html = '<div class="stg-toolbar"><h3>Statuts (' + settingsStatuts.length + ')</h3><button class="stg-add-btn" onclick="editStatut(null)">+ Ajouter</button></div>';
+  html += '<table class="stg-table"><thead><tr><th></th><th>Label</th><th>Identifiant</th><th>Actions</th></tr></thead><tbody>';
+  settingsStatuts.forEach(function(s) {
+    html += '<tr><td><span class="stg-color-dot" style="background:' + s.color + '"></span></td>';
+    html += '<td><strong>' + s.label + '</strong></td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;">' + s.id + '</td>';
+    html += '<td><div class="stg-actions"><button class="stg-btn-edit" onclick="editStatut(\'' + s.id + '\')">Modifier</button><button class="stg-btn-del" onclick="deleteStatut(\'' + s.id + '\')">Suppr.</button></div></td></tr>';
+  });
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+function editStatut(id) {
+  var s = id ? settingsStatuts.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
+  var palette = ['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'];
+  var colorPicker = palette.map(function(c) {
+    return '<div data-color="' + c + '" onclick="document.getElementById(\'stf-scolor\').value=\'' + c + '\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:' + c + ';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);' + (s.color === c ? 'outline:3px solid var(--gph-dark);' : '') + '"></div>';
+  }).join('');
+  openStgForm('<h3>' + (id ? 'Modifier' : 'Ajouter') + ' un statut</h3>' +
+    '<div class="stg-form-grid">' +
+    '<div class="stg-form-field"><label>Label</label><input id="stf-slabel" value="' + s.label + '"></div>' +
+    '<div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-sid" value="' + s.id + '" ' + (id ? 'disabled' : '') + ' placeholder="ex: en_attente"></div>' +
+    '<div class="stg-form-field span2"><label>Couleur</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' + colorPicker + '</div><input type="hidden" id="stf-scolor" value="' + s.color + '"></div>' +
+    '</div>' +
+    '<div class="stg-form-actions"><button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button><button class="stg-form-save" onclick="saveStatut(\'' + (id || '') + '\')">Enregistrer</button></div>');
+}
+
+function saveStatut(id) {
+  var label = document.getElementById('stf-slabel').value.trim();
+  var newId = id || document.getElementById('stf-sid').value.trim().toLowerCase().replace(/\s+/g, '_');
+  if (!label || !newId) { alert('Label et identifiant requis'); return; }
+  var data = { id: newId, label: label, color: document.getElementById('stf-scolor').value };
+  if (id) {
+    var idx = settingsStatuts.findIndex(function(x) { return x.id === id; });
+    if (idx >= 0) settingsStatuts[idx] = data;
+  } else {
+    if (settingsStatuts.find(function(x) { return x.id === newId; })) { alert('Cet identifiant existe déjà'); return; }
+    settingsStatuts.push(data);
+  }
+  saveSettings('geoplan_statuts', settingsStatuts);
+  closeStgForm();
+  renderSettingsStatuts();
+  populateStatusSelect();
+}
+
+function deleteStatut(id) {
+  if (!confirm('Supprimer ce statut ?')) return;
+  settingsStatuts = settingsStatuts.filter(function(x) { return x.id !== id; });
+  saveSettings('geoplan_statuts', settingsStatuts);
+  renderSettingsStatuts();
+  populateStatusSelect();
+}
+
+function populateStatusSelect() {
+  var sel = document.getElementById('intStatus');
+  if (!sel) return;
+  sel.innerHTML = settingsStatuts.map(function(s) {
+    return '<option value="' + s.id + '">' + s.label + '</option>';
+  }).join('');
+}
+
+// ======== TAB 5: DRAPEAUX ========
 var settingsFlags = loadSettings('geoplan_flags', []);
 
 function renderSettingsFlags() {
