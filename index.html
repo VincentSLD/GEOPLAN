@@ -2926,6 +2926,7 @@ function swapIntervention(intId, direction) {
   // Save and re-render
   saveInterventionToSupabase(int);
   saveInterventionToSupabase(other);
+  renderCurrentView();
   computeAllTravel();
 }
 
