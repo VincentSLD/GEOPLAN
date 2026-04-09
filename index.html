@@ -1495,11 +1495,6 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         Carte / Flotte
       </div>
-      <label class="sidebar-toggle" title="Afficher/masquer la pause déjeuner">
-        <input type="checkbox" id="showLunchToggle" checked onchange="toggleLunch()">
-        <span class="sidebar-toggle-check"></span>
-        <span>Afficher pause midi</span>
-      </label>
       <label class="sidebar-toggle" title="Afficher/masquer les trajets">
         <input type="checkbox" id="showTravelToggle" checked onchange="toggleTravel()">
         <span class="sidebar-toggle-check"></span>
@@ -2675,9 +2670,6 @@ function renderWeek() {
       var lunch = getLunchBreak(day.dateStr);
       html+=`<div class="day-cell ${day.isToday?'today-col':''} ${day.isWeekend||dayFerie?'weekend-col':''}" style="position:relative;" ondragover="event.preventDefault()" ondrop="handleDrop(event,${tech.id},'${day.dateStr}')">`;
       // Lunch indicator: yellow bar on left side + small label
-      if(showLunch && di.length > 0) {
-        html+=`<div class="lunch-bar" title="Pause ${minToTime(lunch.start)}–${minToTime(lunch.end)}"><span class="lunch-bar-label">🍽 ${minToTime(lunch.start)}</span></div>`;
-      }
       html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
       di.forEach((int,idx)=>{
@@ -2686,11 +2678,10 @@ function renderWeek() {
         var statusColor = statusObj ? statusObj.color : '#888';
         // Check if this intervention overlaps lunch
         var intS = timeToMin(int.startTime), intE = timeToMin(int.endTime);
-        var overlapsLunch = showLunch && intS < lunch.end && intE > lunch.start;
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" style="background:${statusColor}15;border:1px solid ${statusColor}30;border-left:3px solid ${statusColor};${overlapsLunch?'border-left:3px solid #f5c518;':''}"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;color:var(--text-secondary);" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div></div>`;
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" style="background:${statusColor}15;border:1px solid ${statusColor}30;border-left:3px solid ${statusColor};"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;color:var(--text-secondary);" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div></div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`
       });
@@ -2758,7 +2749,6 @@ function renderDay() {
     var lunch = getLunchBreak(ds);
     var lunchTop = (lunch.start - START_HOUR * 60) * PX_PER_MIN;
     var lunchH = (lunch.end - lunch.start) * PX_PER_MIN;
-    if (showLunch) html += '<div style="position:absolute;left:0;right:0;top:' + lunchTop + 'px;height:' + lunchH + 'px;background:rgba(245,197,24,0.06);border-top:1px dashed var(--gph-yellow);border-bottom:1px dashed var(--gph-yellow);display:flex;align-items:center;justify-content:center;font-size:0.55rem;color:var(--text-muted);font-weight:600;pointer-events:none;">🍽 PAUSE ' + minToTime(lunch.start) + '–' + minToTime(lunch.end) + '</div>';
 
     // Travel & intervention blocks
     ints.forEach(function(int, idx) {
