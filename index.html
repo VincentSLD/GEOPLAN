@@ -2368,21 +2368,17 @@ async function computeAllTravel() {
 
 // ===== RENDER HELPERS =====
 function renderTravelAller(int, tech) {
-  const dep = minToTime(timeToMin(int.startTime)-int.travelTo);
   const km = int.travelToKm ? ` · ${int.travelToKm} km` : '';
-  const fb = int.travelToFallback ? ' ~' : '';
-  return `<div class="travel-block travel-aller"><span>🚗</span><div class="travel-info"><div class="travel-time">${dep} → ${int.startTime}</div><div class="travel-label">Depuis ${tech.base} · ${fb}${int.travelTo} min${km}</div></div></div>`;
+  return `<div class="travel-block travel-aller"><span>🚗</span><div class="travel-info"><div class="travel-time">${int.travelTo} min${km}</div><div class="travel-label">Trajet aller</div></div></div>`;
 }
 function renderTravelRetour(int, tech) {
-  const arr = minToTime(timeToMin(int.endTime)+int.travelFrom);
   const km = int.travelFromKm ? ` · ${int.travelFromKm} km` : '';
-  const fb = int.travelFromFallback ? ' ~' : '';
-  return `<div class="travel-block travel-retour"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.endTime} → ${arr}</div><div class="travel-label">Retour ${tech.base} · ${fb}${int.travelFrom} min${km}</div></div></div>`;
+  return `<div class="travel-block travel-retour"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.travelFrom} min${km}</div><div class="travel-label">Trajet retour</div></div></div>`;
 }
 function renderTravelBetween(prev, next) {
   const gap = timeToMin(next.startTime)-timeToMin(prev.endTime);
   if(gap<=0) return '';
-  return `<div class="travel-block travel-inter"><span>🔄</span><div class="travel-info"><div class="travel-time">${prev.endTime} → ${next.startTime}</div><div class="travel-label">Inter-site · ${gap} min</div></div></div>`;
+  return `<div class="travel-block travel-inter"><span>🔄</span><div class="travel-info"><div class="travel-time">${gap} min</div><div class="travel-label">Inter-site</div></div></div>`;
 }
 
 // ===== INIT =====
@@ -2672,7 +2668,9 @@ function renderWeek() {
         html+=`<div class="int-group">`;
         if(showTravel) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" style="background:${statusColor}15;border:1px solid ${statusColor}30;border-left:3px solid ${statusColor};"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${int.startTime} – ${int.endTime} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;color:var(--text-secondary);" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}</div>`;
+        var intDur = int.duration || (intE - intS) || 0;
+        var durLabel = intDur >= 60 ? Math.floor(intDur/60) + 'h' + (intDur%60 ? String(intDur%60).padStart(2,'0') : '') : intDur + 'min';
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" onclick="openDetail(${int.id})" style="background:${statusColor}15;border:1px solid ${statusColor}30;border-left:3px solid ${statusColor};"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.title}</div><div class="int-location" onclick="event.stopPropagation();navigateToAddress('${int.location.replace(/'/g, "\\'")}');" style="cursor:pointer;color:var(--text-secondary);" title="Ouvrir dans le GPS">📍 ${int.location.split(',')[0]} <span style="font-size:0.5rem;opacity:0.5;">➜</span></div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}</div>`;
         if(showTravel && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`
       });
