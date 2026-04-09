@@ -2434,7 +2434,7 @@ function getFilteredTechs() {
   return techs;
 }
 function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name} (${t.base})</option>`).join(''); }
-function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML=settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
+function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML='<option value="">— Au choix —</option>'+settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
 
 // ===== RECHERCHE GLOBALE =====
 var _searchTimer = null;
@@ -5329,7 +5329,7 @@ function deleteStatut(id) {
 function populateStatusSelect() {
   var sel = document.getElementById('intStatus');
   if (!sel) return;
-  sel.innerHTML = settingsStatuts.map(function(s) {
+  sel.innerHTML = '<option value="">— Au choix —</option>' + settingsStatuts.map(function(s) {
     return '<option value="' + s.id + '">' + s.label + '</option>';
   }).join('');
 }
