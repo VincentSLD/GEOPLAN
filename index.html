@@ -3232,7 +3232,7 @@ async function loadAffairesMarches() {
   // Charger affaires
   var allAffaires = [], off = 0;
   while (true) {
-    var r = await sbAuth.from('affaires').select('id, ref, nom, marche_id, client_id, client_name, date_debut, date_fin, montant, statut, agence, responsable_id, code_projet, responsable').range(off, off + 999);
+    var r = await sbAuth.from('affaires').select('id, ref, nom, marche_id, client_id, client_name, date_debut, date_fin, montant, statut, agence, responsable_id, code_projet, responsable, adresse, ville, code_postal, lat, lng').range(off, off + 999);
     if (r.error || !r.data || r.data.length === 0) break;
     allAffaires = allAffaires.concat(r.data);
     if (r.data.length < 1000) break;
@@ -3308,8 +3308,12 @@ async function loadCommandesFromSupabase() {
       if (!marche && affaire && affaire.marche_id) marche = marchesMap[affaire.marche_id];
       cmd._affaire = affaire;
       cmd._marche = marche;
-      // Adresse du site (depuis marché)
-      if (marche) {
+      // Adresse du site (priorité: affaire > marché)
+      if (affaire && affaire.adresse) {
+        cmd._adresse = [affaire.adresse, affaire.code_postal, affaire.ville].filter(Boolean).join(', ');
+        cmd._lat = affaire.lat;
+        cmd._lng = affaire.lng;
+      } else if (marche && marche.adresse) {
         cmd._adresse = [marche.adresse, marche.code_postal, marche.ville].filter(Boolean).join(', ');
         cmd._lat = marche.lat;
         cmd._lng = marche.lng;
