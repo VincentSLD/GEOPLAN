@@ -1596,6 +1596,9 @@ body::before {
         <span class="badge-count" id="commandesCount">0</span>
         <input type="text" id="commandesSearch" placeholder="Rechercher..." oninput="filterCommandes()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.72rem;font-family:inherit;width:200px;">
       </div>
+      <button class="btn btn-ghost" onclick="autoLinkGeosolia()" title="Lier automatiquement les commandes aux projets Géosolia par numéro d'affaire">
+        🌍 Auto-lier Géosolia
+      </button>
       <button class="btn btn-ghost" onclick="refreshCommandes()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Rafraîchir
@@ -3229,6 +3232,33 @@ function linkCommandeGeosolia(cmdId, geoId) {
   if (geoId) { commandeGeosoliaLinks[cmdId] = geoId; }
   else { delete commandeGeosoliaLinks[cmdId]; }
   saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+}
+
+function autoLinkGeosolia() {
+  if (geosoliaProjects.length === 0) { alert('Aucun projet Géosolia chargé'); return; }
+  var linked = 0, already = 0;
+  commandesData.forEach(function(cmd) {
+    if (commandeGeosoliaLinks[cmd.id]) { already++; return; } // déjà lié
+    // Chercher par ref affaire
+    var affRef = cmd._affaire ? cmd._affaire.ref : '';
+    if (!affRef) return;
+    // Normaliser : enlever les points, tirets, espaces pour comparer
+    var normRef = affRef.replace(/[.\-\s]/g, '').toLowerCase();
+    var match = geosoliaProjects.find(function(p) {
+      var geoRef = (p.project_ref || '').replace(/[.\-\s]/g, '').toLowerCase();
+      // Match exact ou partiel (le ref géosolia peut être un sous-ensemble)
+      return geoRef && (geoRef === normRef || normRef.indexOf(geoRef) >= 0 || geoRef.indexOf(normRef) >= 0);
+    });
+    if (match) {
+      commandeGeosoliaLinks[cmd.id] = match.id;
+      linked++;
+    }
+  });
+  if (linked > 0) {
+    saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+    renderCommandesList();
+  }
+  alert(linked + ' commande(s) liée(s) automatiquement à Géosolia\n' + already + ' déjà liée(s)');
 }
 
 // Sync commande↔geosolia links from interventions
