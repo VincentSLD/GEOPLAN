@@ -3411,6 +3411,7 @@ function getCmdSortValue(cmd, col) {
     case 'ref': return (cmd.ref || '').toLowerCase();
     case 'nom': return (cmd._affaire ? cmd._affaire.nom : cmd.nom || '').toLowerCase();
     case 'client': return (cmd.client_name || '').toLowerCase();
+    case 'societe': return (cmd.societe || '').toLowerCase();
     case 'type': return (cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '').toLowerCase();
     case 'dlr': return cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || 'zzzz';
     case 'apporteur': return (cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || cmd.apporteur_affaire || '').toLowerCase();
@@ -3443,6 +3444,7 @@ function filterCommandesByColumn() {
     if (filters.ref && (c.ref || '').toLowerCase().indexOf(filters.ref) < 0) return false;
     if (filters.nom && (c._affaire ? c._affaire.nom : c.nom || '').toLowerCase().indexOf(filters.nom) < 0) return false;
     if (filters.client && (c.client_name || '').toLowerCase().indexOf(filters.client) < 0) return false;
+    if (filters.societe && (c.societe || '').toLowerCase().indexOf(filters.societe) < 0) return false;
     if (filters.type) { var t = c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || ''; if (t.toLowerCase().indexOf(filters.type) < 0) return false; }
     if (filters.apporteur) { var a = c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || ''; if (a.toLowerCase().indexOf(filters.apporteur) < 0) return false; }
     if (filters.statut && (c.statut || '').toLowerCase().indexOf(filters.statut) < 0) return false;
@@ -3499,7 +3501,7 @@ function renderCommandesList() {
   var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
   var sortArrow = cmdSortCol ? (cmdSortAsc ? ' ▲' : ' ▼') : '';
   var thSort = function(col, label) { var active = cmdSortCol === col; return '<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + fInput(col) + '</th>'; };
-  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
@@ -3519,6 +3521,7 @@ function renderCommandesList() {
     if (cmd._responsable) html += '<br><span style="font-size:0.65rem;color:var(--text-muted);">Resp: ' + cmd._responsable + '</span>';
     html += '</td>';
     html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
+    html += '<td style="font-size:0.68rem;font-weight:600;">' + (cmd.societe || '—') + '</td>';
     html += '<td style="font-size:0.72rem;">' + (adresse ? '📍 ' + adresse : '<span style="color:var(--text-muted);">—</span>') + '</td>';
     var cdTypeMission = cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '';
     var cdDlr = cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || '';
