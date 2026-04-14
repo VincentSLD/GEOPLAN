@@ -1570,7 +1570,7 @@ body::before {
       <button class="view-tab" onclick="switchView('month',this)">Mois</button>
       <button class="view-tab" onclick="switchView('list',this)">Liste</button>
       <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
-      <button class="view-tab" onclick="switchView('aplanifier',this)">A planifier</button>
+      <button class="view-tab" onclick="toggleAPlanifierPanel()" id="aPlanifierTabBtn">A planifier</button>
       <button class="view-tab" onclick="switchView('map',this)">Carte</button>
     </div>
     <div class="topbar-center">
@@ -1597,7 +1597,23 @@ body::before {
     </div>
   </div>
 
-  <div class="view-content active" id="weekView"><div class="planning-container"><div class="planning-grid" id="weekGrid"></div></div></div>
+  <div class="view-content active" id="weekView" style="flex-direction:row;display:flex;">
+    <div id="aPlanifierPanelInline" style="display:none;width:320px;min-width:320px;border-right:1px solid var(--border);flex-direction:column;background:var(--bg-secondary);">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:700;font-size:0.85rem;">A planifier</span>
+            <span class="badge-count" id="aPlanifierCount2">0</span>
+          </div>
+          <button onclick="toggleAPlanifierPanel()" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text-muted);padding:2px;">✕</button>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;" id="aPlanifierSocFilters2"></div>
+        <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="width:100%;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;margin-top:6px;">
+      </div>
+      <div style="flex:1;overflow-y:auto;" id="aPlanifierList2"></div>
+    </div>
+    <div class="planning-container"><div class="planning-grid" id="weekGrid"></div></div>
+  </div>
   <div class="view-content" id="dayView"><div class="day-timeline" id="dayTimeline"></div></div>
   <div class="view-content" id="monthView"><div class="month-grid" id="monthGrid"></div></div>
   <div class="view-content" id="listView"><div class="list-container" id="listContainer"></div></div>
@@ -1621,26 +1637,6 @@ body::before {
     </div>
   </div>
 
-  <div class="view-content" id="aplanifierView">
-    <div style="display:flex;height:100%;">
-      <!-- Left: unplanned list -->
-      <div style="width:360px;min-width:360px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-secondary);">
-        <div style="padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-weight:700;font-size:0.85rem;">A planifier</span>
-            <span class="badge-count" id="aPlanifierCount">0</span>
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;" id="aPlanifierSocFilters"></div>
-          <input type="text" id="aPlanifierSearch" placeholder="Rechercher..." oninput="renderAPlanifier()" style="width:100%;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;margin-top:6px;">
-        </div>
-        <div style="flex:1;overflow-y:auto;" id="aPlanifierList"></div>
-      </div>
-      <!-- Right: weekly planning -->
-      <div style="flex:1;overflow:auto;">
-        <div class="planning-grid" id="aPlanifierGrid"></div>
-      </div>
-    </div>
-  </div>
 
   <div class="view-content" id="mapView">
     <div class="map-inline-container" id="mapInlineContainer">
@@ -2594,7 +2590,6 @@ function switchView(v,tab) {
   if (v === 'map') { initFleetMap(); }
   else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
   else if (v === 'commandes') { initCommandes(); }
-  else if (v === 'aplanifier') { initAPlanifier(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -2897,7 +2892,13 @@ function renderList() {
 // ===== DRAG & DROP =====
 let draggedId=null;
 function handleDrag(e,id){draggedId=id;e.dataTransfer.effectAllowed='move';}
-function handleDrop(e,tid,ds){e.preventDefault();if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;saveInterventionToSupabase(i);renderCurrentView();computeAllTravel();}draggedId=null;}}
+function handleDrop(e,tid,ds){
+  e.preventDefault();
+  // Drop from A planifier (commande)
+  if (draggedCmdId) { dropAPlanifier(e, tid, ds); return; }
+  // Drop existing intervention
+  if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;saveInterventionToSupabase(i);renderCurrentView();computeAllTravel();}draggedId=null;}
+}
 
 // ===== MODAL =====
 let _intAddrInitialized = false;
@@ -3344,14 +3345,32 @@ function syncCommandeGeosoliaFromInterventions() {
 var aPlanifierSocFilter = [];
 var draggedCmdId = null;
 
+var aPlanifierOpen = false;
+
+function toggleAPlanifierPanel() {
+  aPlanifierOpen = !aPlanifierOpen;
+  var panel = document.getElementById('aPlanifierPanelInline');
+  var btn = document.getElementById('aPlanifierTabBtn');
+  if (aPlanifierOpen) {
+    // Switch to week view if not already
+    if (currentView !== 'week') switchView('week', document.querySelectorAll('.view-tab')[0]);
+    panel.style.display = 'flex';
+    if (btn) btn.classList.add('active');
+    if (!commandesLoaded) loadCommandesFromSupabase().then(function() { renderAPlanifier(); });
+    else renderAPlanifier();
+    renderAPlanifierSocFilters();
+  } else {
+    panel.style.display = 'none';
+    if (btn) btn.classList.remove('active');
+  }
+}
+
 function initAPlanifier() {
-  if (!commandesLoaded) loadCommandesFromSupabase().then(function() { renderAPlanifier(); renderAPlanifierGrid(); });
-  else { renderAPlanifier(); renderAPlanifierGrid(); }
-  renderAPlanifierSocFilters();
+  toggleAPlanifierPanel();
 }
 
 function renderAPlanifierSocFilters() {
-  var container = document.getElementById('aPlanifierSocFilters');
+  var container = document.getElementById('aPlanifierSocFilters2');
   if (!container) return;
   var socs = {};
   commandesData.forEach(function(c) { if (c.societe) socs[c.societe] = true; });
@@ -3382,9 +3401,9 @@ function getUnplannedCommandes() {
 }
 
 function renderAPlanifier() {
-  var list = document.getElementById('aPlanifierList');
+  var list = document.getElementById('aPlanifierList2');
   if (!list) return;
-  var search = (document.getElementById('aPlanifierSearch')?.value || '').toLowerCase().trim();
+  var search = (document.getElementById('aPlanifierSearch2')?.value || '').toLowerCase().trim();
   var unplanned = getUnplannedCommandes();
   if (search) {
     unplanned = unplanned.filter(function(c) {
@@ -3392,7 +3411,7 @@ function renderAPlanifier() {
       return (c.ref + ' ' + (c.client_name || '') + ' ' + aff + ' ' + (c.societe || '')).toLowerCase().indexOf(search) >= 0;
     });
   }
-  var countEl = document.getElementById('aPlanifierCount');
+  var countEl = document.getElementById('aPlanifierCount2');
   if (countEl) countEl.textContent = unplanned.length;
 
   if (unplanned.length === 0) {
@@ -3483,7 +3502,7 @@ function dropAPlanifier(e, techId, dateStr) {
       data.id = result.data[0].id;
       interventions.push(data);
       renderAPlanifier();
-      renderAPlanifierGrid();
+      renderCurrentView();
       computeAllTravel();
     }
   })();
@@ -3491,37 +3510,6 @@ function dropAPlanifier(e, techId, dateStr) {
   draggedCmdId = null;
 }
 
-function renderAPlanifierGrid() {
-  var grid = document.getElementById('aPlanifierGrid');
-  if (!grid) return;
-  var mon = getMonday(currentDate), todayStr = TODAY.toISOString().split('T')[0];
-  var html = '<div class="grid-corner"><span>Techniciens</span></div>';
-  var days = [];
-  for (var i = 0; i < 7; i++) {
-    var d = new Date(mon); d.setDate(mon.getDate() + i);
-    var ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    var it = ds === todayStr, iw = d.getDay()===0||d.getDay()===6;
-    days.push({date:d, dateStr:ds, isToday:it, isWeekend:iw});
-    var dn = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
-    var jf = isJourFerie(ds);
-    html += '<div class="grid-header-cell '+(it?'today':'')+' '+(iw||jf?'weekend':'')+'"><div class="day-name">'+dn[d.getDay()]+'</div><div class="day-num">'+d.getDate()+'</div></div>';
-  }
-  getFilteredTechs().forEach(function(tech) {
-    html += '<div class="tech-cell"><div class="avatar" style="background:'+tech.color+'">'+tech.initials+'</div><div class="tech-info"><div class="tech-name">'+tech.name+'</div></div></div>';
-    days.forEach(function(day) {
-      var di = interventions.filter(function(i){return i.techId===tech.id&&i.date===day.dateStr;}).sort(function(a,b){return (a.startTime||'').localeCompare(b.startTime||'');});
-      html += '<div class="day-cell '+(day.isToday?'today-col':'')+' '+(day.isWeekend?'weekend-col':'')+'" style="position:relative;min-height:60px;" ondragover="event.preventDefault();this.style.background=\'var(--gph-yellow-light)\'" ondragleave="this.style.background=\'\'" ondrop="this.style.background=\'\';dropAPlanifier(event,'+tech.id+',\''+day.dateStr+'\')">';
-      di.forEach(function(int) {
-        var dur = int.duration || 0;
-        var durLabel = dur >= 60 ? Math.floor(dur/60)+'h'+(dur%60?String(dur%60).padStart(2,'0'):'') : dur+'min';
-        html += '<div style="padding:2px 4px;margin:1px 0;border-radius:3px;font-size:0.58rem;background:#dcfce7;border:1px solid #16a34a30;color:#16a34a;font-weight:600;">✓ '+(int.client||int.title||'')+' · '+durLabel+'</div>';
-      });
-      if (!di.length) html += '<div style="height:100%;display:flex;align-items:center;justify-content:center;opacity:0.1;font-size:14px;font-weight:800;">+</div>';
-      html += '</div>';
-    });
-  });
-  grid.innerHTML = html;
-}
 
 async function initCommandes() {
   if (!commandesLoaded) await loadCommandesFromSupabase();
