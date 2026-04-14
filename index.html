@@ -3394,7 +3394,8 @@ function renderAPlanifier() {
     if (cdType) html += cdType + ' · ';
     if (dlrFmt) html += '<span class="aplan-card-dlr" style="' + (dlrWarn ? 'color:#DC2626;' : '') + '">DLR ' + dlrFmt + '</span> · ';
     if (cdApporteur) html += cdApporteur + ' · ';
-    if (geoName) html += '🌍 ' + geoName.project_name;
+    if (geoName) html += '<span style="color:#16A34A;">🌍 ' + geoName.project_name + '</span>';
+    else html += '<span style="color:#DC2626;font-weight:700;">⚠ Géosolia non lié</span>';
     html += '</div>';
     html += '</div>';
   });
