@@ -3373,6 +3373,26 @@ async function refreshCommandes() {
   renderCommandesList();
 }
 
+function filterCommandesByColumn() {
+  var filters = {};
+  document.querySelectorAll('[data-col-filter]').forEach(function(inp) {
+    var v = (inp.value || '').toLowerCase().trim();
+    if (v) filters[inp.dataset.colFilter] = v;
+  });
+  if (Object.keys(filters).length === 0) { commandesFiltered = commandesData.slice(); renderCommandesList(); return; }
+  commandesFiltered = commandesData.filter(function(c) {
+    if (filters.ref && (c.ref || '').toLowerCase().indexOf(filters.ref) < 0) return false;
+    if (filters.nom && (c.nom || c.description || '').toLowerCase().indexOf(filters.nom) < 0) return false;
+    if (filters.client && (c.client_name || '').toLowerCase().indexOf(filters.client) < 0) return false;
+    if (filters.type) { var t = c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || ''; if (t.toLowerCase().indexOf(filters.type) < 0) return false; }
+    if (filters.apporteur) { var a = c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || ''; if (a.toLowerCase().indexOf(filters.apporteur) < 0) return false; }
+    if (filters.statut && (c.statut || '').toLowerCase().indexOf(filters.statut) < 0) return false;
+    if (filters.affaire) { var af = c._affaire ? c._affaire.ref : ''; if (af.toLowerCase().indexOf(filters.affaire) < 0) return false; }
+    return true;
+  });
+  renderCommandesList();
+}
+
 function filterCommandes() {
   var q = (document.getElementById('commandesSearch').value || '').toLowerCase().trim();
   if (!q) { commandesFiltered = commandesData.slice(); }
@@ -3417,7 +3437,8 @@ function renderCommandesList() {
     geoOpts += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '').substring(0, 30) + '</option>';
   });
 
-  var html = '<table class="stg-table"><thead><tr><th>Réf.</th><th>Nom</th><th>Client</th><th>Adresse du site</th><th>Type mission</th><th>DLR</th><th>Apporteur</th><th>Montant HT</th><th>Statut</th><th>Affaire</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
+  var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
+  var html = '<table class="stg-table"><thead><tr><th>Réf.'+fInput('ref')+'</th><th>Nom'+fInput('nom')+'</th><th>Client'+fInput('client')+'</th><th>Adresse</th><th>Type mission'+fInput('type')+'</th><th>DLR</th><th>Apporteur'+fInput('apporteur')+'</th><th>Montant</th><th>Statut'+fInput('statut')+'</th><th>Affaire'+fInput('affaire')+'</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
