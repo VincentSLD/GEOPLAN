@@ -3451,9 +3451,7 @@ function renderCommandesList() {
     html += '<span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span>';
     if (cdStatut) html += '<br><span style="font-size:0.6rem;color:var(--text-muted);">' + cdStatut + '</span>';
     html += '</td>';
-    html += '<td style="font-size:0.7rem;">' + (affRef ? affRef : '—');
-    if (affNom) html += '<br><span style="font-size:0.62rem;color:var(--text-muted);">' + affNom.substring(0, 30) + '</span>';
-    html += '</td>';
+    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.7rem;font-weight:600;">' + (affRef ? affRef : '—') + '</td>';
     html += '<td>';
     html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
     html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
