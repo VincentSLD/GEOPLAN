@@ -3397,6 +3397,13 @@ function getUnplannedCommandes() {
     if (plannedCmdIds[c.id]) return false;
     if (aPlanifierSocFilter.length > 0 && aPlanifierSocFilter.indexOf(c.societe) < 0) return false;
     return true;
+  }).sort(function(a, b) {
+    var dlrA = a.custom_data && a.custom_data['1-date01'] && a.custom_data['1-date01'].value || '';
+    var dlrB = b.custom_data && b.custom_data['1-date01'] && b.custom_data['1-date01'].value || '';
+    if (!dlrA && !dlrB) return 0;
+    if (!dlrA) return 1;
+    if (!dlrB) return -1;
+    return dlrA.localeCompare(dlrB);
   });
 }
 
@@ -3434,15 +3441,16 @@ function renderAPlanifier() {
     var geoName = commandeGeosoliaLinks[cmd.id] ? geosoliaProjects.find(function(p){return p.id===commandeGeosoliaLinks[cmd.id];}) : null;
 
     html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')">';
-    html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">' + affRef + '</span><span style="font-size:0.58rem;font-weight:600;color:var(--text-muted);">' + (cmd.societe || '') + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + '</span>';
+    if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
+    html += '</div>';
     html += '<div class="aplan-card-name">' + affNom + '</div>';
     html += '<div class="aplan-card-info">';
     if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
-    html += '🏢 ' + (cmd.client_name || '—');
+    html += '🏢 ' + (cmd.client_name || '—') + ' · <span style="font-size:0.58rem;color:var(--text-muted);">' + (cmd.societe || '') + '</span>';
     html += '</div>';
     html += '<div class="aplan-card-info">';
     if (cdType) html += cdType + ' · ';
-    if (dlrFmt) html += '<span class="aplan-card-dlr" style="' + (dlrWarn ? 'color:#DC2626;' : '') + '">DLR ' + dlrFmt + '</span> · ';
     if (cdApporteur) html += cdApporteur + ' · ';
     if (geoName) html += '<span style="color:#16A34A;">🌍 ' + geoName.project_name + '</span>';
     else html += '<span style="color:#DC2626;font-weight:700;">⚠ Géosolia non lié</span>';
