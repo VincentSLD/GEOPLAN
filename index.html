@@ -1430,6 +1430,17 @@ body::before {
 .addr-item-context { display:block; font-size:0.65rem; color:var(--text-muted); margin-top:1px; }
 .addr-empty { color:var(--text-muted); font-size:0.75rem; font-style:italic; cursor:default; }
 .addr-empty:hover { background:transparent; }
+
+/* A planifier cards */
+.aplan-card { padding:8px 10px; border-bottom:1px solid var(--border); cursor:grab; transition:background 0.1s; font-size:0.72rem; }
+.aplan-card:hover { background:var(--bg-card-hover); }
+.aplan-card:active { cursor:grabbing; }
+.aplan-card-ref { font-family:'DM Mono',monospace; font-size:0.65rem; font-weight:600; color:var(--text-muted); }
+.aplan-card-name { font-weight:600; font-size:0.75rem; margin-top:1px; }
+.aplan-card-info { font-size:0.62rem; color:var(--text-muted); margin-top:2px; }
+.aplan-card-dlr { font-size:0.6rem; font-weight:700; }
+.aplan-soc-btn { padding:2px 8px; border-radius:10px; border:1px solid var(--border); background:var(--bg-card); font-size:0.6rem; font-weight:600; cursor:pointer; font-family:inherit; }
+.aplan-soc-btn.active { background:var(--gph-yellow-light); border-color:var(--gph-yellow); color:var(--gph-dark); }
 .stg-hab { padding:2px 7px; border-radius:8px; font-size:0.6rem; font-weight:700; background:var(--bg-primary); border:1px solid var(--border); }
 .stg-hab.expired { background:#fee2e2; color:#dc2626; border-color:rgba(220,38,38,0.3); }
 .stg-group-tag { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; white-space:nowrap; }
@@ -1559,6 +1570,7 @@ body::before {
       <button class="view-tab" onclick="switchView('month',this)">Mois</button>
       <button class="view-tab" onclick="switchView('list',this)">Liste</button>
       <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
+      <button class="view-tab" onclick="switchView('aplanifier',this)">A planifier</button>
       <button class="view-tab" onclick="switchView('map',this)">Carte</button>
     </div>
     <div class="topbar-center">
@@ -1606,6 +1618,27 @@ body::before {
     </div>
     <div style="flex:1;overflow:auto;padding:16px 20px;" id="commandesListContainer">
       <div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">Cliquez sur "Synchroniser Akuiteo" pour charger les commandes.</div>
+    </div>
+  </div>
+
+  <div class="view-content" id="aplanifierView">
+    <div style="display:flex;height:100%;">
+      <!-- Left: unplanned list -->
+      <div style="width:360px;min-width:360px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-secondary);">
+        <div style="padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-weight:700;font-size:0.85rem;">A planifier</span>
+            <span class="badge-count" id="aPlanifierCount">0</span>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;" id="aPlanifierSocFilters"></div>
+          <input type="text" id="aPlanifierSearch" placeholder="Rechercher..." oninput="renderAPlanifier()" style="width:100%;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;margin-top:6px;">
+        </div>
+        <div style="flex:1;overflow-y:auto;" id="aPlanifierList"></div>
+      </div>
+      <!-- Right: weekly planning -->
+      <div style="flex:1;overflow:auto;">
+        <div class="planning-grid" id="aPlanifierGrid"></div>
+      </div>
     </div>
   </div>
 
@@ -2530,6 +2563,7 @@ function switchView(v,tab) {
   if (v === 'map') { initFleetMap(); }
   else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
   else if (v === 'commandes') { initCommandes(); }
+  else if (v === 'aplanifier') { initAPlanifier(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -3273,6 +3307,188 @@ function syncCommandeGeosoliaFromInterventions() {
     }
   });
   if (changed) saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+}
+
+// ═══ VUE A PLANIFIER ═══
+var aPlanifierSocFilter = [];
+var draggedCmdId = null;
+
+function initAPlanifier() {
+  if (!commandesLoaded) loadCommandesFromSupabase().then(function() { renderAPlanifier(); renderAPlanifierGrid(); });
+  else { renderAPlanifier(); renderAPlanifierGrid(); }
+  renderAPlanifierSocFilters();
+}
+
+function renderAPlanifierSocFilters() {
+  var container = document.getElementById('aPlanifierSocFilters');
+  if (!container) return;
+  var socs = {};
+  commandesData.forEach(function(c) { if (c.societe) socs[c.societe] = true; });
+  var html = '<button class="aplan-soc-btn ' + (aPlanifierSocFilter.length === 0 ? 'active' : '') + '" onclick="aPlanifierSocFilter=[];renderAPlanifier();renderAPlanifierSocFilters();">Tous</button>';
+  Object.keys(socs).sort().forEach(function(s) {
+    var active = aPlanifierSocFilter.indexOf(s) >= 0;
+    html += '<button class="aplan-soc-btn ' + (active ? 'active' : '') + '" onclick="toggleAPlanSoc(\'' + s + '\')">' + s + '</button>';
+  });
+  container.innerHTML = html;
+}
+
+function toggleAPlanSoc(soc) {
+  var idx = aPlanifierSocFilter.indexOf(soc);
+  if (idx >= 0) aPlanifierSocFilter.splice(idx, 1);
+  else aPlanifierSocFilter.push(soc);
+  renderAPlanifier();
+  renderAPlanifierSocFilters();
+}
+
+function getUnplannedCommandes() {
+  var plannedCmdIds = {};
+  interventions.forEach(function(i) { if (i.commandeId) plannedCmdIds[i.commandeId] = true; });
+  return commandesData.filter(function(c) {
+    if (plannedCmdIds[c.id]) return false;
+    if (aPlanifierSocFilter.length > 0 && aPlanifierSocFilter.indexOf(c.societe) < 0) return false;
+    return true;
+  });
+}
+
+function renderAPlanifier() {
+  var list = document.getElementById('aPlanifierList');
+  if (!list) return;
+  var search = (document.getElementById('aPlanifierSearch')?.value || '').toLowerCase().trim();
+  var unplanned = getUnplannedCommandes();
+  if (search) {
+    unplanned = unplanned.filter(function(c) {
+      var aff = c._affaire ? c._affaire.ref + ' ' + c._affaire.nom : '';
+      return (c.ref + ' ' + (c.client_name || '') + ' ' + aff + ' ' + (c.societe || '')).toLowerCase().indexOf(search) >= 0;
+    });
+  }
+  var countEl = document.getElementById('aPlanifierCount');
+  if (countEl) countEl.textContent = unplanned.length;
+
+  if (unplanned.length === 0) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Toutes les commandes sont planifiées</div>';
+    return;
+  }
+
+  var html = '';
+  unplanned.forEach(function(cmd) {
+    var affRef = cmd._affaire ? cmd._affaire.ref : '';
+    var affNom = cmd._affaire ? cmd._affaire.nom : cmd.nom || '';
+    var adresse = cmd._adresse || '';
+    var cp = '', ville = '';
+    if (adresse) { var m = adresse.match(/(\d{5})\s*(.+?)$/); if (m) { cp = m[1]; ville = m[2]; } }
+    var cdType = cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '';
+    var cdDlr = cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || '';
+    var cdApporteur = cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || '';
+    var dlrFmt = cdDlr ? new Date(cdDlr).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit'}) : '';
+    var dlrWarn = cdDlr && new Date(cdDlr) < new Date(Date.now() + 7*86400000);
+    var geoName = commandeGeosoliaLinks[cmd.id] ? geosoliaProjects.find(function(p){return p.id===commandeGeosoliaLinks[cmd.id];}) : null;
+
+    html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')">';
+    html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">' + affRef + '</span><span style="font-size:0.58rem;font-weight:600;color:var(--text-muted);">' + (cmd.societe || '') + '</span></div>';
+    html += '<div class="aplan-card-name">' + affNom + '</div>';
+    html += '<div class="aplan-card-info">';
+    if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
+    html += '🏢 ' + (cmd.client_name || '—');
+    html += '</div>';
+    html += '<div class="aplan-card-info">';
+    if (cdType) html += cdType + ' · ';
+    if (dlrFmt) html += '<span class="aplan-card-dlr" style="' + (dlrWarn ? 'color:#DC2626;' : '') + '">DLR ' + dlrFmt + '</span> · ';
+    if (cdApporteur) html += cdApporteur + ' · ';
+    if (geoName) html += '🌍 ' + geoName.project_name;
+    html += '</div>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function dragAPlanifier(e, cmdId) {
+  draggedCmdId = cmdId;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', cmdId);
+}
+
+function dropAPlanifier(e, techId, dateStr) {
+  e.preventDefault();
+  if (!draggedCmdId) return;
+  var cmd = commandesData.find(function(c) { return c.id === draggedCmdId; });
+  if (!cmd) { draggedCmdId = null; return; }
+
+  // Create intervention from commande
+  var geoId = commandeGeosoliaLinks[cmd.id] || null;
+  var geoProg = geoId ? getGeosoliaProgram(geoId) : null;
+  var geoProject = geoId ? geosoliaProjects.find(function(p){return p.id===geoId;}) : null;
+  var duration = geoProg ? geoProg.timeEstimateMin : 240;
+  var location = cmd._adresse || (geoProg ? geoProg.address : '') || '';
+
+  var data = {
+    title: cmd._affaire ? cmd._affaire.nom : cmd.nom || cmd.ref,
+    type: '', status: 'planned', date: dateStr,
+    startTime: '', endTime: '', duration: duration,
+    techId: techId, location: location,
+    client: cmd.client_name || '',
+    travelTo: 0, travelFrom: 0,
+    commandeId: cmd.id, commandeRef: cmd.ref,
+    affaireId: cmd._affaire ? cmd._affaire.id : null,
+    affaireRef: cmd._affaire ? cmd._affaire.ref : null,
+    marcheId: cmd._marche ? cmd._marche.id : null,
+    marcheRef: cmd._marche ? cmd._marche.ref : null,
+    marcheAdresse: cmd._adresse || null,
+    geosoliaId: geoId,
+    geosoliaRef: geoProject ? geoProject.project_ref : null,
+    geosoliaName: geoProject ? geoProject.project_name : null,
+    geosoliaLat: geoProg ? geoProg.lat : null,
+    geosoliaLng: geoProg ? geoProg.lng : null,
+    flags: [], notes: '',
+  };
+
+  // Save to Supabase
+  (async function() {
+    var row = intToRow(data);
+    row.created_by = currentAuthUser ? currentAuthUser.email : null;
+    delete row.id;
+    var result = await sbAuth.from('geoplan_interventions').insert(row).select();
+    if (result.data && result.data[0]) {
+      data.id = result.data[0].id;
+      interventions.push(data);
+      renderAPlanifier();
+      renderAPlanifierGrid();
+      computeAllTravel();
+    }
+  })();
+
+  draggedCmdId = null;
+}
+
+function renderAPlanifierGrid() {
+  var grid = document.getElementById('aPlanifierGrid');
+  if (!grid) return;
+  var mon = getMonday(currentDate), todayStr = TODAY.toISOString().split('T')[0];
+  var html = '<div class="grid-corner"><span>Techniciens</span></div>';
+  var days = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(mon); d.setDate(mon.getDate() + i);
+    var ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var it = ds === todayStr, iw = d.getDay()===0||d.getDay()===6;
+    days.push({date:d, dateStr:ds, isToday:it, isWeekend:iw});
+    var dn = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
+    var jf = isJourFerie(ds);
+    html += '<div class="grid-header-cell '+(it?'today':'')+' '+(iw||jf?'weekend':'')+'"><div class="day-name">'+dn[d.getDay()]+'</div><div class="day-num">'+d.getDate()+'</div></div>';
+  }
+  getFilteredTechs().forEach(function(tech) {
+    html += '<div class="tech-cell"><div class="avatar" style="background:'+tech.color+'">'+tech.initials+'</div><div class="tech-info"><div class="tech-name">'+tech.name+'</div></div></div>';
+    days.forEach(function(day) {
+      var di = interventions.filter(function(i){return i.techId===tech.id&&i.date===day.dateStr;}).sort(function(a,b){return (a.startTime||'').localeCompare(b.startTime||'');});
+      html += '<div class="day-cell '+(day.isToday?'today-col':'')+' '+(day.isWeekend?'weekend-col':'')+'" style="position:relative;min-height:60px;" ondragover="event.preventDefault();this.style.background=\'var(--gph-yellow-light)\'" ondragleave="this.style.background=\'\'" ondrop="this.style.background=\'\';dropAPlanifier(event,'+tech.id+',\''+day.dateStr+'\')">';
+      di.forEach(function(int) {
+        var dur = int.duration || 0;
+        var durLabel = dur >= 60 ? Math.floor(dur/60)+'h'+(dur%60?String(dur%60).padStart(2,'0'):'') : dur+'min';
+        html += '<div style="padding:2px 4px;margin:1px 0;border-radius:3px;font-size:0.58rem;background:#dcfce7;border:1px solid #16a34a30;color:#16a34a;font-weight:600;">✓ '+(int.client||int.title||'')+' · '+durLabel+'</div>';
+      });
+      if (!di.length) html += '<div style="height:100%;display:flex;align-items:center;justify-content:center;opacity:0.1;font-size:14px;font-weight:800;">+</div>';
+      html += '</div>';
+    });
+  });
+  grid.innerHTML = html;
 }
 
 async function initCommandes() {
