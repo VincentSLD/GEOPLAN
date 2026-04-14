@@ -4917,7 +4917,7 @@ function editTeamMember(id) {
       <div class="stg-form-field"><label>Prénom</label><input id="stf-prenom" value="${t.prenom}"></div>
       <div class="stg-form-field"><label>Nom</label><input id="stf-nom" value="${t.nom}"></div>
       <div class="stg-form-field"><label>Initiales</label><input id="stf-initials" value="${t.initials}" maxlength="3"></div>
-      <div class="stg-form-field"><label>Couleur</label><div id="stf-color-picker" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'].map(function(c){return '<div data-color="'+c+'" onclick="selectColorPastille(\''+c+'\')" style="width:28px;height:28px;border-radius:6px;background:'+c+';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);'+(t.color===c?'outline:3px solid var(--gph-dark);':'')+'"></div>';}).join('')}</div><input type="hidden" id="stf-color" value="${t.color}"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-color" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
       <div class="stg-form-field"><label>Rôle / Spécialité</label><select id="stf-role"><option ${t.role==='Sondeur'?'selected':''}>Sondeur</option><option ${t.role==='Chef de mission'?'selected':''}>Chef de mission</option><option ${t.role==='Labo terrain'?'selected':''}>Labo terrain</option><option ${t.role==='Polyvalent'?'selected':''}>Polyvalent</option><option ${t.role==='Ingénieur'?'selected':''}>Ingénieur</option></select></div>
       <div class="stg-form-field"><label>Statut</label><select id="stf-statut"><option value="actif" ${t.statut==='actif'?'selected':''}>Actif</option><option value="conge" ${t.statut==='conge'?'selected':''}>En congé</option><option value="indispo" ${t.statut==='indispo'?'selected':''}>Indisponible</option></select></div>
       <div class="stg-form-field"><label>Groupe / Équipe</label><select id="stf-groupe" onchange="onGroupeChange()"><option value="">Aucun groupe</option>${settingsGroups.map(g => `<option value="${g.id}" ${t.groupeId==g.id?'selected':''}>${g.nom}</option>`).join('')}</select></div>
@@ -4992,20 +4992,12 @@ function editTeamMember(id) {
   `);
 }
 
-function selectColorPastille(color) {
-  document.getElementById('stf-color').value = color;
-  document.querySelectorAll('#stf-color-picker div').forEach(function(d) { d.style.outline = ''; });
-  document.querySelectorAll('#stf-color-picker div').forEach(function(d) {
-    if (d.getAttribute('data-color') === color) d.style.outline = '3px solid var(--gph-dark)';
-  });
-}
-
 function onGroupeChange() {
   var gid = parseInt(document.getElementById('stf-groupe').value);
   if (!gid) return;
   var grp = settingsGroups.find(function(g) { return g.id === gid; });
   if (!grp || !grp.couleur) return;
-  selectColorPastille(grp.couleur);
+  document.getElementById('stf-color').value = grp.couleur;
 }
 
 function toggleDepartFields() {
@@ -5283,7 +5275,7 @@ function editIntType(id) {
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Label</label><input id="stf-tlabel" value="${t.label}"></div>
       <div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-tid" value="${t.id}" ${id ? 'disabled' : ''} placeholder="ex: sondage"></div>
-      <div class="stg-form-field"><label>Couleur</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'].map(function(c){return '<div data-color="'+c+'" onclick="document.getElementById(\'stf-tcolor\').value=\''+c+'\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:'+c+';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);'+(t.color===c?'outline:3px solid var(--gph-dark);':'')+'"></div>';}).join('')}</div><input type="hidden" id="stf-tcolor" value="${t.color}"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-tcolor" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
       <div class="stg-form-field"><label>Durée par défaut (min)</label><input id="stf-tduree" type="number" value="${t.dureeDefaut}"></div>
       <div class="stg-form-field span2"><label>Matériel requis</label><input id="stf-tmateriel" value="${t.materielRequis || ''}" placeholder="Tarière, pénétromètre, ..."></div>
     </div>
@@ -5360,15 +5352,11 @@ function renderSettingsStatuts() {
 
 function editStatut(id) {
   var s = id ? settingsStatuts.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
-  var palette = ['#DC2626','#EA580C','#FDBA74','#D97706','#FDE047','#CA8A04','#BEF264','#65A30D','#16A34A','#86EFAC','#059669','#0D9488','#7DD3FC','#0891B2','#0284C7','#93C5FD','#2563EB','#6366F1','#7C3AED','#DB2777','#78716C','#1E293B'];
-  var colorPicker = palette.map(function(c) {
-    return '<div data-color="' + c + '" onclick="document.getElementById(\'stf-scolor\').value=\'' + c + '\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:' + c + ';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);' + (s.color === c ? 'outline:3px solid var(--gph-dark);' : '') + '"></div>';
-  }).join('');
   openStgForm('<h3>' + (id ? 'Modifier' : 'Ajouter') + ' un statut</h3>' +
     '<div class="stg-form-grid">' +
     '<div class="stg-form-field"><label>Label</label><input id="stf-slabel" value="' + s.label + '"></div>' +
     '<div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-sid" value="' + s.id + '" ' + (id ? 'disabled' : '') + ' placeholder="ex: en_attente"></div>' +
-    '<div class="stg-form-field span2"><label>Couleur</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' + colorPicker + '</div><input type="hidden" id="stf-scolor" value="' + s.color + '"></div>' +
+    '<div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-scolor" value="' + s.color + '" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px;"></div>' +
     '</div>' +
     '<div class="stg-form-actions"><button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button><button class="stg-form-save" onclick="saveStatut(\'' + (id || '') + '\')">Enregistrer</button></div>');
 }
@@ -5426,15 +5414,11 @@ function renderSettingsFlags() {
 
 function editFlag(id) {
   var f = id ? settingsFlags.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
-  var palette = ['#FDE047','#BEF264','#A3E635','#4ADE80','#86EFAC','#6EE7B7','#5EEAD4','#7DD3FC','#93C5FD','#2563EB','#FDA4AF','#F9A8D4','#F472B6','#DB2777','#EA580C','#FDBA74','#D97706','#DC2626','#78716C','#6B21A8','#84703C','#1E293B'];
-  var colorPicker = palette.map(function(c) {
-    return '<div data-color="' + c + '" onclick="document.getElementById(\'stf-fcolor\').value=\'' + c + '\';this.parentElement.querySelectorAll(\'div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:' + c + ';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);' + (f.color === c ? 'outline:3px solid var(--gph-dark);' : '') + '"></div>';
-  }).join('');
   openStgForm('<h3>' + (id ? 'Modifier' : 'Ajouter') + ' un drapeau</h3>' +
     '<div class="stg-form-grid">' +
     '<div class="stg-form-field"><label>Label</label><input id="stf-flabel" value="' + f.label + '"></div>' +
     '<div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-fid" value="' + f.id + '" ' + (id ? 'disabled' : '') + ' placeholder="ex: urgent_client"></div>' +
-    '<div class="stg-form-field span2"><label>Couleur</label><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">' + colorPicker + '</div><input type="hidden" id="stf-fcolor" value="' + f.color + '"></div>' +
+    '<div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-fcolor" value="' + f.color + '" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px;"></div>' +
     '</div>' +
     '<div class="stg-form-actions"><button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button><button class="stg-form-save" onclick="saveFlag(\'' + (id || '') + '\')">Enregistrer</button></div>');
 }
@@ -5502,7 +5486,7 @@ function editGroup(id) {
     <h3>${id ? 'Modifier' : 'Créer'} un groupe</h3>
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Nom du groupe</label><input id="stf-gnom" value="${g.nom}"></div>
-      <div class="stg-form-field"><label>Couleur</label><div id="stf-gcouleur-picker" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${['#DC2626','#EA580C','#D97706','#CA8A04','#65A30D','#16A34A','#059669','#0D9488','#0891B2','#0284C7','#2563EB','#4F46E5','#6366F1','#7C3AED','#9333EA','#A855F7','#DB2777','#E11D48','#78716C','#1E293B'].map(function(c){return '<div onclick="document.getElementById(\'stf-gcouleur\').value=\''+c+'\';document.querySelectorAll(\'#stf-gcouleur-picker div\').forEach(function(d){d.style.outline=\'\';});this.style.outline=\'3px solid var(--gph-dark)\';" style="width:28px;height:28px;border-radius:6px;background:'+c+';cursor:pointer;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15);'+(g.couleur===c?'outline:3px solid var(--gph-dark);':'')+'"></div>';}).join('')}</div><input type="hidden" id="stf-gcouleur" value="${g.couleur}"></div>
+      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-gcouleur" value="${g.couleur}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
       <div class="stg-form-field span2"><label>Description</label><input id="stf-gdesc" value="${g.description || ''}" placeholder="Ex: Équipe basée à Nantes"></div>
       <div class="stg-form-field span2"><label>Membres de l'équipe</label><div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 12px;margin-top:4px;">${allMembers}</div></div>
     </div>
