@@ -3382,7 +3382,7 @@ function filterCommandesByColumn() {
   if (Object.keys(filters).length === 0) { commandesFiltered = commandesData.slice(); renderCommandesList(); return; }
   commandesFiltered = commandesData.filter(function(c) {
     if (filters.ref && (c.ref || '').toLowerCase().indexOf(filters.ref) < 0) return false;
-    if (filters.nom && (c.nom || c.description || '').toLowerCase().indexOf(filters.nom) < 0) return false;
+    if (filters.nom && (c._affaire ? c._affaire.nom : c.nom || '').toLowerCase().indexOf(filters.nom) < 0) return false;
     if (filters.client && (c.client_name || '').toLowerCase().indexOf(filters.client) < 0) return false;
     if (filters.type) { var t = c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || ''; if (t.toLowerCase().indexOf(filters.type) < 0) return false; }
     if (filters.apporteur) { var a = c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || ''; if (a.toLowerCase().indexOf(filters.apporteur) < 0) return false; }
@@ -3454,7 +3454,7 @@ function renderCommandesList() {
     var linkedGeo = commandeGeosoliaLinks[cmd.id] || '';
     html += '<tr>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
-    html += '<td><strong>' + (cmd.nom || cmd.description || '—') + '</strong>';
+    html += '<td><strong>' + (cmd._affaire ? cmd._affaire.nom : cmd.nom || '—') + '</strong>';
     if (cmd._responsable) html += '<br><span style="font-size:0.65rem;color:var(--text-muted);">Resp: ' + cmd._responsable + '</span>';
     html += '</td>';
     html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
