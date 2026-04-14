@@ -880,6 +880,7 @@ body::before {
 
 .view-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
 .view-content.active { display: flex; }
+.week-view.active { flex-direction: row; }
 
 /* Hamburger button (mobile only) */
 .hamburger {
@@ -1597,7 +1598,7 @@ body::before {
     </div>
   </div>
 
-  <div class="view-content active" id="weekView" style="flex-direction:row;display:flex;">
+  <div class="view-content active week-view" id="weekView">
     <div id="aPlanifierPanelInline" style="display:none;width:320px;min-width:320px;border-right:1px solid var(--border);flex-direction:column;background:var(--bg-secondary);">
       <div style="padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
