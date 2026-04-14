@@ -2233,6 +2233,24 @@ function getTechArriveeCoords(tech) {
 // Legacy compat
 function getTechCoords(tech) { return getTechDepartCoords(tech); }
 
+var geocodeCache = {};
+
+async function geocodeLocationBAN(address) {
+  if (!address || address.length < 4) return null;
+  if (geocodeCache[address]) return geocodeCache[address];
+  try {
+    var r = await fetch('https://api-adresse.data.gouv.fr/search/?q=' + encodeURIComponent(address) + '&limit=1');
+    if (!r.ok) return null;
+    var data = await r.json();
+    if (data.features && data.features.length > 0) {
+      var coords = { lat: data.features[0].geometry.coordinates[1], lon: data.features[0].geometry.coordinates[0] };
+      geocodeCache[address] = coords;
+      return coords;
+    }
+  } catch(e) {}
+  return null;
+}
+
 function getInterventionCoords(int) {
   // 1. Linked Geosolia project (live data — always up to date)
   if (int.geosoliaId && geosoliaDataMap[int.geosoliaId]) {
@@ -2241,17 +2259,25 @@ function getInterventionCoords(int) {
   }
   // 2. GPS saved from Geosolia on the intervention (fallback if live not loaded)
   if (int.geosoliaLat && int.geosoliaLng) return { lat: int.geosoliaLat, lon: int.geosoliaLng };
-  // 3. Linked commande → marché GPS
+  // 3. Linked commande → affaire GPS
   if (int.commandeId) {
     var cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
     if (cmd && cmd._lat && cmd._lng) return { lat: cmd._lat, lon: cmd._lng };
+    // Also try affaire GPS
+    if (cmd && cmd._affaire && cmd._affaire.lat && cmd._affaire.lng) return { lat: cmd._affaire.lat, lon: cmd._affaire.lng };
   }
-  // 4. Fallback: geocode from location string
+  // 4. Geocoded cache
+  if (int.location && geocodeCache[int.location]) return geocodeCache[int.location];
+  // 5. Fallback: static city dictionary
   return getCoordsForLocation(int.location);
 }
 
 async function computeTravelForIntervention(int, tech, prevInt, isLast) {
   var intCoords = getInterventionCoords(int);
+  // If no coords, try geocoding the address
+  if (!intCoords && int.location) {
+    intCoords = await geocodeLocationBAN(int.location);
+  }
   if (!intCoords) return;
 
   // Travel TO: from departure point (or previous intervention)
@@ -2392,6 +2418,11 @@ async function computeAllTravel() {
 
   // Recalculate schedule: cascade start times based on travel + duration
   recalculateSchedule();
+
+  // Save updated travel times to Supabase
+  for (var j = 0; j < tasks.length; j++) {
+    saveInterventionToSupabase(tasks[j].int);
+  }
 
   renderCurrentView();
 }
