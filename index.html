@@ -5301,10 +5301,10 @@ function editTeamMember(id) {
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Prénom</label><input id="stf-prenom" value="${t.prenom}"></div>
       <div class="stg-form-field"><label>Nom</label><input id="stf-nom" value="${t.nom}"></div>
-      <div class="stg-form-field"><label>Initiales</label><input id="stf-initials" value="${t.initials}" maxlength="3"></div>
+      <input type="hidden" id="stf-initials" value="${t.initials || ((t.prenom||' ')[0]+(t.nom||' ')[0]).toUpperCase()}">
       <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-color" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
-      <div class="stg-form-field"><label>Rôle / Spécialité</label><select id="stf-role"><option ${t.role==='Sondeur'?'selected':''}>Sondeur</option><option ${t.role==='Chef de mission'?'selected':''}>Chef de mission</option><option ${t.role==='Labo terrain'?'selected':''}>Labo terrain</option><option ${t.role==='Polyvalent'?'selected':''}>Polyvalent</option><option ${t.role==='Ingénieur'?'selected':''}>Ingénieur</option></select></div>
-      <div class="stg-form-field"><label>Statut</label><select id="stf-statut"><option value="actif" ${t.statut==='actif'?'selected':''}>Actif</option><option value="conge" ${t.statut==='conge'?'selected':''}>En congé</option><option value="indispo" ${t.statut==='indispo'?'selected':''}>Indisponible</option></select></div>
+      <input type="hidden" id="stf-role" value="${t.role || 'Polyvalent'}">
+      <input type="hidden" id="stf-statut" value="${t.statut || 'actif'}">
       <div class="stg-form-field"><label>Groupe / Équipe</label><select id="stf-groupe" onchange="onGroupeChange()"><option value="">Aucun groupe</option>${settingsGroups.map(g => `<option value="${g.id}" ${t.groupeId==g.id?'selected':''}>${g.nom}</option>`).join('')}</select></div>
       <div class="stg-form-field"><label>Véhicule</label><input id="stf-vehicule" value="${t.vehicule || ''}" placeholder="Ex: Renault Master AB-123-CD"></div>
     </div>
