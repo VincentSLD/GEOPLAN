@@ -5298,11 +5298,13 @@ function editTeamMember(id) {
 
   openStgForm(`
     <h3>${id ? 'Modifier' : 'Ajouter'} un géotechnicien</h3>
-    <div class="stg-form-grid">
-      <div class="stg-form-field"><label>Prénom</label><input id="stf-prenom" value="${t.prenom}"></div>
-      <div class="stg-form-field"><label>Nom</label><input id="stf-nom" value="${t.nom}"></div>
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:10px;">
+      <div style="width:40px;"><label style="font-size:0.65rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;"></label><input type="color" id="stf-color" value="${t.color}" style="height:34px;width:40px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
+      <div style="flex:1;"><label style="font-size:0.65rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Prénom</label><input id="stf-prenom" value="${t.prenom}" style="width:100%;height:34px;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.8rem;font-family:inherit;"></div>
+      <div style="flex:1;"><label style="font-size:0.65rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Nom</label><input id="stf-nom" value="${t.nom}" style="width:100%;height:34px;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.8rem;font-family:inherit;"></div>
       <input type="hidden" id="stf-initials" value="${t.initials || ((t.prenom||' ')[0]+(t.nom||' ')[0]).toUpperCase()}">
-      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-color" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
+    </div>
+    <div class="stg-form-grid">
       <input type="hidden" id="stf-role" value="${t.role || 'Polyvalent'}">
       <input type="hidden" id="stf-statut" value="${t.statut || 'actif'}">
       <div class="stg-form-field"><label>Groupe / Équipe</label><select id="stf-groupe" onchange="onGroupeChange()"><option value="">Aucun groupe</option>${settingsGroups.map(g => `<option value="${g.id}" ${t.groupeId==g.id?'selected':''}>${g.nom}</option>`).join('')}</select></div>
