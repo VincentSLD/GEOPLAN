@@ -2489,12 +2489,87 @@ async function computeAllTravel() {
 // ===== RENDER HELPERS =====
 function renderTravelAller(int, tech) {
   const km = int.travelToKm ? ` · ${int.travelToKm} km` : '';
-  return `<div class="travel-block travel-aller"><span>🚗</span><div class="travel-info"><div class="travel-time">${int.travelTo} min${km}</div><div class="travel-label">Trajet aller</div></div></div>`;
+  return `<div class="travel-block travel-aller" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'depart')" title="Modifier le lieu de départ"><span>🚗</span><div class="travel-info"><div class="travel-time">${int.travelTo} min${km}</div><div class="travel-label">Trajet aller ✏️</div></div></div>`;
 }
 function renderTravelRetour(int, tech) {
   const km = int.travelFromKm ? ` · ${int.travelFromKm} km` : '';
-  return `<div class="travel-block travel-retour"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.travelFrom} min${km}</div><div class="travel-label">Trajet retour</div></div></div>`;
+  return `<div class="travel-block travel-retour" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'arrivee')" title="Modifier le lieu d'arrivée"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.travelFrom} min${km}</div><div class="travel-label">Trajet retour ✏️</div></div></div>`;
 }
+function editTravelLieu(intId, type) {
+  var int = interventions.find(function(i) { return i.id === intId; });
+  if (!int) return;
+  var tech = settingsTeam.find(function(t) { return t.id === int.techId; });
+  var label = type === 'depart' ? 'Lieu de départ' : 'Lieu d\'arrivée';
+  var agences = (settingsGeneral.agences || []);
+
+  // Build options
+  var opts = '<option value="domicile">🏠 Domicile</option>';
+  opts += '<option value="autre">📌 Autre</option>';
+  agences.forEach(function(a) { opts += '<option value="ag_' + a.id + '">' + a.nom + '</option>'; });
+
+  // Current value
+  var current = '';
+  if (int.date && tech && tech.planningJours) {
+    var jour = getDayName(int.date);
+    var pj = tech.planningJours[jour];
+    if (pj) current = type === 'depart' ? (pj.departType === 'agence' ? 'ag_' + pj.departVal : pj.departType) : (pj.arriveeType === 'agence' ? 'ag_' + pj.arriveeVal : pj.arriveeType);
+  }
+
+  var popup = document.createElement('div');
+  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:280px;';
+  popup.innerHTML = '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;">' + label + '</div>' +
+    '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Pour ' + (tech ? tech.prenom + ' ' + tech.nom : '?') + ' le ' + (int.date ? new Date(int.date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'short'}) : '') + '</div>' +
+    '<select id="travelLieuSelect" style="width:100%;height:34px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.78rem;font-family:inherit;margin-bottom:12px;">' + opts + '</select>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button onclick="this.closest(\'div[style]\').remove();" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-secondary);font-size:0.75rem;cursor:pointer;font-family:inherit;">Annuler</button>' +
+    '<button onclick="saveTravelLieu(' + intId + ',\'' + type + '\')" style="padding:6px 14px;border:none;border-radius:var(--radius-xs);background:var(--gph-dark);color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:700;">Enregistrer</button>' +
+    '</div>';
+
+  // Overlay
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9998;';
+  overlay.onclick = function() { overlay.remove(); popup.remove(); };
+  document.body.appendChild(overlay);
+  document.body.appendChild(popup);
+
+  // Pre-select current value
+  if (current) document.getElementById('travelLieuSelect').value = current;
+}
+
+function saveTravelLieu(intId, type) {
+  var int = interventions.find(function(i) { return i.id === intId; });
+  if (!int) return;
+  var tech = settingsTeam.find(function(t) { return t.id === int.techId; });
+  if (!tech) return;
+  var val = document.getElementById('travelLieuSelect').value;
+  var jour = getDayName(int.date);
+
+  // Init planningJours if needed
+  if (!tech.planningJours) tech.planningJours = {};
+  if (!tech.planningJours[jour]) {
+    var gd = settingsGeneral.jours ? settingsGeneral.jours[jour] || {} : {};
+    tech.planningJours[jour] = { debut: gd.debut || '07:00', fin: gd.fin || '18:00', pauseDebut: gd.pauseDebut || '12:00', pauseFin: gd.pauseFin || '13:00', departType: 'domicile', departVal: '', arriveeType: 'depart', arriveeVal: '' };
+  }
+
+  var pj = tech.planningJours[jour];
+  if (type === 'depart') {
+    pj.departType = val.startsWith('ag_') ? 'agence' : val;
+    pj.departVal = val.startsWith('ag_') ? val.replace('ag_', '') : '';
+  } else {
+    pj.arriveeType = val.startsWith('ag_') ? 'agence' : (val === '' ? 'depart' : val);
+    pj.arriveeVal = val.startsWith('ag_') ? val.replace('ag_', '') : '';
+  }
+
+  saveSettings(SETTINGS_KEYS.team, settingsTeam);
+  syncTeamToTechnicians();
+
+  // Close popup
+  document.querySelectorAll('div[style*="z-index:9998"],div[style*="z-index:9999"]').forEach(function(el) { el.remove(); });
+
+  // Recalculate travel
+  computeAllTravel();
+}
+
 function renderTravelBetween(prev, next) {
   const gap = timeToMin(next.startTime)-timeToMin(prev.endTime);
   if(gap<=0) return '';
