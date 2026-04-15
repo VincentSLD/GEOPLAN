@@ -3123,7 +3123,18 @@ function handleDrop(e,tid,ds){
   // Drop from A planifier (commande)
   if (draggedCmdId) { dropAPlanifier(e, tid, ds); return; }
   // Drop existing intervention
-  if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';saveInterventionToSupabase(i);renderCurrentView();computeAllTravel();}draggedId=null;}
+  if(draggedId){
+    const i=interventions.find(x=>x.id===draggedId);
+    if(i){
+      var linkedRapport = i.commandeId && !i.isRapport ? interventions.find(function(r){return r.commandeId===i.commandeId && r.isRapport;}) : null;
+      var moveRapport = linkedRapport && linkedRapport.techId !== tid ? confirm('Un rapport est lié à cette intervention.\nDéplacer aussi le rapport vers ' + (TECHNICIANS.find(function(t){return t.id===tid;}) || {}).name + ' ?') : false;
+      i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
+      saveInterventionToSupabase(i);
+      if(moveRapport && linkedRapport){linkedRapport.techId=tid;saveInterventionToSupabase(linkedRapport);}
+      renderCurrentView();computeAllTravel();
+    }
+    draggedId=null;
+  }
 }
 
 // ===== MODAL =====
