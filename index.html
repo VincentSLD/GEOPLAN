@@ -5056,7 +5056,7 @@ function renderSettingsTeam() {
 
   // Section Équipe GéoPlan
   let html = `<div class="stg-toolbar"><h3>Équipe GéoPlan (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter manuellement</button></div>`;
-  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Rôle</th><th>Véhicule</th><th>Tél.</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Véhicule</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
     // Statut auto Lucca: priorité sur le statut manuel si absent aujourd'hui
     let effectiveStatut = t.statut;
@@ -5082,9 +5082,7 @@ function renderSettingsTeam() {
       <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
       <td><strong>${t.prenom} ${t.nom}</strong></td>
       <td>${grp ? `<span class="stg-group-tag" style="background:${grp.couleur}15;color:${grp.couleur};border:1px solid ${grp.couleur}30">${grp.nom}</span>` : '—'}</td>
-      <td>${t.role}</td>
       <td>${t.vehicule || '—'}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:0.72rem;">${t.telephone || '—'}</td>
       <td><div class="stg-habilitations">${habs || '—'}</div></td>
       <td><span class="stg-badge ${statusCls}">${statusLabel}</span></td>
       <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editTeamMember(${t.id})">Modifier</button><button class="stg-btn-del" onclick="deleteTeamMember(${t.id})">Suppr.</button></div></td>
