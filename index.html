@@ -2606,7 +2606,7 @@ async function init() {
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   loadLuccaCollabs().then(function() { renderCurrentView(); });
   loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
-  loadGeosoliaProjects();
+  loadGeosoliaProjects().then(function() { fixRapportDurations(); });
 }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
@@ -3843,6 +3843,30 @@ function planifierRapports() {
     renderCurrentView();
     renderAPlanifier();
   })();
+}
+
+// Fix rapport durations from Geosolia
+async function fixRapportDurations() {
+  var fixed = 0;
+  for (var i = 0; i < interventions.length; i++) {
+    var int = interventions[i];
+    if (!int.isRapport || !int.geosoliaId) continue;
+    var prog = getGeosoliaProgram(int.geosoliaId);
+    if (!prog || !prog.estimatedReportMin) continue;
+    if (int.duration !== prog.estimatedReportMin) {
+      int.duration = prog.estimatedReportMin;
+      // Recalc endTime if planned
+      if (int.startTime) {
+        int.endTime = minToTime(timeToMin(int.startTime) + int.duration);
+      }
+      await saveInterventionToSupabase(int);
+      fixed++;
+    }
+  }
+  if (fixed > 0) {
+    console.log('[Rapports] ' + fixed + ' durée(s) corrigée(s)');
+    renderCurrentView();
+  }
 }
 
 async function initCommandes() {
