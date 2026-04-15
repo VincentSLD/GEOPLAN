@@ -2873,11 +2873,15 @@ function renderWeek() {
   }
   techs.forEach(tech=>{
     const wi=interventions.filter(i=>i.techId===tech.id&&days.some(d=>d.dateStr===i.date));
-    const tt=wi.reduce((s,i)=>s+i.travelTo+i.travelFrom,0);
-    const th=wi.reduce((s,i)=>{const[sh,sm]=i.startTime.split(':').map(Number),[eh,em]=i.endTime.split(':').map(Number);return s+(eh-sh)+(em-sm)/60;},0);
-    var thLabel = Math.round(th*60) >= 60 ? Math.floor(th)+'h'+(Math.round(th*60)%60?String(Math.round(th*60)%60).padStart(2,'0'):'') : Math.round(th*60)+'min';
-    var ttLabel = tt >= 60 ? Math.floor(tt/60)+'h'+(tt%60?String(tt%60).padStart(2,'0'):'') : tt+'min';
-    html+=`<div class="tech-cell"><div style="width:10px;min-width:10px;height:10px;border-radius:50%;background:${tech.color};margin-top:3px;"></div><div class="tech-info"><div class="tech-name" style="white-space:normal;word-break:break-word;font-size:0.78rem;">${tech.name}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span><span class="tech-stat">⛏${thLabel}</span><span class="tech-stat">🚗${ttLabel}</span></div></div></div>`;
+    var wkTerrainMin = wi.filter(function(i){return !i.isRapport;}).reduce(function(s,i){return s+(i.duration||0);},0);
+    var wkRapportMin = wi.filter(function(i){return i.isRapport;}).reduce(function(s,i){return s+(i.duration||0);},0);
+    var wkTravelMin = wi.filter(function(i){return !i.isRapport;}).reduce(function(s,i){return s+(i.travelTo||0)+(i.travelFrom||0);},0);
+    var fmtD = function(m){return m>=60?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''):m+'min';};
+    var statsP = [];
+    if (wkTerrainMin > 0) statsP.push('<span class="tech-stat">⛏'+fmtD(wkTerrainMin)+'</span>');
+    if (wkRapportMin > 0) statsP.push('<span class="tech-stat">📝'+fmtD(wkRapportMin)+'</span>');
+    if (wkTravelMin > 0) statsP.push('<span class="tech-stat">🚗'+fmtD(wkTravelMin)+'</span>');
+    html+=`<div class="tech-cell"><div style="width:10px;min-width:10px;height:10px;border-radius:50%;background:${tech.color};margin-top:3px;"></div><div class="tech-info"><div class="tech-name" style="white-space:normal;word-break:break-word;font-size:0.78rem;">${tech.name}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span>${statsP.join('')}</div></div></div>`;
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
       var dayFerie = isJourFerie(day.dateStr);
@@ -2887,11 +2891,16 @@ function renderWeek() {
       html+=jourFerieBadgeHTML(day.dateStr);
       html+=absenceBadgeHTML(tech.id, day.dateStr);
       if (di.length > 0) {
-        var dayTravelMin = di.reduce(function(s,i){return s+(i.travelTo||0)+(i.travelFrom||0);},0);
-        var dayIntMin = di.reduce(function(s,i){return s+(i.duration||(timeToMin(i.endTime)-timeToMin(i.startTime))||0);},0);
-        var dayTotalMin = dayTravelMin + dayIntMin;
+        var dayTravelMin = di.filter(function(i){return !i.isRapport;}).reduce(function(s,i){return s+(i.travelTo||0)+(i.travelFrom||0);},0);
+        var dayTerrainMin = di.filter(function(i){return !i.isRapport;}).reduce(function(s,i){return s+(i.duration||(timeToMin(i.endTime)-timeToMin(i.startTime))||0);},0);
+        var dayRapportMin = di.filter(function(i){return i.isRapport;}).reduce(function(s,i){return s+(i.duration||0);},0);
+        var dayTotalMin = dayTerrainMin + dayTravelMin + dayRapportMin;
         var fmtDur = function(m){return m>=60?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''):m+'min';};
-        html += `<div style="font-size:0.62rem;color:var(--text-secondary);padding:2px 4px;margin-bottom:2px;font-weight:600;">⏱ ${fmtDur(dayTotalMin)} <span style="font-weight:400;color:var(--text-muted);">(${fmtDur(dayIntMin)} terrain + ${fmtDur(dayTravelMin)} route)</span></div>`;
+        var parts = [];
+        if (dayTerrainMin > 0) parts.push(fmtDur(dayTerrainMin) + ' terrain');
+        if (dayRapportMin > 0) parts.push(fmtDur(dayRapportMin) + ' rapport');
+        if (dayTravelMin > 0) parts.push(fmtDur(dayTravelMin) + ' route');
+        html += `<div style="font-size:0.62rem;color:var(--text-secondary);padding:2px 4px;margin-bottom:2px;font-weight:600;">⏱ ${fmtDur(dayTotalMin)} <span style="font-weight:400;color:var(--text-muted);">(${parts.join(' + ')})</span></div>`;
       }
       di.forEach((int,idx)=>{
         const type=TYPES[int.type]||{label:int.type||'?',class:''};
@@ -2905,7 +2914,7 @@ function renderWeek() {
         var durLabel = intDur >= 60 ? Math.floor(intDur/60) + 'h' + (intDur%60 ? String(intDur%60).padStart(2,'0') : '') : intDur + 'min';
         var typeColor = int.type ? (TYPE_RAW[int.type] || '') : '';
         var intBorder = typeColor ? 'border:2px solid '+typeColor+';border-left:4px solid '+typeColor+';' : 'border:1px solid '+statusColor+'60;border-left:4px solid '+statusColor+';';
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" onclick="openDetail(${int.id})"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-muted);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.title&&int.title!==int.client?' — '+int.title.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" onclick="openDetail(${int.id})"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-secondary);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.title&&int.title!==int.client?' — '+int.title.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
         if(showTravel && int.commandeId && !int.isRapport && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`
       });
@@ -3663,7 +3672,7 @@ function renderAPlanifier() {
       var durLabel = rap.duration >= 60 ? Math.floor(rap.duration/60)+'h'+(rap.duration%60?String(rap.duration%60).padStart(2,'0'):'') : rap.duration+'min';
       var tech = TECHNICIANS.find(function(t){return t.id===rap.techId;});
       html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+rap.id+')" style="border-left:3px solid #7C3AED;">';
-      html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">📝 ' + (rap.commandeRef || '') + '</span><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">📝 ' + (rap.affaireRef || rap.commandeRef || '') + '</span><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span></div>';
       html += '<div class="aplan-card-name">' + (rap.title || 'Rapport') + '</div>';
       html += '<div class="aplan-card-info">' + (tech ? '👤 ' + tech.name : '') + '</div>';
       html += '</div>';
