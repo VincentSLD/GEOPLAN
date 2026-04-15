@@ -2515,25 +2515,39 @@ function editTravelLieu(intId, type) {
     if (pj) current = type === 'depart' ? (pj.departType === 'agence' ? 'ag_' + pj.departVal : pj.departType) : (pj.arriveeType === 'agence' ? 'ag_' + pj.arriveeVal : pj.arriveeType);
   }
 
+  // Remove any existing popup
+  var oldOverlay = document.getElementById('travelLieuOverlay');
+  var oldPopup = document.getElementById('travelLieuPopup');
+  if (oldOverlay) oldOverlay.remove();
+  if (oldPopup) oldPopup.remove();
+
   var popup = document.createElement('div');
-  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:280px;';
+  popup.id = 'travelLieuPopup';
+  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid #e0ddd5;border-radius:14px;padding:20px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:280px;';
   popup.innerHTML = '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;">' + label + '</div>' +
     '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Pour ' + (tech ? tech.prenom + ' ' + tech.nom : '?') + ' le ' + (int.date ? new Date(int.date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'short'}) : '') + '</div>' +
     '<select id="travelLieuSelect" style="width:100%;height:34px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.78rem;font-family:inherit;margin-bottom:12px;">' + opts + '</select>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
-    '<button onclick="this.closest(\'div[style]\').remove();" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-secondary);font-size:0.75rem;cursor:pointer;font-family:inherit;">Annuler</button>' +
+    '<button onclick="closeTravelLieuPopup()" style="padding:6px 14px;border:1px solid #e0ddd5;border-radius:6px;background:#f5f5f0;font-size:0.75rem;cursor:pointer;font-family:inherit;">Annuler</button>' +
     '<button onclick="saveTravelLieu(' + intId + ',\'' + type + '\')" style="padding:6px 14px;border:none;border-radius:var(--radius-xs);background:var(--gph-dark);color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:700;">Enregistrer</button>' +
     '</div>';
 
-  // Overlay
   var overlay = document.createElement('div');
+  overlay.id = 'travelLieuOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9998;';
-  overlay.onclick = function() { overlay.remove(); popup.remove(); };
+  overlay.onclick = function() { closeTravelLieuPopup(); };
   document.body.appendChild(overlay);
   document.body.appendChild(popup);
 
   // Pre-select current value
   if (current) document.getElementById('travelLieuSelect').value = current;
+}
+
+function closeTravelLieuPopup() {
+  var o = document.getElementById('travelLieuOverlay');
+  var p = document.getElementById('travelLieuPopup');
+  if (o) o.remove();
+  if (p) p.remove();
 }
 
 function saveTravelLieu(intId, type) {
@@ -2563,8 +2577,7 @@ function saveTravelLieu(intId, type) {
   saveSettings(SETTINGS_KEYS.team, settingsTeam);
   syncTeamToTechnicians();
 
-  // Close popup
-  document.querySelectorAll('div[style*="z-index:9998"],div[style*="z-index:9999"]').forEach(function(el) { el.remove(); });
+  closeTravelLieuPopup();
 
   // Recalculate travel
   computeAllTravel();
