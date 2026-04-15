@@ -3292,15 +3292,16 @@ function editIntervention(id){
 }
 function deleteIntervention(id){
   if(!confirm('Supprimer cette intervention ?')) return;
-  showLoader('Suppression...');
   var int = interventions.find(function(i){return i.id===id;});
   // Find linked rapport if this is a terrain intervention
   var linkedRapport = int && int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  var deleteRapport = linkedRapport ? confirm('Un rapport est lié à cette intervention.\nSupprimer aussi le rapport ?') : false;
+  showLoader('Suppression...');
   // Remove intervention(s) from memory
-  interventions = interventions.filter(function(i){return i.id!==id && (!linkedRapport || i.id!==linkedRapport.id);});
+  interventions = interventions.filter(function(i){return i.id!==id && (!deleteRapport || !linkedRapport || i.id!==linkedRapport.id);});
   (async function(){
     await deleteInterventionFromSupabase(id);
-    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+    if (deleteRapport && linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
     // Update commande planification status back to 'A planifier'
     if (int && int.commandeId) {
       await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
