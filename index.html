@@ -4728,6 +4728,8 @@ function renderFleetMarkers() {
 
   for (const v of fleetData) {
     if (!v.lat || !v.lng) continue;
+    var vExtras = vehicleExtras[v.objectno] || {};
+    if (vExtras.showOnMap === false) continue;
 
     const isMoving = v.speed > 0;
     const isIgnOn = v.ignition === 1;
@@ -5663,7 +5665,7 @@ function renderSettingsVehicles() {
     return;
   }
 
-  html += `<table class="stg-table"><thead><tr><th>Nom du véhicule</th><th>Type</th><th>Dernière position</th><th>Km</th><th>Statut</th><th>Collaborateur attribué</th><th>Équipements</th><th>Actions</th></tr></thead><tbody>`;
+  html += `<table class="stg-table"><thead><tr><th><input type="checkbox" onchange="toggleAllVehiclesOnMap(this.checked)" ${fleetData.every(function(v){return !vehicleExtras[v.objectno] || vehicleExtras[v.objectno].showOnMap !== false;}) ? 'checked' : ''}> Carte</th><th>Nom du véhicule</th><th>Type</th><th>Dernière position</th><th>Km</th><th>Statut</th><th>Collaborateur attribué</th><th>Équipements</th><th>Actions</th></tr></thead><tbody>`;
   fleetData.forEach(v => {
     const assign = vehicleAssignments[v.objectno] || '';
     const extras = vehicleExtras[v.objectno] || {};
@@ -5672,7 +5674,9 @@ function renderSettingsVehicles() {
     const odom = v.odometer ? `${Math.round(v.odometer).toLocaleString('fr-FR')} km` : '—';
     const timeTxt = v.postime ? new Date(v.postime).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
 
+    var showOnMap = !extras.showOnMap === undefined ? true : extras.showOnMap !== false;
     html += `<tr>
+      <td style="text-align:center;"><input type="checkbox" ${showOnMap ? 'checked' : ''} onchange="toggleVehicleOnMap('${v.objectno}', this.checked)"></td>
       <td><strong>${v.objectname}</strong></td>
       <td style="font-size:0.72rem;">${v.objecttype || '—'}</td>
       <td style="font-size:0.7rem;" title="${v.postext || ''}">${v.postext ? v.postext.substring(0, 35) + (v.postext.length > 35 ? '...' : '') : '—'}<br><span style="color:var(--text-muted);font-size:0.62rem;">${timeTxt}</span></td>
@@ -5739,6 +5743,21 @@ function saveVehicleExtras(objectno) {
   };
   saveSettings('geoplan_vehicle_extras', vehicleExtras);
   closeStgForm();
+  renderSettingsVehicles();
+}
+
+function toggleVehicleOnMap(objectno, show) {
+  if (!vehicleExtras[objectno]) vehicleExtras[objectno] = {};
+  vehicleExtras[objectno].showOnMap = show;
+  saveSettings('geoplan_vehicle_extras', vehicleExtras);
+}
+
+function toggleAllVehiclesOnMap(show) {
+  fleetData.forEach(function(v) {
+    if (!vehicleExtras[v.objectno]) vehicleExtras[v.objectno] = {};
+    vehicleExtras[v.objectno].showOnMap = show;
+  });
+  saveSettings('geoplan_vehicle_extras', vehicleExtras);
   renderSettingsVehicles();
 }
 
