@@ -4319,8 +4319,8 @@ function populateCommandeSelect() {
   sel.innerHTML = '<option value="">— Aucune commande —</option>';
   commandesData.forEach(function(c) {
     if (plannedCmdIds[c.id] && c.id !== currentCmdId) return;
-    var label = (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 50);
-    sel.innerHTML += '<option value="' + c.id + '">' + label + '</option>';
+    var aff = c._affaire ? c._affaire.ref + ' — ' + (c._affaire.nom || '').substring(0, 40) : (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 40);
+    sel.innerHTML += '<option value="' + c.id + '">' + aff + '</option>';
   });
 }
 
