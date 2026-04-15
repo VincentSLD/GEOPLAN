@@ -1731,7 +1731,7 @@ body::before {
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="intType"></select></div>
+        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
         <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="intStatus"></select></div>
       </div>
       <div class="form-group"><label class="form-label">Drapeaux</label><div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;"></div></div>
@@ -2651,6 +2651,19 @@ function getFilteredTechs() {
 }
 function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name} (${t.base})</option>`).join(''); }
 function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML='<option value="">— Au choix —</option>'+settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
+
+function onTypeChange() {
+  var typeId = document.getElementById('intType').value;
+  if (!typeId) return;
+  var t = settingsIntTypes.find(function(x) { return x.id === typeId; });
+  if (t && t.dureeDefaut) {
+    var durField = document.getElementById('intDuration');
+    if (!durField.value || durField.value === '0') {
+      durField.value = t.dureeDefaut;
+      updateEndFromDuration();
+    }
+  }
+}
 
 // ===== RECHERCHE GLOBALE =====
 var _searchTimer = null;
