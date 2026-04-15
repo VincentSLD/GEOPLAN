@@ -2324,7 +2324,7 @@ async function computeTravelForIntervention(int, tech, prevInt, isLast) {
       int.travelToFallback = route.fallback || false;
     }
   } else {
-    var departCoords = getTechDepartCoords(tech);
+    var departCoords = getTechDepartCoords(tech, int.date);
     if (departCoords) {
       var route = await getOSRMRoute(departCoords.lat, departCoords.lon, intCoords.lat, intCoords.lon);
       int.travelTo = route.durationMin;
@@ -2335,7 +2335,7 @@ async function computeTravelForIntervention(int, tech, prevInt, isLast) {
 
   // Travel FROM: to arrival point (only for last intervention of the day)
   if (isLast) {
-    var arriveeCoords = getTechArriveeCoords(tech);
+    var arriveeCoords = getTechArriveeCoords(tech, int.date);
     if (arriveeCoords) {
       var route = await getOSRMRoute(intCoords.lat, intCoords.lon, arriveeCoords.lat, arriveeCoords.lon);
       int.travelFrom = route.durationMin;
@@ -2408,10 +2408,11 @@ function recalculateSchedule() {
   var changed = false;
   Object.keys(byTechDate).forEach(function(key) {
     var dayInts = byTechDate[key];
+    var schedTechId = parseInt(key.split(':')[0]);
     dayInts.sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
 
-    var workStart = getWorkStartTime(dayInts[0].date);
-    var lunch = getLunchBreak(dayInts[0].date);
+    var workStart = getWorkStartTime(dayInts[0].date, schedTechId);
+    var lunch = getLunchBreak(dayInts[0].date, schedTechId);
     var cursor = timeToMin(workStart);
 
     dayInts.forEach(function(int, idx) {
@@ -4569,7 +4570,7 @@ function renderMapTournees() {
     var routePoints = [];
 
     // Departure point
-    var departCoords = getTechDepartCoords(tech);
+    var departCoords = getTechDepartCoords(tech, dateStr);
     if (departCoords) {
       var depMarker = L.circleMarker([departCoords.lat, departCoords.lon], {
         radius: 6, color: color, fillColor: '#fff', fillOpacity: 1, weight: 3
@@ -4605,7 +4606,7 @@ function renderMapTournees() {
     });
 
     // Arrival point
-    var arriveeCoords = getTechArriveeCoords(tech);
+    var arriveeCoords = getTechArriveeCoords(tech, int.date);
     if (arriveeCoords && ints.length > 0) {
       routePoints.push([arriveeCoords.lat, arriveeCoords.lon]);
       var arrMarker = L.circleMarker([arriveeCoords.lat, arriveeCoords.lon], {
