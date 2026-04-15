@@ -3123,7 +3123,7 @@ function handleDrop(e,tid,ds){
   // Drop from A planifier (commande)
   if (draggedCmdId) { dropAPlanifier(e, tid, ds); return; }
   // Drop existing intervention
-  if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;saveInterventionToSupabase(i);renderCurrentView();computeAllTravel();}draggedId=null;}
+  if(draggedId){const i=interventions.find(x=>x.id===draggedId);if(i){i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';saveInterventionToSupabase(i);renderCurrentView();computeAllTravel();}draggedId=null;}
 }
 
 // ===== MODAL =====
