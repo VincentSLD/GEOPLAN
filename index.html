@@ -4706,16 +4706,19 @@ function createVehicleIcon(color, label) {
   var isLong = label.length > 3;
   return L.divIcon({
     className: 'fleet-marker-icon',
-    html: `<div style="
-      background:${color}; ${isLong ? 'padding:4px 8px;border-radius:12px;' : 'width:32px;height:32px;border-radius:50%;'}
-      display:flex; align-items:center; justify-content:center;
-      font-size:${isLong ? '9px' : '10px'}; font-weight:700; color:#fff;
-      border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      font-family:'Space Grotesk',sans-serif; white-space:nowrap;
-    ">${label}</div>`,
-    iconSize: isLong ? [80, 28] : [32, 32],
-    iconAnchor: isLong ? [40, 14] : [16, 16],
-    popupAnchor: [0, -16]
+    html: `<div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="
+        background:${color}; ${isLong ? 'padding:3px 8px;border-radius:10px;' : 'width:28px;height:28px;border-radius:50%;'}
+        display:flex; align-items:center; justify-content:center;
+        font-size:${isLong ? '9px' : '10px'}; font-weight:700; color:#fff;
+        border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3);
+        font-family:'Space Grotesk',sans-serif; white-space:nowrap;
+      ">${label}</div>
+      <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${color};margin-top:-1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.2));"></div>
+    </div>`,
+    iconSize: isLong ? [80, 38] : [28, 38],
+    iconAnchor: isLong ? [40, 38] : [14, 38],
+    popupAnchor: [0, -38]
   });
 }
 
