@@ -2191,37 +2191,53 @@ function haversineFallback(lat1, lon1, lat2, lon2) {
   return result;
 }
 
-function getTechDepartCoords(tech) {
+function getAgenceCoords(agenceId) {
+  if (!agenceId || !settingsGeneral.agences) return null;
+  var ag = settingsGeneral.agences.find(function(a) { return a.id == agenceId; });
+  return (ag && ag.lat && ag.lon) ? { lat: ag.lat, lon: ag.lon } : null;
+}
+
+function getTechDepartCoords(tech, dateStr) {
   if (typeof settingsTeam !== 'undefined') {
     var st = settingsTeam.find(function(t) { return t.id === tech.id; });
     if (st) {
-      // Use departure coords (lieu de départ matin)
-      if (st.departLat && st.departLon) return { lat: st.departLat, lon: st.departLon };
-      // Fallback to base coords
-      if (st.lat && st.lon) return { lat: st.lat, lon: st.lon };
-      // If departure is an agency, use agency coords
-      if (st.departAgenceId && typeof settingsGeneral !== 'undefined' && settingsGeneral.agences) {
-        var ag = settingsGeneral.agences.find(function(a) { return a.id === st.departAgenceId; });
-        if (ag && ag.lat && ag.lon) return { lat: ag.lat, lon: ag.lon };
+      // 1. Day-specific planning
+      if (dateStr && st.planningJours) {
+        var jour = getDayName(dateStr);
+        var pj = st.planningJours[jour];
+        if (pj && pj.departType === 'agence' && pj.departVal) {
+          var coords = getAgenceCoords(parseInt(pj.departVal));
+          if (coords) return coords;
+        }
       }
+      // 2. Default departure
+      if (st.departLat && st.departLon) return { lat: st.departLat, lon: st.departLon };
+      if (st.lat && st.lon) return { lat: st.lat, lon: st.lon };
+      if (st.departAgenceId) { var c = getAgenceCoords(st.departAgenceId); if (c) return c; }
     }
   }
   if (LOCATION_COORDS[tech.base]) return LOCATION_COORDS[tech.base];
   return null;
 }
 
-function getTechArriveeCoords(tech) {
+function getTechArriveeCoords(tech, dateStr) {
   if (typeof settingsTeam !== 'undefined') {
     var st = settingsTeam.find(function(t) { return t.id === tech.id; });
     if (st) {
-      // Use arrival coords (lieu d'arrivée soir)
-      if (st.arriveeLat && st.arriveeLon) return { lat: st.arriveeLat, lon: st.arriveeLon };
-      // If arrival is an agency
-      if (st.arriveeAgenceId && typeof settingsGeneral !== 'undefined' && settingsGeneral.agences) {
-        var ag = settingsGeneral.agences.find(function(a) { return a.id === st.arriveeAgenceId; });
-        if (ag && ag.lat && ag.lon) return { lat: ag.lat, lon: ag.lon };
+      // 1. Day-specific planning
+      if (dateStr && st.planningJours) {
+        var jour = getDayName(dateStr);
+        var pj = st.planningJours[jour];
+        if (pj && pj.arriveeType === 'agence' && pj.arriveeVal) {
+          var coords = getAgenceCoords(parseInt(pj.arriveeVal));
+          if (coords) return coords;
+        }
+        // If 'depart', use departure coords
+        if (pj && pj.arriveeType !== 'agence') return getTechDepartCoords(tech, dateStr);
       }
-      // Fallback to departure coords
+      // 2. Default arrival
+      if (st.arriveeLat && st.arriveeLon) return { lat: st.arriveeLat, lon: st.arriveeLon };
+      if (st.arriveeAgenceId) { var c = getAgenceCoords(st.arriveeAgenceId); if (c) return c; }
       if (st.departLat && st.departLon) return { lat: st.departLat, lon: st.departLon };
       if (st.lat && st.lon) return { lat: st.lat, lon: st.lon };
     }
@@ -2315,24 +2331,49 @@ async function computeTravelForIntervention(int, tech, prevInt, isLast) {
   }
 }
 
-function getWorkStartTime(dateStr) {
-  // Get configured start time for this day of week
+function getDayName(dateStr) {
+  var d = new Date(dateStr + 'T12:00:00');
+  return ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()];
+}
+
+function getTechDayPlanning(techId, dateStr) {
+  var jour = getDayName(dateStr);
+  var st = settingsTeam.find(function(t) { return t.id === techId; });
+  if (st && st.planningJours && st.planningJours[jour]) {
+    return st.planningJours[jour];
+  }
+  return null;
+}
+
+function getWorkStartTime(dateStr, techId) {
+  // 1. Tech-specific day planning
+  if (techId) {
+    var tp = getTechDayPlanning(techId, dateStr);
+    if (tp && tp.debut) return tp.debut;
+  }
+  // 2. General settings
   if (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) {
-    var d = new Date(dateStr + 'T12:00:00');
-    var joursList = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-    var jour = settingsGeneral.jours[joursList[d.getDay()]];
-    if (jour && jour.actif && jour.debut) return jour.debut;
+    var jour = getDayName(dateStr);
+    var gj = settingsGeneral.jours[jour];
+    if (gj && gj.actif && gj.debut) return gj.debut;
   }
   return '07:00';
 }
 
-function getLunchBreak(dateStr) {
+function getLunchBreak(dateStr, techId) {
+  // 1. Tech-specific day planning
+  if (techId) {
+    var tp = getTechDayPlanning(techId, dateStr);
+    if (tp && tp.pauseDebut && tp.pauseFin) {
+      return { start: timeToMin(tp.pauseDebut), end: timeToMin(tp.pauseFin) };
+    }
+  }
+  // 2. General settings
   if (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) {
-    var d = new Date(dateStr + 'T12:00:00');
-    var joursList = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-    var jour = settingsGeneral.jours[joursList[d.getDay()]];
-    if (jour && jour.pauseDebut && jour.pauseFin) {
-      return { start: timeToMin(jour.pauseDebut), end: timeToMin(jour.pauseFin) };
+    var jour = getDayName(dateStr);
+    var gj = settingsGeneral.jours[jour];
+    if (gj && gj.pauseDebut && gj.pauseFin) {
+      return { start: timeToMin(gj.pauseDebut), end: timeToMin(gj.pauseFin) };
     }
   }
   return { start: timeToMin('12:00'), end: timeToMin('13:00') };
@@ -5249,63 +5290,45 @@ function editTeamMember(id) {
     </div>
 
     <div style="margin:16px 0 8px;padding:14px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
-      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">📍 Lieu de départ (matin)</div>
-      <div class="stg-form-field" style="margin-bottom:10px;">
-        <label>Type de lieu</label>
-        <select id="stf-depart-type" onchange="toggleDepartFields()" style="width:100%;">
-          <option value="custom" ${!departIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
-          <option value="agence" ${departIsAgence ? 'selected' : ''}>Agence</option>
-        </select>
-      </div>
-      <div id="stf-depart-agence-wrap" class="stg-form-field" style="display:${departIsAgence ? 'flex' : 'none'};margin-bottom:10px;">
-        <label>Agence de départ</label>
-        <select id="stf-depart-agence" style="width:100%;"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.departAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
-      </div>
-      <div id="stf-depart-custom-wrap" style="display:${!departIsAgence ? 'block' : 'none'};">
-        <div class="stg-form-field" style="margin-bottom:10px;">
-          <label>Adresse</label>
-          <div style="position:relative;"><input id="stf-depart-adresse" value="${t.departAdresse || ''}" placeholder="Commencez à taper une adresse..." autocomplete="off" style="width:100%;"></div>
-          <div id="stf-depart-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
-        </div>
-        <div style="display:flex;gap:12px;">
-          <div class="stg-form-field" style="flex:1;"><label>Latitude GPS</label><input id="stf-depart-lat" type="number" step="0.000001" value="${t.departLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field" style="flex:1;"><label>Longitude GPS</label><input id="stf-depart-lon" type="number" step="0.000001" value="${t.departLon || ''}" placeholder="-1.878"></div>
-        </div>
-      </div>
+      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">📅 Planning hebdomadaire</div>
+      <table class="stg-table" style="font-size:0.72rem;">
+        <thead><tr><th>Jour</th><th>Lieu départ</th><th>Début</th><th>Pause</th><th>Fin</th><th>Lieu arrivée</th></tr></thead>
+        <tbody>
+        ${['lundi','mardi','mercredi','jeudi','vendredi'].map(function(j) {
+          var jLabels = {lundi:'Lundi',mardi:'Mardi',mercredi:'Mercredi',jeudi:'Jeudi',vendredi:'Vendredi'};
+          var planning = (t.planningJours || {})[j] || {};
+          var gDefault = settingsGeneral.jours ? settingsGeneral.jours[j] || {} : {};
+          var debut = planning.debut || gDefault.debut || '07:00';
+          var fin = planning.fin || gDefault.fin || '18:00';
+          var pauseD = planning.pauseDebut || gDefault.pauseDebut || '12:00';
+          var pauseF = planning.pauseFin || gDefault.pauseFin || '13:00';
+          var departType = planning.departType || (t.departAgenceId ? 'agence' : 'custom');
+          var departVal = planning.departVal || (t.departAgenceId ? String(t.departAgenceId) : (t.departAdresse || ''));
+          var arriveeType = planning.arriveeType || (t.arriveeAgenceId ? 'agence' : 'depart');
+          var arriveeVal = planning.arriveeVal || (t.arriveeAgenceId ? String(t.arriveeAgenceId) : (t.arriveeAdresse || ''));
+          var agOpts = '<option value="">— Adresse —</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(departType==='agence'&&departVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
+          var agOptsArr = '<option value="">— Identique départ —</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(arriveeType==='agence'&&arriveeVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
+          return '<tr>'+
+            '<td><strong>'+jLabels[j]+'</strong></td>'+
+            '<td><select class="pj-depart" data-jour="'+j+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-family:inherit;width:100%;">'+agOpts+'</select></td>'+
+            '<td><input type="time" class="pj-debut" data-jour="'+j+'" value="'+debut+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;width:80px;font-family:inherit;"></td>'+
+            '<td style="white-space:nowrap;"><input type="time" class="pj-pause-d" data-jour="'+j+'" value="'+pauseD+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;width:70px;font-family:inherit;">–<input type="time" class="pj-pause-f" data-jour="'+j+'" value="'+pauseF+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;width:70px;font-family:inherit;"></td>'+
+            '<td><input type="time" class="pj-fin" data-jour="'+j+'" value="'+fin+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;width:80px;font-family:inherit;"></td>'+
+            '<td><select class="pj-arrivee" data-jour="'+j+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-family:inherit;width:100%;">'+agOptsArr+'</select></td>'+
+            '</tr>';
+        }).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:0.58rem;color:var(--text-muted);margin-top:4px;">Valeurs par défaut issues des paramètres généraux. Modifiez uniquement si différent.</div>
     </div>
-
-    <div style="margin:0 0 8px;padding:14px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
-      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">🏠 Lieu d'arrivée (soir)</div>
-      <div class="stg-form-field" style="margin-bottom:10px;">
-        <label>Type de lieu</label>
-        <select id="stf-arrivee-type" onchange="toggleArriveeFields()" style="width:100%;">
-          <option value="custom" ${!arriveeIsAgence ? 'selected' : ''}>Adresse personnalisée</option>
-          <option value="agence" ${arriveeIsAgence ? 'selected' : ''}>Agence</option>
-          <option value="depart">Identique au départ</option>
-        </select>
-      </div>
-      <div id="stf-arrivee-agence-wrap" class="stg-form-field" style="display:${arriveeIsAgence ? 'flex' : 'none'};margin-bottom:10px;">
-        <label>Agence d'arrivée</label>
-        <select id="stf-arrivee-agence" style="width:100%;"><option value="">— Choisir —</option>${agences.map(a => `<option value="${a.id}" ${t.arriveeAgenceId == a.id ? 'selected' : ''}>${a.nom} — ${a.adresse || ''}</option>`).join('')}</select>
-      </div>
-      <div id="stf-arrivee-custom-wrap" style="display:${!arriveeIsAgence ? 'block' : 'none'};">
-        <div class="stg-form-field" style="margin-bottom:10px;">
-          <label>Adresse</label>
-          <div style="position:relative;"><input id="stf-arrivee-adresse" value="${t.arriveeAdresse || ''}" placeholder="Commencez à taper une adresse..." autocomplete="off" style="width:100%;"></div>
-          <div id="stf-arrivee-geocode" style="font-size:0.65rem;margin-top:4px;min-height:16px;"></div>
-        </div>
-        <div style="display:flex;gap:12px;">
-          <div class="stg-form-field" style="flex:1;"><label>Latitude GPS</label><input id="stf-arrivee-lat" type="number" step="0.000001" value="${t.arriveeLat || ''}" placeholder="46.845"></div>
-          <div class="stg-form-field" style="flex:1;"><label>Longitude GPS</label><input id="stf-arrivee-lon" type="number" step="0.000001" value="${t.arriveeLon || ''}" placeholder="-1.878"></div>
-        </div>
-      </div>
-    </div>
+    <!-- Hidden fields for backward compat -->
+    <div style="display:none;"><input id="stf-depart-adresse"><input id="stf-depart-lat"><input id="stf-depart-lon"><select id="stf-depart-type"><option value="custom" selected></option></select><select id="stf-depart-agence"></select><input id="stf-arrivee-adresse"><input id="stf-arrivee-lat"><input id="stf-arrivee-lon"><select id="stf-arrivee-type"><option value="custom" selected></option></select><select id="stf-arrivee-agence"></select></div>
 
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Téléphone</label><input id="stf-tel" value="${t.telephone || ''}" placeholder="06 XX XX XX XX"></div>
       <div class="stg-form-field"><label>Email</label><input id="stf-email" type="email" value="${t.email || ''}"></div>
-      <div class="stg-form-field"><label>Heure début</label><input id="stf-hdebut" type="time" value="${t.heureDebut || '07:00'}"></div>
-      <div class="stg-form-field"><label>Heure fin</label><input id="stf-hfin" type="time" value="${t.heureFin || '18:00'}"></div>
+      <input type="hidden" id="stf-hdebut" value="${t.heureDebut || '07:00'}">
+      <input type="hidden" id="stf-hfin" value="${t.heureFin || '18:00'}">
       <div class="stg-form-field span2"><label>Habilitations</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">${habsChecks}</div></div>
       <div class="stg-form-field span2"><label>Compétences — Types de mission</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;">${getCompetencesChecks(t)}</div></div>
     </div>
@@ -5399,6 +5422,26 @@ function saveTeamMember(id) {
     heureDebut: document.getElementById('stf-hdebut').value,
     heureFin: document.getElementById('stf-hfin').value,
     habilitations: habs,
+    planningJours: (function() {
+      var pj = {};
+      ['lundi','mardi','mercredi','jeudi','vendredi'].forEach(function(j) {
+        var dep = document.querySelector('.pj-depart[data-jour="'+j+'"]');
+        var arr = document.querySelector('.pj-arrivee[data-jour="'+j+'"]');
+        var depVal = dep ? dep.value : '';
+        var arrVal = arr ? arr.value : '';
+        pj[j] = {
+          debut: document.querySelector('.pj-debut[data-jour="'+j+'"]')?.value || '',
+          fin: document.querySelector('.pj-fin[data-jour="'+j+'"]')?.value || '',
+          pauseDebut: document.querySelector('.pj-pause-d[data-jour="'+j+'"]')?.value || '',
+          pauseFin: document.querySelector('.pj-pause-f[data-jour="'+j+'"]')?.value || '',
+          departType: depVal.startsWith('ag_') ? 'agence' : 'custom',
+          departVal: depVal.startsWith('ag_') ? depVal.replace('ag_','') : '',
+          arriveeType: arrVal.startsWith('ag_') ? 'agence' : (arrVal === '' ? 'depart' : 'custom'),
+          arriveeVal: arrVal.startsWith('ag_') ? arrVal.replace('ag_','') : '',
+        };
+      });
+      return pj;
+    })(),
     competences: (function(){ var c=[]; document.querySelectorAll('.comp-check:checked').forEach(function(cb){c.push(cb.value);}); return c; })(),
   };
 
