@@ -2213,6 +2213,9 @@ function getTechDepartCoords(tech, dateStr) {
           if (pj.departType === 'domicile' && st.domicileLat && st.domicileLon) {
             return { lat: st.domicileLat, lon: st.domicileLon };
           }
+          if (pj.departType === 'autre' && st.autreLat && st.autreLon) {
+            return { lat: st.autreLat, lon: st.autreLon };
+          }
         }
       }
       // 2. Default: domicile
@@ -2241,6 +2244,9 @@ function getTechArriveeCoords(tech, dateStr) {
           }
           if (pj.arriveeType === 'domicile' && st.domicileLat && st.domicileLon) {
             return { lat: st.domicileLat, lon: st.domicileLon };
+          }
+          if (pj.arriveeType === 'autre' && st.autreLat && st.autreLon) {
+            return { lat: st.autreLat, lon: st.autreLon };
           }
           // Default: same as departure
           return getTechDepartCoords(tech, dateStr);
@@ -4919,6 +4925,7 @@ function openStgForm(html) {
     if (document.getElementById('stf-arrivee-adresse')) setupAddressAutocomplete('stf-arrivee-adresse', 'stf-arrivee-lat', 'stf-arrivee-lon', 'stf-arrivee-geocode');
     if (document.getElementById('stf-agadresse')) setupAddressAutocomplete('stf-agadresse', 'stf-aglat', 'stf-aglon', 'stf-ag-geocode-status');
     if (document.getElementById('stf-domicile')) setupAddressAutocomplete('stf-domicile', 'stf-domicile-lat', 'stf-domicile-lon', 'stf-domicile-geocode');
+    if (document.getElementById('stf-autre')) setupAddressAutocomplete('stf-autre', 'stf-autre-lat', 'stf-autre-lon', 'stf-autre-geocode');
   }, 50);
 }
 function closeStgForm() {
@@ -5303,11 +5310,19 @@ function editTeamMember(id) {
     </div>
 
     <div style="margin:16px 0 8px;padding:14px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
-      <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px;">🏠 Domicile</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <div style="flex:1;position:relative;"><input id="stf-domicile" value="${t.domicile || t.departAdresse || ''}" placeholder="Adresse du domicile..." autocomplete="off" style="width:100%;height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;"></div>
-        <input type="hidden" id="stf-domicile-lat" value="${t.domicileLat || t.departLat || ''}">
-        <input type="hidden" id="stf-domicile-lon" value="${t.domicileLon || t.departLon || ''}">
+      <div style="display:flex;gap:16px;margin-bottom:12px;">
+        <div style="flex:1;">
+          <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px;">🏠 Domicile</div>
+          <div style="position:relative;"><input id="stf-domicile" value="${t.domicile || t.departAdresse || ''}" placeholder="Adresse du domicile..." autocomplete="off" style="width:100%;height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;"></div>
+          <input type="hidden" id="stf-domicile-lat" value="${t.domicileLat || t.departLat || ''}">
+          <input type="hidden" id="stf-domicile-lon" value="${t.domicileLon || t.departLon || ''}">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px;">📌 Autre (hôtel, etc.)</div>
+          <div style="position:relative;"><input id="stf-autre" value="${t.autreAdresse || ''}" placeholder="Adresse temporaire..." autocomplete="off" style="width:100%;height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;"></div>
+          <input type="hidden" id="stf-autre-lat" value="${t.autreLat || ''}">
+          <input type="hidden" id="stf-autre-lon" value="${t.autreLon || ''}">
+        </div>
       </div>
       <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px;">📅 Planning hebdomadaire</div>
       <table class="stg-table" style="font-size:0.72rem;">
@@ -5327,8 +5342,10 @@ function editTeamMember(id) {
           var arriveeVal = planning.arriveeVal || (t.arriveeAgenceId ? String(t.arriveeAgenceId) : (t.arriveeAdresse || ''));
           var isDomDepart = departType==='domicile' || (departType==='custom' && departVal);
           var isDomArrivee = arriveeType==='domicile';
-          var agOpts = '<option value="domicile" '+(isDomDepart?'selected':'')+'>🏠 Domicile</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(departType==='agence'&&departVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
-          var agOptsArr = '<option value="">— Identique départ —</option><option value="domicile" '+(isDomArrivee?'selected':'')+'>🏠 Domicile</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(arriveeType==='agence'&&arriveeVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
+          var isAutreDepart = departType==='autre';
+          var isAutreArrivee = arriveeType==='autre';
+          var agOpts = '<option value="domicile" '+(isDomDepart?'selected':'')+'>🏠 Domicile</option><option value="autre" '+(isAutreDepart?'selected':'')+'>📌 Autre</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(departType==='agence'&&departVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
+          var agOptsArr = '<option value="">— Identique départ —</option><option value="domicile" '+(isDomArrivee?'selected':'')+'>🏠 Domicile</option><option value="autre" '+(isAutreArrivee?'selected':'')+'>📌 Autre</option>' + agences.map(a => '<option value="ag_'+a.id+'" '+(arriveeType==='agence'&&arriveeVal==String(a.id)?'selected':'')+'>'+a.nom+'</option>').join('');
           return '<tr>'+
             '<td><strong>'+jLabels[j]+'</strong></td>'+
             '<td><select class="pj-depart" data-jour="'+j+'" style="height:26px;font-size:0.68rem;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-family:inherit;width:100%;">'+agOpts+'</select></td>'+
@@ -5445,6 +5462,9 @@ function saveTeamMember(id) {
     domicile: document.getElementById('stf-domicile').value.trim(),
     domicileLat: parseFloat(document.getElementById('stf-domicile-lat').value) || null,
     domicileLon: parseFloat(document.getElementById('stf-domicile-lon').value) || null,
+    autreAdresse: document.getElementById('stf-autre').value.trim(),
+    autreLat: parseFloat(document.getElementById('stf-autre-lat').value) || null,
+    autreLon: parseFloat(document.getElementById('stf-autre-lon').value) || null,
     habilitations: habs,
     planningJours: (function() {
       var pj = {};
@@ -5458,9 +5478,9 @@ function saveTeamMember(id) {
           fin: document.querySelector('.pj-fin[data-jour="'+j+'"]')?.value || '',
           pauseDebut: document.querySelector('.pj-pause-d[data-jour="'+j+'"]')?.value || '',
           pauseFin: document.querySelector('.pj-pause-f[data-jour="'+j+'"]')?.value || '',
-          departType: depVal.startsWith('ag_') ? 'agence' : (depVal === 'domicile' ? 'domicile' : 'custom'),
+          departType: depVal.startsWith('ag_') ? 'agence' : (depVal === 'domicile' ? 'domicile' : (depVal === 'autre' ? 'autre' : 'custom')),
           departVal: depVal.startsWith('ag_') ? depVal.replace('ag_','') : '',
-          arriveeType: arrVal.startsWith('ag_') ? 'agence' : (arrVal === 'domicile' ? 'domicile' : (arrVal === '' ? 'depart' : 'custom')),
+          arriveeType: arrVal.startsWith('ag_') ? 'agence' : (arrVal === 'domicile' ? 'domicile' : (arrVal === 'autre' ? 'autre' : (arrVal === '' ? 'depart' : 'custom'))),
           arriveeVal: arrVal.startsWith('ag_') ? arrVal.replace('ag_','') : '',
         };
       });
