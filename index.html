@@ -3090,7 +3090,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+dur;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;populateCommandeSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -3226,7 +3226,7 @@ function openDetail(id){
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
 function editIntervention(id){
-  const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();populateCommandeSelect();
+  const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();populateCommandeSelect();populateGeosoliaSelect();
   document.getElementById('modalTitle').textContent='Modifier l\'intervention';
   document.getElementById('intType').value=i.type;document.getElementById('intStatus').value=i.status;
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
@@ -4580,8 +4580,14 @@ function renderFlagDots(flagIds) {
 function populateGeosoliaSelect() {
   var sel = document.getElementById('intGeosolia');
   if (!sel) return;
+  // IDs déjà liés à des commandes
+  var linkedGeoIds = {};
+  Object.values(commandeGeosoliaLinks).forEach(function(gid) { linkedGeoIds[gid] = true; });
+  // Garder le projet de l'intervention en cours d'édition
+  var currentGeoId = editingId ? (interventions.find(function(i){return i.id===editingId;})||{}).geosoliaId : null;
   sel.innerHTML = '<option value="">— Aucun projet —</option>';
   geosoliaProjects.forEach(function(p) {
+    if (linkedGeoIds[p.id] && p.id !== currentGeoId) return;
     sel.innerHTML += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '') + '</option>';
   });
 }
