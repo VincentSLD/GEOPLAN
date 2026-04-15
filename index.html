@@ -3290,7 +3290,27 @@ function editIntervention(id){
   document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
   document.getElementById('modalOverlay').classList.add('active');
 }
-function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){showLoader('Suppression...');interventions=interventions.filter(function(i){return i.id!==id;});deleteInterventionFromSupabase(id).then(function(){closeDetail();renderCurrentView();updateTodayCount();populateSidebar();autoCreateMissingRapports();hideLoader();});}}
+function deleteIntervention(id){
+  if(!confirm('Supprimer cette intervention ?')) return;
+  showLoader('Suppression...');
+  var int = interventions.find(function(i){return i.id===id;});
+  // Find linked rapport if this is a terrain intervention
+  var linkedRapport = int && int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  // Remove intervention(s) from memory
+  interventions = interventions.filter(function(i){return i.id!==id && (!linkedRapport || i.id!==linkedRapport.id);});
+  (async function(){
+    await deleteInterventionFromSupabase(id);
+    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+    // Update commande planification status back to 'A planifier'
+    if (int && int.commandeId) {
+      await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
+      var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
+      if (cmd) cmd.planification = 'A planifier';
+    }
+    closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    hideLoader();
+  })();
+}
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
