@@ -2311,8 +2311,8 @@ function getInterventionCoords(int) {
 }
 
 async function computeTravelForIntervention(int, tech, prevInt, isLast) {
-  // Skip travel calculation for interventions not linked to a commande
-  if (!int.commandeId) { int.travelTo = 0; int.travelFrom = 0; int.travelToKm = 0; int.travelFromKm = 0; return; }
+  // Skip travel for interventions not linked to a commande or rapports
+  if (!int.commandeId || int.isRapport) { int.travelTo = 0; int.travelFrom = 0; int.travelToKm = 0; int.travelFromKm = 0; return; }
   var intCoords = getInterventionCoords(int);
   // If no coords, try geocoding the address
   if (!intCoords && int.location) {
@@ -2896,18 +2896,17 @@ function renderWeek() {
       di.forEach((int,idx)=>{
         const type=TYPES[int.type]||{label:int.type||'?',class:''};
         var statusObj = settingsStatuts.find(function(s){return s.id===int.status;});
-        var statusColor = statusObj ? statusObj.color : '#888';
-        // Check if this intervention overlaps lunch
+        var statusColor = int.isRapport ? '#7C3AED' : (statusObj ? statusObj.color : '#888');
         var intS = timeToMin(int.startTime), intE = timeToMin(int.endTime);
         html+=`<div class="int-group">`;
-        if(showTravel && int.commandeId) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
+        if(showTravel && int.commandeId && !int.isRapport) html+= idx===0 ? renderTravelAller(int,tech) : renderTravelBetween(di[idx-1],int);
         const compAlert = checkCompetenceAlert(int);
         var intDur = int.duration || (intE - intS) || 0;
         var durLabel = intDur >= 60 ? Math.floor(intDur/60) + 'h' + (intDur%60 ? String(intDur%60).padStart(2,'0') : '') : intDur + 'min';
         var typeColor = int.type ? (TYPE_RAW[int.type] || '') : '';
         var intBorder = typeColor ? 'border:2px solid '+typeColor+';border-left:4px solid '+typeColor+';' : 'border:1px solid '+statusColor+'60;border-left:4px solid '+statusColor+';';
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" onclick="openDetail(${int.id})"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.commandeId ? (int.client || int.title) : (type.label || int.title)}</div><div class="int-location" style="color:var(--text-secondary);">📍 ${(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)}</div>${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
-        if(showTravel && int.commandeId && idx===di.length-1) html+=renderTravelRetour(int,tech);
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" onclick="openDetail(${int.id})"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} <span data-weather-int="${int.id}" data-weather-size="sm">${weatherBadgeHTML(getWeatherForInt(int))}</span></div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
+        if(showTravel && int.commandeId && !int.isRapport && idx===di.length-1) html+=renderTravelRetour(int,tech);
         html+=`</div>`
       });
       html+=`<div style="display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.15;font-size:18px;font-weight:800;color:var(--gph-dark);padding:4px 0;" onclick="openModalForSlot(${tech.id},'${day.dateStr}')" title="Ajouter une intervention">+</div>`;
