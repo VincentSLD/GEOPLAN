@@ -4702,19 +4702,20 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-function createVehicleIcon(color, initials) {
+function createVehicleIcon(color, label) {
+  var isLong = label.length > 3;
   return L.divIcon({
     className: 'fleet-marker-icon',
     html: `<div style="
-      background:${color}; width:32px; height:32px; border-radius:50%;
+      background:${color}; ${isLong ? 'padding:4px 8px;border-radius:12px;' : 'width:32px;height:32px;border-radius:50%;'}
       display:flex; align-items:center; justify-content:center;
-      font-size:10px; font-weight:700; color:#fff;
+      font-size:${isLong ? '9px' : '10px'}; font-weight:700; color:#fff;
       border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      font-family:'Space Grotesk',sans-serif;
-    ">${initials}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -18]
+      font-family:'Space Grotesk',sans-serif; white-space:nowrap;
+    ">${label}</div>`,
+    iconSize: isLong ? [80, 28] : [32, 32],
+    iconAnchor: isLong ? [40, 14] : [16, 16],
+    popupAnchor: [0, -16]
   });
 }
 
@@ -4734,10 +4735,11 @@ function renderFleetMarkers() {
     const isMoving = v.speed > 0;
     const isIgnOn = v.ignition === 1;
     const color = isMoving ? '#16A34A' : (isIgnOn ? '#D97706' : '#DC2626');
-    const initials = (v.objectname || '??').substring(0, 2).toUpperCase();
+    var assign = vehicleAssignments[v.objectno] || '';
+    var displayLabel = assign || (v.objectname || '??').substring(0, 2).toUpperCase();
 
     const marker = L.marker([v.lat, v.lng], {
-      icon: createVehicleIcon(color, initials)
+      icon: createVehicleIcon(color, displayLabel)
     }).addTo(fleetMap);
 
     const statusTxt = v.speed > 0 ? `🟢 En route · ${v.speed} km/h` : (isIgnOn ? '🟡 Contact allumé' : (v.standstill ? '🔴 A l\'arrêt' : '⚫ Hors ligne'));
