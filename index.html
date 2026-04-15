@@ -4226,8 +4226,11 @@ function renderCommandesList() {
       planned.forEach(function(p) {
         var pDate = p.date ? new Date(p.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
         var pTech = TECHNICIANS.find(function(t){return t.id===p.techId;});
+        var pBg = p.isRapport ? '#f3e8ff' : '#dcfce7';
+        var pColor = p.isRapport ? '#7C3AED' : '#16a34a';
+        var pIcon = p.isRapport ? '📝' : '✓';
         html += '<div onclick="goToIntervention('+p.id+')" style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:2px 0;" title="Voir l\'intervention">';
-        html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1px solid #16a34a30;">✓ ' + pDate + '</span>';
+        html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;background:'+pBg+';color:'+pColor+';border:1px solid '+pColor+'30;">'+pIcon+' ' + pDate + '</span>';
         if (pTech) html += '<span style="font-size:0.55rem;color:var(--text-muted);">' + pTech.name.split(' ')[0] + '</span>';
         html += '</div>';
       });
