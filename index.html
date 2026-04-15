@@ -3316,7 +3316,7 @@ async function syncCustomData() {
   var synced = 0, errors = 0;
   for (var i = 0; i < missing.length; i++) {
     var cmd = missing[i];
-    var akId = cmd.akuiteo_id || cmd.id.replace('akc_', '');
+    var akId = cmd.ref || cmd.akuiteo_id || cmd.id.replace('akc_', '').replace(/_/g, '-');
     try {
       btn.textContent = '📋 ' + (i+1) + '/' + missing.length;
       var r = await fetch(AKUITEO_PROXY + (AKUITEO_PROXY.includes('?path=') ? '/sales/orders/' + akId + '/read' : '/sales/orders/' + akId + '/read'), {
