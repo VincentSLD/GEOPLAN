@@ -2653,7 +2653,7 @@ function getFilteredTechs() {
   if (selectedTechId) techs = techs.filter(t => t.id === selectedTechId);
   return techs;
 }
-function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name} (${t.base})</option>`).join(''); }
+function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }
 function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML='<option value="">— Au choix —</option>'+settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
 
 function onTypeChange() {
