@@ -1628,6 +1628,9 @@ body::before {
       <button class="btn btn-ghost" onclick="autoLinkGeosolia()" title="Lier automatiquement les commandes aux projets Géosolia par numéro d'affaire">
         🌍 Auto-lier Géosolia
       </button>
+      <button class="btn btn-ghost" onclick="syncCustomData()" id="syncCustomDataBtn" title="Récupérer les données personnalisées manquantes depuis Akuiteo">
+        📋 Sync données perso.
+      </button>
       <button class="btn btn-ghost" onclick="refreshCommandes()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Rafraîchir
@@ -3301,6 +3304,44 @@ function linkCommandeGeosolia(cmdId, geoId) {
   if (geoId) { commandeGeosoliaLinks[cmdId] = geoId; }
   else { delete commandeGeosoliaLinks[cmdId]; }
   saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+}
+
+async function syncCustomData() {
+  var btn = document.getElementById('syncCustomDataBtn');
+  var missing = commandesData.filter(function(c) { return !c.custom_data || Object.keys(c.custom_data).length <= 1; });
+  if (missing.length === 0) { alert('Toutes les commandes ont déjà des données personnalisées.'); return; }
+  if (!confirm(missing.length + ' commande(s) sans données personnalisées.\nRécupérer depuis Akuiteo ?\n\nCela peut prendre quelques minutes.')) return;
+  btn.textContent = '📋 Sync en cours...';
+  btn.disabled = true;
+  var synced = 0, errors = 0;
+  for (var i = 0; i < missing.length; i++) {
+    var cmd = missing[i];
+    var akId = cmd.akuiteo_id || cmd.id.replace('akc_', '');
+    try {
+      btn.textContent = '📋 ' + (i+1) + '/' + missing.length;
+      var r = await fetch(AKUITEO_PROXY + (AKUITEO_PROXY.includes('?path=') ? '/sales/orders/' + akId + '/read' : '/sales/orders/' + akId + '/read'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ options: ['CUSTOM_DATA'] }),
+      });
+      if (r.ok) {
+        var detail = await r.json();
+        var cd = detail.customData || detail.detail?.customData || null;
+        if (cd && Object.keys(cd).length > 0) {
+          // Save to Supabase
+          await sbAuth.from('commandes').update({ custom_data: cd }).eq('id', cmd.id);
+          cmd.custom_data = cd;
+          synced++;
+        }
+      }
+      // Small delay to avoid rate limiting
+      if (i < missing.length - 1) await new Promise(function(resolve) { setTimeout(resolve, 300); });
+    } catch(e) { errors++; console.warn('[Sync custom_data] Erreur pour', cmd.ref, e.message); }
+  }
+  btn.textContent = '📋 Sync données perso.';
+  btn.disabled = false;
+  alert('Sync terminé :\n' + synced + ' commande(s) mises à jour\n' + errors + ' erreur(s)');
+  if (synced > 0) renderCommandesList();
 }
 
 function autoLinkGeosolia() {
