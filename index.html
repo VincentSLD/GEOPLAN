@@ -3688,7 +3688,7 @@ function toggleAPlanSoc(soc) {
 
 function getUnplannedCommandes() {
   var plannedCmdIds = {};
-  interventions.forEach(function(i) { if (i.commandeId) plannedCmdIds[i.commandeId] = true; });
+  interventions.forEach(function(i) { if (i.commandeId && !i.isRapport) plannedCmdIds[i.commandeId] = true; });
   return commandesData.filter(function(c) {
     if (plannedCmdIds[c.id]) return false;
     if (aPlanifierSocFilter.length > 0 && aPlanifierSocFilter.indexOf(c.societe) < 0) return false;
