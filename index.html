@@ -874,6 +874,7 @@ body::before {
 }
 .list-item-travel { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--text-muted); }
 .list-item-status { padding: 3px 10px; border-radius: 20px; font-size: 0.6rem; font-weight: 700; }
+.status-pre-planned-badge { background: rgba(124,58,237,0.08); color: #7C3AED; }
 .status-planned-badge { background: rgba(37,99,235,0.08); color: #2563EB; }
 .status-inprogress-badge { background: var(--gph-yellow-light); color: #B45309; border: 1px solid rgba(245,197,24,0.3); }
 .status-done-badge { background: rgba(22,163,74,0.08); color: #16A34A; }
@@ -3106,7 +3107,7 @@ function renderList() {
     html+=`<div class="list-date-group"><div class="list-date-header">${it?'<span style="color:var(--gph-yellow)">●</span> ':''}${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}<span class="list-date-count">${di.length} int.</span></div>`;
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
-      const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), sl={planned:'Planifié',inprogress:'En cours',done:'Terminé'};
+      const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), sl={'pre-planned':'Pré-planifié',planned:'Planifié',inprogress:'En cours',done:'Terminé'};
       html+=`<div class="list-item" onclick="openDetail(${int.id})"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span class="list-item-status status-${int.status}-badge">${sl[int.status]}</span></div>`;
     });
     html+=`</div>`;
@@ -3241,7 +3242,7 @@ function openDetail(id){
   const int=interventions.find(i=>i.id===id);if(!int)return;
   const tech=TECHNICIANS.find(t=>t.id===int.techId);if(!tech)return;
   const type=TYPES[int.type]||{label:int.type||'Intervention',class:''};
-  const sl={planned:'Planifié',inprogress:'En cours',done:'Terminé'};
+  const sl={'pre-planned':'Pré-planifié',planned:'Planifié',inprogress:'En cours',done:'Terminé'};
   var statusObj = settingsStatuts.find(function(s){return s.id===int.status;});
   var statusColor = statusObj ? statusObj.color : '#888';
   var statusLabel = statusObj ? statusObj.label : (sl[int.status] || int.status);
@@ -3792,7 +3793,7 @@ function dropAPlanifier(e, techId, dateStr) {
 
   var data = {
     title: cmd._affaire ? cmd._affaire.nom : cmd.nom || cmd.ref,
-    type: '', status: 'planned', date: dateStr,
+    type: '', status: 'pre-planned', date: dateStr,
     startTime: '', endTime: '', duration: duration,
     techId: techId, location: location,
     client: cmd.client_name || '',
@@ -6099,6 +6100,7 @@ function syncTypesToApp() {
 
 // ======== TAB 4: STATUTS ========
 var settingsStatuts = loadSettings('geoplan_statuts', [
+  { id: 'pre-planned', label: 'Pré-planifié', color: '#7C3AED' },
   { id: 'planned', label: 'Planifié', color: '#2563EB' },
   { id: 'inprogress', label: 'En cours', color: '#D97706' },
   { id: 'done', label: 'Terminé', color: '#16A34A' },
