@@ -1737,6 +1737,7 @@ body::before {
       <div class="form-group"><label class="form-label">Drapeaux</label><div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;"></div></div>
       <div id="intGeosoliaInfo" style="display:none;margin:4px 0 8px;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.72rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
+      <div class="form-group"><label class="form-label">Infos ADV</label><div id="intInfosAdv" contenteditable="true" style="min-height:60px;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;font-size:0.8rem;font-family:inherit;outline:none;background:#fff;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/html')||event.clipboardData.getData('text'))"></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -1883,6 +1884,7 @@ function intToRow(int) {
     geosolia_name: int.geosoliaName || null,
     geosolia_lat: int.geosoliaLat || null, geosolia_lng: int.geosoliaLng || null,
     flags: int.flags || [],
+    infos_adv: int.infosAdv || '',
     updated_at: new Date().toISOString(),
     updated_by: currentAuthUser ? currentAuthUser.email : null,
   };
@@ -1904,6 +1906,7 @@ function rowToInt(row) {
     geosoliaName: row.geosolia_name,
     geosoliaLat: row.geosolia_lat, geosoliaLng: row.geosolia_lng,
     flags: row.flags || [],
+    infosAdv: row.infos_adv || '',
   };
 }
 
@@ -3058,7 +3061,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+dur;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -3092,6 +3095,7 @@ function saveIntervention(){
     geosoliaLat: (function(){ var gid=document.getElementById('intGeosolia').value; if(gid&&geosoliaDataMap[gid]){var d=geosoliaDataMap[gid]; if(d.projectLat)return d.projectLat;} return null; })(),
     geosoliaLng: (function(){ var gid=document.getElementById('intGeosolia').value; if(gid&&geosoliaDataMap[gid]){var d=geosoliaDataMap[gid]; if(d.projectLng)return d.projectLng;} return null; })(),
     flags: getSelectedFlags(),
+    infosAdv: document.getElementById('intInfosAdv').innerHTML || '',
   };
   // Vérifier champs obligatoires
   if (!data.date) { alert('La date est obligatoire'); return; }
@@ -3200,6 +3204,7 @@ function editIntervention(id){
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
+  document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(function(i){return i.id!==id;});deleteInterventionFromSupabase(id);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
