@@ -1604,8 +1604,11 @@ body::before {
           </div>
           <button onclick="toggleAPlanifierPanel()" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--text-muted);padding:2px;">✕</button>
         </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;" id="aPlanifierSocFilters2"></div>
-        <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="width:100%;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;margin-top:6px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;" id="aPlanifierSocFilters2"></div>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="flex:1;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;">
+          <button onclick="planifierRapports()" style="height:26px;padding:0 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-card);font-size:0.62rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;" title="Créer les interventions rapport manquantes">📝 Rapports</button>
+        </div>
       </div>
       <div style="flex:1;overflow-y:auto;" id="aPlanifierList2"></div>
     </div>
@@ -1885,6 +1888,7 @@ function intToRow(int) {
     geosolia_lat: int.geosoliaLat || null, geosolia_lng: int.geosoliaLng || null,
     flags: int.flags || [],
     infos_adv: int.infosAdv || '',
+    is_rapport: int.isRapport || false,
     updated_at: new Date().toISOString(),
     updated_by: currentAuthUser ? currentAuthUser.email : null,
   };
@@ -1907,6 +1911,7 @@ function rowToInt(row) {
     geosoliaLat: row.geosolia_lat, geosoliaLng: row.geosolia_lng,
     flags: row.flags || [],
     infosAdv: row.infos_adv || '',
+    isRapport: row.is_rapport || false,
   };
 }
 
@@ -3144,6 +3149,8 @@ function saveIntervention(){
         }
       }
     } catch(e) { console.warn('[Interventions] Erreur save:', e); }
+    // Auto-create rapport if new intervention with Geosolia
+    if (!editingId && data.geosoliaId && data.commandeId) await createRapportIntervention(data);
     syncCommandeGeosoliaFromInterventions();
     renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
   })();
@@ -3628,14 +3635,42 @@ function renderAPlanifier() {
     });
   }
   var countEl = document.getElementById('aPlanifierCount2');
-  if (countEl) countEl.textContent = unplanned.length;
+  // Get unplanned rapports (no date)
+  var unplannedRapports = interventions.filter(function(i) { return i.isRapport && !i.date; });
+  if (search) {
+    unplannedRapports = unplannedRapports.filter(function(i) {
+      return (i.title + ' ' + (i.client || '') + ' ' + (i.commandeRef || '')).toLowerCase().indexOf(search) >= 0;
+    });
+  }
 
-  if (unplanned.length === 0) {
-    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Toutes les commandes sont planifiées</div>';
+  var totalCount = unplanned.length + unplannedRapports.length;
+  if (countEl) countEl.textContent = totalCount;
+
+  if (totalCount === 0) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Tout est planifié</div>';
     return;
   }
 
   var html = '';
+
+  // Rapports non planifiés
+  if (unplannedRapports.length > 0) {
+    html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);">📝 Rapports à planifier (' + unplannedRapports.length + ')</div>';
+    unplannedRapports.forEach(function(rap) {
+      var durLabel = rap.duration >= 60 ? Math.floor(rap.duration/60)+'h'+(rap.duration%60?String(rap.duration%60).padStart(2,'0'):'') : rap.duration+'min';
+      var tech = TECHNICIANS.find(function(t){return t.id===rap.techId;});
+      html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+rap.id+')" style="border-left:3px solid #7C3AED;">';
+      html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">📝 ' + (rap.commandeRef || '') + '</span><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span></div>';
+      html += '<div class="aplan-card-name">' + (rap.title || 'Rapport') + '</div>';
+      html += '<div class="aplan-card-info">' + (tech ? '👤 ' + tech.name : '') + '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Commandes non planifiées
+  if (unplanned.length > 0) {
+    html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);">⛏ Terrain à planifier (' + unplanned.length + ')</div>';
+  }
   unplanned.forEach(function(cmd) {
     var affRef = cmd._affaire ? cmd._affaire.ref : '';
     var affNom = cmd._affaire ? cmd._affaire.nom : cmd.nom || '';
@@ -3718,6 +3753,8 @@ function dropAPlanifier(e, techId, dateStr) {
     if (result.data && result.data[0]) {
       data.id = result.data[0].id;
       interventions.push(data);
+      // Auto-create rapport if Geosolia has report time
+      await createRapportIntervention(data);
       renderAPlanifier();
       renderCurrentView();
       computeAllTravel();
@@ -3727,6 +3764,86 @@ function dropAPlanifier(e, techId, dateStr) {
   draggedCmdId = null;
 }
 
+
+// ═══ AUTO-CRÉATION RAPPORT ═══
+async function createRapportIntervention(terrainInt) {
+  // Check if Geosolia has report time
+  var geoProg = terrainInt.geosoliaId ? getGeosoliaProgram(terrainInt.geosoliaId) : null;
+  if (!geoProg || !geoProg.estimatedReportMin) return null;
+
+  // Check if rapport already exists for this commande
+  var existing = interventions.find(function(i) {
+    return i.commandeId === terrainInt.commandeId && i.isRapport;
+  });
+  if (existing) return null;
+
+  var data = {
+    title: 'Rapport — ' + (terrainInt.client || terrainInt.title || ''),
+    type: 'rapport',
+    status: 'planned',
+    date: '', // non planifié
+    startTime: '', endTime: '',
+    duration: geoProg.estimatedReportMin,
+    techId: terrainInt.techId,
+    location: '', // bureau
+    client: terrainInt.client || '',
+    travelTo: 0, travelFrom: 0,
+    commandeId: terrainInt.commandeId,
+    commandeRef: terrainInt.commandeRef,
+    affaireId: terrainInt.affaireId,
+    affaireRef: terrainInt.affaireRef,
+    geosoliaId: terrainInt.geosoliaId,
+    geosoliaRef: terrainInt.geosoliaRef,
+    geosoliaName: terrainInt.geosoliaName,
+    flags: ['rapport'],
+    notes: '',
+    isRapport: true,
+  };
+
+  try {
+    var row = intToRow(data);
+    row.created_by = currentAuthUser ? currentAuthUser.email : null;
+    delete row.id;
+    var result = await sbAuth.from('geoplan_interventions').insert(row).select();
+    if (result.data && result.data[0]) {
+      data.id = result.data[0].id;
+      interventions.push(data);
+      return data;
+    }
+  } catch(e) { console.warn('[Rapport] Erreur création:', e); }
+  return null;
+}
+
+function planifierRapports() {
+  // Find terrain interventions with Geosolia that don't have a rapport yet
+  var rapportIds = {};
+  interventions.forEach(function(i) { if (i.isRapport && i.commandeId) rapportIds[i.commandeId] = true; });
+
+  var terrainsSansRapport = interventions.filter(function(i) {
+    if (!i.commandeId || !i.geosoliaId || i.isRapport) return false;
+    if (rapportIds[i.commandeId]) return false;
+    var prog = getGeosoliaProgram(i.geosoliaId);
+    return prog && prog.estimatedReportMin > 0;
+  });
+
+  if (terrainsSansRapport.length === 0) {
+    alert('Aucun rapport à créer. Toutes les interventions terrain ont déjà un rapport associé ou n\'ont pas de temps rapport dans Géosolia.');
+    return;
+  }
+
+  if (!confirm(terrainsSansRapport.length + ' rapport(s) à créer.\n\nIls seront ajoutés sans date (à planifier).\nVous pourrez ensuite les glisser sur le planning.')) return;
+
+  (async function() {
+    var created = 0;
+    for (var i = 0; i < terrainsSansRapport.length; i++) {
+      var result = await createRapportIntervention(terrainsSansRapport[i]);
+      if (result) created++;
+    }
+    alert(created + ' rapport(s) créé(s) dans la liste "A planifier".');
+    renderCurrentView();
+    renderAPlanifier();
+  })();
+}
 
 async function initCommandes() {
   if (!commandesLoaded) await loadCommandesFromSupabase();

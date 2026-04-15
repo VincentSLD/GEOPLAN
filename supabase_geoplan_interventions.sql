@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS geoplan_interventions (
   geosolia_lng FLOAT,
   flags JSONB DEFAULT '[]',
   infos_adv TEXT DEFAULT '',
+  is_rapport BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_by TEXT,
