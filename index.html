@@ -2789,6 +2789,7 @@ function showView(v) {
 function renderCurrentView() {
   const renderers = {week:renderWeek, day:renderDay, month:renderMonth, list:renderList};
   if (renderers[currentView]) { renderers[currentView](); loadVisibleWeather(); }
+  if (aPlanifierOpen) renderAPlanifier();
 }
 
 function loadVisibleWeather() {
