@@ -3636,7 +3636,10 @@ function renderAPlanifier() {
   }
   var countEl = document.getElementById('aPlanifierCount2');
   // Get unplanned rapports (no date)
-  var unplannedRapports = interventions.filter(function(i) { return i.isRapport && !i.date; });
+  // Rapports sans date dont le terrain est déjà planifié
+  var plannedTerrainCmdIds = {};
+  interventions.forEach(function(i) { if (!i.isRapport && i.commandeId && i.date) plannedTerrainCmdIds[i.commandeId] = true; });
+  var unplannedRapports = interventions.filter(function(i) { return i.isRapport && !i.date && plannedTerrainCmdIds[i.commandeId]; });
   if (search) {
     unplannedRapports = unplannedRapports.filter(function(i) {
       return (i.title + ' ' + (i.client || '') + ' ' + (i.commandeRef || '')).toLowerCase().indexOf(search) >= 0;
