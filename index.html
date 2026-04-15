@@ -4739,7 +4739,7 @@ function renderFleetMarkers() {
     const isIgnOn = v.ignition === 1;
     const color = isMoving ? '#16A34A' : (isIgnOn ? '#D97706' : '#DC2626');
     var assign = vehicleAssignments[v.objectno] || '';
-    var displayLabel = assign || (v.objectname || '??').substring(0, 2).toUpperCase();
+    var displayLabel = assign ? assign.split(' ')[0] + ' ' + (assign.split(' ')[1] || '').charAt(0).toUpperCase() + '.' : (v.objectname || '??').substring(0, 2).toUpperCase();
 
     const marker = L.marker([v.lat, v.lng], {
       icon: createVehicleIcon(color, displayLabel)
