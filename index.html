@@ -5279,7 +5279,7 @@ function checkCompetenceAlert(int) {
 
 function editTeamMember(id) {
   const t = id ? settingsTeam.find(x => x.id === id) : { id: 0, prenom: '', nom: '', initials: '', role: 'Sondeur', base: '', color: '#2563EB', lat: '', lon: '', departAdresse: '', departLat: '', departLon: '', departAgenceId: null, arriveeAdresse: '', arriveeLat: '', arriveeLon: '', arriveeAgenceId: null, vehicule: '', telephone: '', email: '', habilitations: [], heureDebut: '07:00', heureFin: '18:00', statut: 'actif', groupeId: null };
-  const habsList = ['AIPR', 'H0B0', 'SST', 'CACES', 'Amiante SS4', 'CATEC', 'Travail en hauteur'];
+  const habsList = ['AIPR', 'SST', 'CACES', 'Permis C1', 'Amiante SS4', 'Travail en hauteur'];
   const habsChecks = habsList.map(h => {
     const existing = (t.habilitations || []).find(x => x.nom === h);
     return `<label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;"><input type="checkbox" class="hab-check" data-hab="${h}" ${existing ? 'checked' : ''}> ${h} <input type="date" class="hab-exp" data-hab="${h}" value="${existing ? existing.expiration || '' : ''}" style="height:28px;font-size:0.7rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;"></label>`;
