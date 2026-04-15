@@ -1539,7 +1539,7 @@ body::before {
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Paramétrages</div>
-      <div class="nav-item" onclick="showView('settings')">
+      <div class="nav-item" onclick="openSettingsWithPassword()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Paramétrage
       </div>
@@ -4980,6 +4980,18 @@ let settingsGeneral = loadSettings(SETTINGS_KEYS.general, DEFAULT_GENERAL);
 let settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
 
 // --- Open / Close ---
+var settingsUnlocked = false;
+
+function openSettingsWithPassword() {
+  if (settingsUnlocked) { showView('settings'); return; }
+  var adminPwd = settingsGeneral.adminPassword || '';
+  if (!adminPwd) { settingsUnlocked = true; showView('settings'); return; }
+  var input = prompt('Mot de passe paramétrage :');
+  if (input === null) return;
+  if (input === adminPwd) { settingsUnlocked = true; showView('settings'); }
+  else { alert('Mot de passe incorrect'); }
+}
+
 function openSettings() {
   switchView('settings');
   renderSettingsTeam();
@@ -6114,6 +6126,12 @@ function renderSettingsGeneral() {
       <button class="stg-add-btn" onclick="editAgence(null)" style="margin-top:8px;">+ Ajouter une agence</button>
     </div>
     <div class="stg-general-section">
+      <h4>Administration</h4>
+      <div class="stg-general-grid">
+        <div class="stg-general-field"><label>Mot de passe paramétrage</label><input type="password" id="stg-admin-pwd" value="${g.adminPassword || ''}" placeholder="Laisser vide = pas de mot de passe"></div>
+      </div>
+    </div>
+    <div class="stg-general-section">
       <h4>Filtres commandes</h4>
       <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px;">Cochez les valeurs à inclure dans la vue Commandes. Si rien n'est coché, tout est affiché.</p>
       <div id="stg-ak-filters-container"><div style="color:var(--text-muted);font-size:0.78rem;">Chargement des filtres...</div></div>
@@ -6474,6 +6492,7 @@ function saveGeneralSettings() {
     gpsApp: document.getElementById('stg-gps-app').value,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
+    adminPassword: document.getElementById('stg-admin-pwd').value.trim(),
     akuiteoSocietes: checkedSoc.length === allSoc.length ? [] : checkedSoc,
     akuiteoStatuts: checkedSt.length === allSt.length ? [] : checkedSt,
     akuiteoExclure: excludeSt,
