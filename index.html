@@ -1607,7 +1607,6 @@ body::before {
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;" id="aPlanifierSocFilters2"></div>
         <div style="display:flex;gap:4px;">
           <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="flex:1;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;">
-          <button onclick="planifierRapports()" style="height:26px;padding:0 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-card);font-size:0.62rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;" title="Créer les interventions rapport manquantes">📝 Rapports</button>
         </div>
       </div>
       <div style="flex:1;overflow-y:auto;" id="aPlanifierList2"></div>
@@ -2606,7 +2605,7 @@ async function init() {
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   loadLuccaCollabs().then(function() { renderCurrentView(); });
   loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
-  loadGeosoliaProjects().then(function() { fixRapportDurations(); });
+  loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); });
 }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
@@ -3240,7 +3239,7 @@ function editIntervention(id){
   document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
   document.getElementById('modalOverlay').classList.add('active');
 }
-function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(function(i){return i.id!==id;});deleteInterventionFromSupabase(id);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();}}
+function deleteIntervention(id){if(confirm('Supprimer cette intervention ?')){interventions=interventions.filter(function(i){return i.id!==id;});deleteInterventionFromSupabase(id);closeDetail();renderCurrentView();updateTodayCount();populateSidebar();autoCreateMissingRapports();}}
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
@@ -3828,8 +3827,7 @@ async function createRapportIntervention(terrainInt) {
   return null;
 }
 
-function planifierRapports() {
-  // Find terrain interventions with Geosolia that don't have a rapport yet
+async function autoCreateMissingRapports() {
   var rapportIds = {};
   interventions.forEach(function(i) { if (i.isRapport && i.commandeId) rapportIds[i.commandeId] = true; });
 
@@ -3840,23 +3838,17 @@ function planifierRapports() {
     return prog && prog.estimatedReportMin > 0;
   });
 
-  if (terrainsSansRapport.length === 0) {
-    alert('Aucun rapport à créer. Toutes les interventions terrain ont déjà un rapport associé ou n\'ont pas de temps rapport dans Géosolia.');
-    return;
+  if (terrainsSansRapport.length === 0) return;
+
+  var created = 0;
+  for (var i = 0; i < terrainsSansRapport.length; i++) {
+    var result = await createRapportIntervention(terrainsSansRapport[i]);
+    if (result) created++;
   }
-
-  if (!confirm(terrainsSansRapport.length + ' rapport(s) à créer.\n\nIls seront ajoutés sans date (à planifier).\nVous pourrez ensuite les glisser sur le planning.')) return;
-
-  (async function() {
-    var created = 0;
-    for (var i = 0; i < terrainsSansRapport.length; i++) {
-      var result = await createRapportIntervention(terrainsSansRapport[i]);
-      if (result) created++;
-    }
-    alert(created + ' rapport(s) créé(s) dans la liste "A planifier".');
+  if (created > 0) {
+    console.log('[Rapports] ' + created + ' rapport(s) auto-créé(s)');
     renderCurrentView();
-    renderAPlanifier();
-  })();
+  }
 }
 
 // Fix rapport durations from Geosolia
