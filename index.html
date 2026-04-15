@@ -4556,9 +4556,11 @@ function onGeosoliaSelect() {
     addrField.value = prog.address;
   }
 
-  // Auto-fill duration from Geosolia
-  if (prog.timeEstimateMin) {
-    document.getElementById('intDuration').value = prog.timeEstimateMin;
+  // Auto-fill duration from Geosolia (report time for rapports, terrain time otherwise)
+  var editingInt = editingId ? interventions.find(function(i){return i.id===editingId;}) : null;
+  var geosoliaTime = (editingInt && editingInt.isRapport && prog.estimatedReportMin) ? prog.estimatedReportMin : prog.timeEstimateMin;
+  if (geosoliaTime) {
+    document.getElementById('intDuration').value = geosoliaTime;
     updateEndFromDuration();
   }
 
