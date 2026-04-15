@@ -2881,7 +2881,7 @@ function renderWeek() {
     if (wkRapportMin > 0) statsP.push('<span class="tech-stat">📝'+fmtD(wkRapportMin)+'</span>');
     if (wkTravelMin > 0) statsP.push('<span class="tech-stat">🚗'+fmtD(wkTravelMin)+'</span>');
     var wkTotalMin = wkTerrainMin + wkRapportMin + wkTravelMin;
-    html+=`<div class="tech-cell"><div style="width:10px;min-width:10px;height:10px;border-radius:50%;background:${tech.color};margin-top:3px;"></div><div class="tech-info"><div class="tech-name" style="white-space:normal;word-break:break-word;font-size:0.78rem;">${tech.name}</div><div class="tech-stats"><span class="tech-stat">${wi.length} int.</span>${statsP.join('')}</div>${wkTotalMin>0?'<div style="font-size:0.58rem;font-weight:700;color:var(--text-primary);margin-top:1px;">Total '+fmtD(wkTotalMin)+'</div>':''}</div></div>`;
+    html+=`<div class="tech-cell"><div style="width:10px;min-width:10px;height:10px;border-radius:50%;background:${tech.color};margin-top:3px;"></div><div class="tech-info"><div class="tech-name" style="white-space:normal;word-break:break-word;font-size:0.78rem;">${tech.name}</div><div class="tech-stats"><span class="tech-stat">${wi.filter(function(i){return !i.isRapport;}).length} int.</span>${statsP.join('')}</div>${wkTotalMin>0?'<div style="font-size:0.58rem;font-weight:700;color:var(--text-primary);margin-top:1px;">Total '+fmtD(wkTotalMin)+'</div>':''}</div></div>`;
     days.forEach(day=>{
       const di=interventions.filter(i=>i.techId===tech.id&&i.date===day.dateStr).sort((a,b)=>a.startTime.localeCompare(b.startTime));
       var dayFerie = isJourFerie(day.dateStr);
