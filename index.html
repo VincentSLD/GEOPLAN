@@ -2701,14 +2701,8 @@ async function openDossierAffaire(affaireRef) {
       alert('Aucun dossier contenant "' + affaireRef + '" trouvé.');
       return;
     }
-    // Construire le chemin complet à partir du chemin de base configuré
-    var basePath = settingsGeneral.dossierPath1 && settingsGeneral.dossierPath2
-      ? commonParentPath(settingsGeneral.dossierPath1, settingsGeneral.dossierPath2)
-      : (settingsGeneral.dossierPath1 || settingsGeneral.dossierPath2 || '');
-    var fullPath = basePath + '\\' + found.relPath.replace(/\//g, '\\');
-    // Tenter d'ouvrir le dossier directement dans une nouvelle fenêtre du navigateur
-    var fileUrl = buildDossierUrl(basePath, found.relPath);
-    window.open(fileUrl, '_blank');
+    // Ouvrir à nouveau le sélecteur, positionné directement sur le dossier trouvé
+    await window.showDirectoryPicker({ mode: 'read', startIn: found.handle });
   } catch(e) {
     hideLoader();
     if (e.name !== 'AbortError') { console.warn('[Dossier]', e); alert('Erreur : ' + e.message); }
