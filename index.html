@@ -2628,23 +2628,46 @@ function renderTravelBetween(prev, next) {
 
 // ===== OUVRIR DOSSIER AFFAIRE =====
 function buildDossierUrl(basePath, affaireRef) {
-  if (!basePath || !affaireRef) return '';
-  // Normaliser : convertir backslashes en slashes, encoder les espaces
-  var full = basePath.replace(/\\/g, '/') + '/' + affaireRef;
+  if (!basePath) return '';
+  // Normaliser : convertir backslashes en slashes
+  var full = basePath.replace(/\\/g, '/') + (affaireRef ? '/' + affaireRef : '');
   // Construire URL file:// pour chemin UNC (\\serveur\...)
   if (full.startsWith('//')) return 'file:' + full.split('/').map(encodeURIComponent).join('/').replace(/%2F/g, '/');
   return 'file:///' + full.split('/').map(encodeURIComponent).join('/').replace(/%2F/g, '/');
+}
+function buildSearchUrl(basePath, affaireRef) {
+  if (!basePath || !affaireRef) return '';
+  // search-ms: ouvre l'explorateur Windows en mode recherche
+  return 'search-ms:query=' + encodeURIComponent(affaireRef) + '&crumb=location:' + encodeURIComponent(basePath);
 }
 function openDossierAffaire(affaireRef) {
   if (!affaireRef) { alert('Aucune référence d\'affaire disponible'); return; }
   var p1 = settingsGeneral.dossierPath1, p2 = settingsGeneral.dossierPath2;
   if (!p1 && !p2) { alert('Chemins non configurés. Rendez-vous dans Paramètres → Général.'); return; }
-  var html = '<div style="font-size:0.8rem;margin-bottom:10px;">Ouvrir le dossier <strong>' + affaireRef + '</strong> :</div>';
-  if (p1) html += '<div style="margin-bottom:6px;"><a href="' + buildDossierUrl(p1, affaireRef) + '" style="color:var(--gph-dark);text-decoration:none;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;display:inline-block;font-size:0.75rem;font-family:\'DM Mono\',monospace;">📁 1_Affaire en cours</a></div>';
-  if (p2) html += '<div><a href="' + buildDossierUrl(p2, affaireRef) + '" style="color:var(--gph-dark);text-decoration:none;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;display:inline-block;font-size:0.75rem;font-family:\'DM Mono\',monospace;">📁 2_Traitement de la demande</a></div>';
+  var lnkStyle = 'color:var(--gph-dark);text-decoration:none;padding:7px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;display:inline-block;font-size:0.72rem;font-family:\'DM Mono\',monospace;width:100%;box-sizing:border-box;';
+  var html = '<div style="font-size:0.8rem;margin-bottom:12px;">Ouvrir le dossier <strong>' + affaireRef + '</strong> :</div>';
+  if (p1) {
+    html += '<div style="margin-bottom:10px;">';
+    html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;font-weight:600;text-transform:uppercase;">1_Affaire en cours</div>';
+    html += '<div style="display:flex;gap:4px;">';
+    html += '<a href="' + buildDossierUrl(p1, affaireRef) + '" style="' + lnkStyle + '">📁 Dossier direct</a>';
+    html += '<a href="' + buildSearchUrl(p1, affaireRef) + '" title="Ouvrir recherche Windows" style="' + lnkStyle + 'flex:0 0 auto;width:auto;">🔍</a>';
+    html += '<a href="' + buildDossierUrl(p1, null) + '" title="Ouvrir le dossier parent" style="' + lnkStyle + 'flex:0 0 auto;width:auto;">⬆️</a>';
+    html += '</div></div>';
+  }
+  if (p2) {
+    html += '<div>';
+    html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:3px;font-weight:600;text-transform:uppercase;">2_Traitement de la demande</div>';
+    html += '<div style="display:flex;gap:4px;">';
+    html += '<a href="' + buildDossierUrl(p2, affaireRef) + '" style="' + lnkStyle + '">📁 Dossier direct</a>';
+    html += '<a href="' + buildSearchUrl(p2, affaireRef) + '" title="Ouvrir recherche Windows" style="' + lnkStyle + 'flex:0 0 auto;width:auto;">🔍</a>';
+    html += '<a href="' + buildDossierUrl(p2, null) + '" title="Ouvrir le dossier parent" style="' + lnkStyle + 'flex:0 0 auto;width:auto;">⬆️</a>';
+    html += '</div></div>';
+  }
+  html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-top:10px;line-height:1.4;"><strong>📁</strong> Dossier direct · <strong>🔍</strong> Recherche Windows · <strong>⬆️</strong> Dossier parent</div>';
   var pop = document.createElement('div');
   pop.id = 'dossierPop';
-  pop.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:320px;';
+  pop.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:340px;max-width:400px;';
   pop.innerHTML = html + '<div style="margin-top:12px;text-align:right;"><button onclick="document.getElementById(\'dossierPop\').remove();document.getElementById(\'dossierOverlay\').remove();" style="padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:#f5f5f0;font-size:0.75rem;cursor:pointer;font-family:inherit;">Fermer</button></div>';
   var ov = document.createElement('div');
   ov.id = 'dossierOverlay';
