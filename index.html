@@ -4769,7 +4769,7 @@ function renderGeosoliaEnquete(prog) {
 
   // Ligne 1 : Mission, Lieu, Temps
   html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
-  html += field('Type de mission', prog.mission || '—');
+  html += field('Type de mission', labelMission(prog.mission) || '—');
   html += field('Lieu', '📍 ' + (prog.address || '—'));
   var timeLabel = prog.timeEstimateMin + ' min' + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.55rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.55rem;">(estimé)</span>');
   html += field('Temps terrain', '⏱ ' + timeLabel);
@@ -4779,7 +4779,7 @@ function renderGeosoliaEnquete(prog) {
   if (prog.emprise || prog.typologie || prog.niveaux) {
     html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
     html += field('Emprise au sol', prog.emprise);
-    html += field('Typologie', prog.typologie);
+    html += field('Typologie', labelTypologie(prog.typologie));
     html += field('Nombre de niveaux', prog.niveaux);
     html += '</div>';
   }
@@ -4913,7 +4913,7 @@ function onGeosoliaSelect() {
     var noteLines = [];
     noteLines.push('Mission: ' + (prog.mission || ''));
     if (prog.emprise) noteLines.push('Emprise: ' + prog.emprise);
-    if (prog.typologie) noteLines.push('Typologie: ' + prog.typologie);
+    if (prog.typologie) noteLines.push('Typologie: ' + labelTypologie(prog.typologie));
     if (prog.niveaux) noteLines.push('Niveaux: ' + prog.niveaux);
     if (prog.programPenetros) noteLines.push(prog.programPenetros + ' pénétromètre(s)');
     if (prog.programTarieres) noteLines.push(prog.programTarieres + ' tarière(s)');
@@ -5818,6 +5818,24 @@ var MISSION_TYPE_LABELS = {
   G2_AVP: 'G2 AVP', G2_AVP_PRO: 'G2 AVP + PRO',
   G3: 'G3', G4: 'G4', G5: 'G5'
 };
+
+var TYPOLOGIE_LABELS = {
+  MAISON_INDIVIDUELLE: 'Maison individuelle',
+  MAISONS_INDIVIDUELLES: 'Maisons individuelles groupées',
+  COLLECTIF: 'Logements collectifs',
+  TERTIAIRE: 'Tertiaire / Bureaux',
+  COMMERCIAL: 'Commercial',
+  INDUSTRIEL: 'Industriel',
+  INFRASTRUCTURE: 'Infrastructure',
+  EQUIPEMENT_PUBLIC: 'Équipement public',
+  AGRICOLE: 'Agricole',
+  STOCKAGE: 'Stockage / Entrepôt',
+  EXTENSION: 'Extension',
+  RENOVATION: 'Rénovation',
+  AUTRE: 'Autre'
+};
+function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.replace(/_/g,' ').toLowerCase().replace(/^./, function(c){return c.toUpperCase();}); }
+function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v; }
 
 function getAllMissionTypes() {
   // Merge defaults with types found in Geosolia projects
