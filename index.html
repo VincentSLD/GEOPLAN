@@ -5835,7 +5835,7 @@ var TYPOLOGIE_LABELS = {
   AUTRE: 'Autre'
 };
 function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.replace(/_/g,' ').toLowerCase().replace(/^./, function(c){return c.toUpperCase();}); }
-function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v; }
+function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
 
 function getAllMissionTypes() {
   // Merge defaults with types found in Geosolia projects
@@ -5853,8 +5853,7 @@ function getCompetencesChecks(teamMember) {
   var competences = teamMember.competences || [];
   return getAllMissionTypes().map(function(t) {
     var checked = competences.indexOf(t) >= 0;
-    var label = MISSION_TYPE_LABELS[t] || t;
-    return '<label style="display:flex;align-items:center;gap:6px;font-size:0.72rem;cursor:pointer;"><input type="checkbox" class="comp-check" value="' + t + '" ' + (checked ? 'checked' : '') + '> ' + label + '</label>';
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:0.72rem;cursor:pointer;"><input type="checkbox" class="comp-check" value="' + t + '" ' + (checked ? 'checked' : '') + '> ' + labelMission(t) + '</label>';
   }).join('');
 }
 
