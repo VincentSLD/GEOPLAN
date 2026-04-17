@@ -2653,32 +2653,46 @@ function commonParentPath(a, b) {
   }
   return out.join('\\');
 }
-// Recherche récursive parallèle d'un dossier contenant affaireRef dans son nom
-// - Vérifie d'abord les noms directs (rapide), puis descend en parallèle
-// - Limite de profondeur pour éviter les arbres infinis
-async function findAffaireFolder(rootHandle, affaireRef, prefix, depth) {
-  prefix = prefix || '';
-  depth = depth || 0;
-  if (depth > 5) return null;
-  // Collecter tous les sous-dossiers d'un coup
-  var children = [];
-  try {
-    for await (var entry of rootHandle.values()) {
-      if (entry.kind === 'directory') children.push(entry);
+// Recherche BFS niveau par niveau, avec arrêt anticipé dès qu'un match est trouvé
+async function findAffaireFolder(rootHandle, affaireRef) {
+  var maxDepth = 5;
+  var queue = [{ handle: rootHandle, prefix: '', depth: 0 }];
+  var scanned = 0;
+  while (queue.length > 0) {
+    // Scanner tous les dossiers du niveau actuel en parallèle
+    var level = queue;
+    queue = [];
+    var levelResults = await Promise.all(level.map(async function(item) {
+      var children = [];
+      try {
+        for await (var entry of item.handle.values()) {
+          if (entry.kind === 'directory') children.push(entry);
+        }
+      } catch(e) { return { match: null, next: [] }; }
+      // Vérifier si un des dossiers directs correspond
+      for (var i = 0; i < children.length; i++) {
+        if (children[i].name.indexOf(affaireRef) === 0) {
+          return { match: { handle: children[i], relPath: item.prefix + children[i].name }, next: [] };
+        }
+      }
+      // Préparer le niveau suivant
+      if (item.depth >= maxDepth) return { match: null, next: [] };
+      return {
+        match: null,
+        next: children.map(function(c) { return { handle: c, prefix: item.prefix + c.name + '/', depth: item.depth + 1 }; })
+      };
+    }));
+    // Match trouvé ? retour immédiat
+    for (var j = 0; j < levelResults.length; j++) {
+      if (levelResults[j].match) return levelResults[j].match;
     }
-  } catch(e) { return null; }
-  // 1ère passe : vérifier les noms directs (startsWith = rapide et plus précis)
-  for (var i = 0; i < children.length; i++) {
-    if (children[i].name.indexOf(affaireRef) === 0) {
-      return { handle: children[i], relPath: prefix + children[i].name };
+    // Sinon, préparer le niveau suivant
+    for (var k = 0; k < levelResults.length; k++) {
+      queue = queue.concat(levelResults[k].next);
     }
+    scanned += level.length;
+    if (scanned > 5000) { console.warn('[Dossier] Trop de dossiers scannés, abandon'); return null; }
   }
-  // 2ème passe : descendre en parallèle dans tous les sous-dossiers
-  var promises = children.map(function(c) {
-    return findAffaireFolder(c, affaireRef, prefix + c.name + '/', depth + 1).catch(function(){ return null; });
-  });
-  var results = await Promise.all(promises);
-  for (var j = 0; j < results.length; j++) if (results[j]) return results[j];
   return null;
 }
 
@@ -2754,13 +2768,18 @@ async function openDossierAffaire(affaireRef) {
       return;
     }
     showLoader('Recherche du dossier ' + affaireRef + '...');
-    // Rechercher dans les 2 chemins en parallèle
+    // Rechercher dans les 2 chemins en parallèle, avec timeout 30s
     var searches = [];
     if (h1) searches.push(findAffaireFolder(h1, affaireRef));
     if (h2) searches.push(findAffaireFolder(h2, affaireRef));
-    var results = await Promise.all(searches);
-    var found = results.find(function(r){ return r; }) || null;
-    hideLoader();
+    var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('Recherche trop longue (30s)')); }, 30000); });
+    var found;
+    try {
+      var results = await Promise.race([Promise.all(searches), timeout]);
+      found = results.find(function(r){ return r; }) || null;
+    } finally {
+      hideLoader();
+    }
     if (!found) {
       alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans les chemins configurés.');
       return;
