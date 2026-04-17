@@ -2654,12 +2654,15 @@ function commonParentPath(a, b) {
   return out.join('\\');
 }
 // Recherche récursive d'un dossier contenant affaireRef dans son nom
-async function findAffaireFolder(rootHandle, affaireRef) {
+// Retourne { handle, relPath } ou null
+async function findAffaireFolder(rootHandle, affaireRef, prefix) {
+  prefix = prefix || '';
   for await (var entry of rootHandle.values()) {
     if (entry.kind === 'directory') {
-      if (entry.name.indexOf(affaireRef) >= 0) return entry;
+      var relPath = prefix + entry.name;
+      if (entry.name.indexOf(affaireRef) >= 0) return { handle: entry, relPath: relPath };
       try {
-        var sub = await findAffaireFolder(entry, affaireRef);
+        var sub = await findAffaireFolder(entry, affaireRef, relPath + '/');
         if (sub) return sub;
       } catch(e) { /* accès refusé, continuer */ }
     }
@@ -2667,27 +2670,48 @@ async function findAffaireFolder(rootHandle, affaireRef) {
   return null;
 }
 
+// Cache du handle racine en mémoire (persiste tant que l'onglet est ouvert)
+var _dossierRootHandle = null;
+
 async function openDossierAffaire(affaireRef) {
   if (!window.showDirectoryPicker) {
     alert('Votre navigateur ne supporte pas cette fonctionnalité. Utilisez Edge ou Chrome.');
     return;
   }
   try {
-    // Ouvre le sélecteur natif du navigateur
-    var handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-root' });
+    var handle = _dossierRootHandle;
+    // Vérifier permission si handle en cache
+    if (handle) {
+      var perm = await handle.queryPermission({ mode: 'read' });
+      if (perm !== 'granted') {
+        perm = await handle.requestPermission({ mode: 'read' });
+        if (perm !== 'granted') handle = null;
+      }
+    }
+    // Sinon, demander à l'utilisateur
+    if (!handle) {
+      handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-root' });
+      _dossierRootHandle = handle;
+    }
     if (!affaireRef) return;
-    // Rechercher récursivement le dossier contenant la référence
     showLoader('Recherche du dossier ' + affaireRef + '...');
     var found = await findAffaireFolder(handle, affaireRef);
     hideLoader();
-    if (found) {
-      alert('Dossier trouvé : ' + found.name + '\n\n(Ouvrez ce dossier depuis l\'explorateur Windows, les navigateurs ne permettent pas de l\'ouvrir directement.)');
-    } else {
-      alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans le répertoire sélectionné.');
+    if (!found) {
+      alert('Aucun dossier contenant "' + affaireRef + '" trouvé.');
+      return;
     }
+    // Construire le chemin complet à partir du chemin de base configuré
+    var basePath = settingsGeneral.dossierPath1 && settingsGeneral.dossierPath2
+      ? commonParentPath(settingsGeneral.dossierPath1, settingsGeneral.dossierPath2)
+      : (settingsGeneral.dossierPath1 || settingsGeneral.dossierPath2 || '');
+    var fullPath = basePath + '\\' + found.relPath.replace(/\//g, '\\');
+    // Tenter d'ouvrir le dossier directement dans une nouvelle fenêtre du navigateur
+    var fileUrl = buildDossierUrl(basePath, found.relPath);
+    window.open(fileUrl, '_blank');
   } catch(e) {
     hideLoader();
-    if (e.name !== 'AbortError') console.warn('[Dossier]', e);
+    if (e.name !== 'AbortError') { console.warn('[Dossier]', e); alert('Erreur : ' + e.message); }
   }
 }
 
