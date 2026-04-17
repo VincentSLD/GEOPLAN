@@ -2653,13 +2653,42 @@ function commonParentPath(a, b) {
   }
   return out.join('\\');
 }
-function openDossierAffaire(affaireRef) {
-  if (!affaireRef) { window.open('file:///C:/Users/Public/Desktop', '_blank'); return; }
-  var p1 = settingsGeneral.dossierPath1, p2 = settingsGeneral.dossierPath2;
-  if (!p1 && !p2) { window.open('file:///C:/Users/Public/Desktop', '_blank'); return; }
-  // Recherche depuis le dossier parent commun des 2 chemins (récursive, sous-dossiers inclus)
-  var basePath = (p1 && p2) ? commonParentPath(p1, p2) : (p1 || p2);
-  window.open(buildSearchUrl(basePath, affaireRef), '_blank');
+// Recherche récursive d'un dossier contenant affaireRef dans son nom
+async function findAffaireFolder(rootHandle, affaireRef) {
+  for await (var entry of rootHandle.values()) {
+    if (entry.kind === 'directory') {
+      if (entry.name.indexOf(affaireRef) >= 0) return entry;
+      try {
+        var sub = await findAffaireFolder(entry, affaireRef);
+        if (sub) return sub;
+      } catch(e) { /* accès refusé, continuer */ }
+    }
+  }
+  return null;
+}
+
+async function openDossierAffaire(affaireRef) {
+  if (!window.showDirectoryPicker) {
+    alert('Votre navigateur ne supporte pas cette fonctionnalité. Utilisez Edge ou Chrome.');
+    return;
+  }
+  try {
+    // Ouvre le sélecteur natif du navigateur
+    var handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-root' });
+    if (!affaireRef) return;
+    // Rechercher récursivement le dossier contenant la référence
+    showLoader('Recherche du dossier ' + affaireRef + '...');
+    var found = await findAffaireFolder(handle, affaireRef);
+    hideLoader();
+    if (found) {
+      alert('Dossier trouvé : ' + found.name + '\n\n(Ouvrez ce dossier depuis l\'explorateur Windows, les navigateurs ne permettent pas de l\'ouvrir directement.)');
+    } else {
+      alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans le répertoire sélectionné.');
+    }
+  } catch(e) {
+    hideLoader();
+    if (e.name !== 'AbortError') console.warn('[Dossier]', e);
+  }
 }
 
 // ===== LOADER =====
