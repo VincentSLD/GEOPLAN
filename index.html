@@ -2642,12 +2642,23 @@ function buildSearchUrl(basePath, affaireRef) {
   var query = 'name:~"' + affaireRef + '" kind:folder';
   return 'search-ms:query=' + encodeURIComponent(query) + '&crumb=location:' + encodeURIComponent(basePath);
 }
+function commonParentPath(a, b) {
+  if (!a) return b || '';
+  if (!b) return a || '';
+  var na = a.replace(/\//g, '\\').split('\\');
+  var nb = b.replace(/\//g, '\\').split('\\');
+  var out = [];
+  for (var i = 0; i < Math.min(na.length, nb.length); i++) {
+    if (na[i] === nb[i]) out.push(na[i]); else break;
+  }
+  return out.join('\\');
+}
 function openDossierAffaire(affaireRef) {
   if (!affaireRef) { window.location.href = 'file:///C:/Users/Public/Desktop'; return; }
   var p1 = settingsGeneral.dossierPath1, p2 = settingsGeneral.dossierPath2;
   if (!p1 && !p2) { window.location.href = 'file:///C:/Users/Public/Desktop'; return; }
-  // Recherche Windows récursive (sous-dossiers inclus) dans le premier chemin configuré
-  var basePath = p1 || p2;
+  // Recherche depuis le dossier parent commun des 2 chemins (récursive, sous-dossiers inclus)
+  var basePath = (p1 && p2) ? commonParentPath(p1, p2) : (p1 || p2);
   window.location.href = buildSearchUrl(basePath, affaireRef);
 }
 
