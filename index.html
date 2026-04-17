@@ -2667,9 +2667,9 @@ async function findAffaireFolder(rootHandle, affaireRef, prefix, depth) {
       if (entry.kind === 'directory') children.push(entry);
     }
   } catch(e) { return null; }
-  // 1ère passe : vérifier les noms directs (rapide)
+  // 1ère passe : vérifier les noms directs (startsWith = rapide et plus précis)
   for (var i = 0; i < children.length; i++) {
-    if (children[i].name.indexOf(affaireRef) >= 0) {
+    if (children[i].name.indexOf(affaireRef) === 0) {
       return { handle: children[i], relPath: prefix + children[i].name };
     }
   }
