@@ -2653,47 +2653,67 @@ function commonParentPath(a, b) {
   }
   return out.join('\\');
 }
-// Recherche BFS niveau par niveau, avec arrêt anticipé dès qu'un match est trouvé
-async function findAffaireFolder(rootHandle, affaireRef) {
-  var maxDepth = 5;
-  var queue = [{ handle: rootHandle, prefix: '', depth: 0 }];
-  var scanned = 0;
-  while (queue.length > 0) {
-    // Scanner tous les dossiers du niveau actuel en parallèle
-    var level = queue;
-    queue = [];
-    var levelResults = await Promise.all(level.map(async function(item) {
-      var children = [];
-      try {
-        for await (var entry of item.handle.values()) {
-          if (entry.kind === 'directory') children.push(entry);
-        }
-      } catch(e) { return { match: null, next: [] }; }
-      // Vérifier si un des dossiers directs correspond
-      for (var i = 0; i < children.length; i++) {
-        if (children[i].name.indexOf(affaireRef) === 0) {
-          return { match: { handle: children[i], relPath: item.prefix + children[i].name }, next: [] };
-        }
-      }
-      // Préparer le niveau suivant
-      if (item.depth >= maxDepth) return { match: null, next: [] };
-      return {
-        match: null,
-        next: children.map(function(c) { return { handle: c, prefix: item.prefix + c.name + '/', depth: item.depth + 1 }; })
-      };
-    }));
-    // Match trouvé ? retour immédiat
-    for (var j = 0; j < levelResults.length; j++) {
-      if (levelResults[j].match) return levelResults[j].match;
+// Index des dossiers : { affaireRef: { pathKey, relPath } }
+function _dossierGetIndex() {
+  try { return JSON.parse(localStorage.getItem('dossier-index') || '{}'); } catch(e) { return {}; }
+}
+function _dossierSetIndex(idx) {
+  localStorage.setItem('dossier-index', JSON.stringify(idx));
+  localStorage.setItem('dossier-index-date', new Date().toISOString());
+}
+
+// Crawl complet d'un handle, collecte tous les dossiers qui ressemblent à des affaires (commencent par un chiffre)
+async function _dossierCrawl(handle, pathKey, prefix, depth, index) {
+  if (depth > 5) return;
+  var children = [];
+  try {
+    for await (var entry of handle.values()) {
+      if (entry.kind === 'directory') children.push(entry);
     }
-    // Sinon, préparer le niveau suivant
-    for (var k = 0; k < levelResults.length; k++) {
-      queue = queue.concat(levelResults[k].next);
+  } catch(e) { return; }
+  // Indexer les dossiers qui commencent par un chiffre (pattern affaire)
+  for (var i = 0; i < children.length; i++) {
+    var c = children[i];
+    if (/^\d/.test(c.name)) {
+      // Extraire la clé (premier token séparé par espace)
+      var key = c.name.split(/\s+/)[0];
+      index[key] = { pathKey: pathKey, relPath: prefix + c.name };
+      // Ne pas descendre dans les affaires elles-mêmes
     }
-    scanned += level.length;
-    if (scanned > 5000) { console.warn('[Dossier] Trop de dossiers scannés, abandon'); return null; }
   }
-  return null;
+  // Descendre en parallèle dans les dossiers NON-affaires (user folders)
+  var subPromises = children
+    .filter(function(c){ return !/^\d/.test(c.name); })
+    .map(function(c){ return _dossierCrawl(c, pathKey, prefix + c.name + '/', depth + 1, index); });
+  await Promise.all(subPromises);
+}
+
+async function indexerDossiers() {
+  if (!window.showDirectoryPicker) { alert('Edge ou Chrome requis'); return; }
+  var h1 = await _dossierLoadHandle('path-1');
+  var h2 = await _dossierLoadHandle('path-2');
+  if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
+  if (h2 && !(await _dossierEnsurePermission(h2))) h2 = null;
+  if (!h1 && !h2) { alert('Aucun chemin autorisé. Cliquez d\'abord sur "Autoriser".'); return; }
+  showLoader('Indexation des dossiers en cours...');
+  var index = {};
+  try {
+    if (h1) await _dossierCrawl(h1, 'path-1', '', 0, index);
+    if (h2) await _dossierCrawl(h2, 'path-2', '', 0, index);
+    _dossierSetIndex(index);
+    alert(Object.keys(index).length + ' dossiers d\'affaires indexés.');
+  } catch(e) { alert('Erreur indexation : ' + e.message); }
+  finally { hideLoader(); }
+}
+
+// Résoudre un handle depuis une relPath (ex: "VSA/26.0681.01 TEST 6")
+async function _dossierResolveRelPath(rootHandle, relPath) {
+  var parts = relPath.split('/').filter(function(p){ return p; });
+  var current = rootHandle;
+  for (var i = 0; i < parts.length; i++) {
+    current = await current.getDirectoryHandle(parts[i]);
+  }
+  return current;
 }
 
 // Persistance des handles dans IndexedDB (survit aux rechargements)
@@ -2753,10 +2773,8 @@ async function openDossierAffaire(affaireRef) {
     // Charger les 2 handles configurés
     var h1 = await _dossierLoadHandle('path-1');
     var h2 = await _dossierLoadHandle('path-2');
-    // Vérifier/demander permissions
     if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
     if (h2 && !(await _dossierEnsurePermission(h2))) h2 = null;
-    // Si aucun handle, inviter à configurer dans les paramètres
     if (!h1 && !h2) {
       if (confirm('Aucun accès dossier configuré.\nOuvrir les paramètres pour autoriser les chemins ?')) {
         switchView('settings', document.querySelector('[data-view="settings"]'));
@@ -2767,25 +2785,43 @@ async function openDossierAffaire(affaireRef) {
       await window.showDirectoryPicker({ mode: 'read', startIn: h1 || h2 });
       return;
     }
-    showLoader('Recherche du dossier ' + affaireRef + '...');
-    // Rechercher dans les 2 chemins en parallèle, avec timeout 30s
-    var searches = [];
-    if (h1) searches.push(findAffaireFolder(h1, affaireRef));
-    if (h2) searches.push(findAffaireFolder(h2, affaireRef));
-    var timeout = new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('Recherche trop longue (30s)')); }, 30000); });
-    var found;
-    try {
-      var results = await Promise.race([Promise.all(searches), timeout]);
-      found = results.find(function(r){ return r; }) || null;
-    } finally {
-      hideLoader();
+    // 1. Tenter l'index
+    var index = _dossierGetIndex();
+    if (index[affaireRef]) {
+      var entry = index[affaireRef];
+      var root = entry.pathKey === 'path-1' ? h1 : h2;
+      if (root) {
+        try {
+          showLoader('Ouverture du dossier...');
+          var handle = await _dossierResolveRelPath(root, entry.relPath);
+          hideLoader();
+          await window.showDirectoryPicker({ mode: 'read', startIn: handle });
+          return;
+        } catch(e) {
+          // Le dossier indexé n'existe plus, on retombe sur la recherche live
+          console.warn('[Dossier] Index obsolète, relance recherche');
+          hideLoader();
+        }
+      }
     }
-    if (!found) {
-      alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans les chemins configurés.');
-      return;
+    // 2. Pas d'index : proposer d'indexer
+    if (Object.keys(index).length === 0) {
+      if (confirm('Aucun index de dossiers. Indexer maintenant ? (peut prendre 1-2 min la 1ère fois)\n\nAnnuler = recherche directe dans les dossiers configurés.')) {
+        await indexerDossiers();
+        // Relancer la recherche après indexation
+        index = _dossierGetIndex();
+        if (index[affaireRef]) {
+          var e2 = index[affaireRef];
+          var r2 = e2.pathKey === 'path-1' ? h1 : h2;
+          var h = await _dossierResolveRelPath(r2, e2.relPath);
+          await window.showDirectoryPicker({ mode: 'read', startIn: h });
+          return;
+        }
+        alert('Dossier "' + affaireRef + '" non trouvé dans l\'index.');
+        return;
+      }
     }
-    // Ouvrir le sélecteur positionné directement sur le dossier trouvé
-    await window.showDirectoryPicker({ mode: 'read', startIn: found.handle });
+    alert('Dossier "' + affaireRef + '" non trouvé dans l\'index.\nCliquez sur "Réindexer" dans les paramètres si de nouveaux dossiers ont été ajoutés.');
   } catch(e) {
     hideLoader();
     if (e.name !== 'AbortError') { console.warn('[Dossier]', e); alert('Erreur : ' + e.message); }
@@ -6574,7 +6610,9 @@ function renderSettingsGeneral() {
     </div>
     <div class="stg-general-section">
       <h4>Chemins dossiers affaires</h4>
-      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Le numéro de dossier correspond à la référence de l'affaire (ex: 26.0693.01).<br>Cliquez sur <strong>Autoriser</strong> pour chaque chemin et naviguez jusqu'au dossier correspondant — l'accès est mémorisé pour les clics suivants.</p>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Le numéro de dossier correspond à la référence de l'affaire (ex: 26.0693.01).<br>1) Cliquez sur <strong>Autoriser</strong> pour chaque chemin. 2) Cliquez sur <strong>Réindexer</strong> pour scanner les dossiers (1ère fois, puis quand de nouveaux dossiers sont ajoutés).</p>
+      <div style="margin-bottom:8px;"><button type="button" onclick="indexerDossiers()" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--gph-dark);color:#fff;font-weight:700;font-size:0.72rem;cursor:pointer;font-family:inherit;">🔄 Réindexer les dossiers</button>
+      <span id="stg-index-info" style="margin-left:10px;font-size:0.7rem;color:var(--text-muted);"></span></div>
       <div class="stg-general-grid">
         <div class="stg-general-field" style="grid-column:1/-1;">
           <label>Chemin 1 — Affaires en cours</label>
@@ -6607,6 +6645,17 @@ function renderSettingsGeneral() {
   `;
   renderAgencesList();
   loadAkuiteoFilterOptions();
+  // Afficher info index
+  var infoEl = document.getElementById('stg-index-info');
+  if (infoEl) {
+    var idx = _dossierGetIndex();
+    var date = localStorage.getItem('dossier-index-date');
+    if (Object.keys(idx).length > 0 && date) {
+      infoEl.textContent = Object.keys(idx).length + ' dossiers indexés le ' + new Date(date).toLocaleString('fr-FR');
+    } else {
+      infoEl.textContent = 'Aucun index — cliquez pour indexer.';
+    }
+  }
 }
 
 // Load distinct values from Supabase for filter checkboxes
