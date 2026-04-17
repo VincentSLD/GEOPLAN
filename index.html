@@ -4003,7 +4003,7 @@ async function loadCommandesFromSupabase() {
     // Charger affaires & marchés en parallèle
     if (Object.keys(affairesMap).length === 0) await loadAffairesMarches();
 
-    var query = sbAuth.from('commandes').select('id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, marche_id, societe, custom_data');
+    var cols = 'id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, marche_id, societe, custom_data';
 
     // Appliquer filtres admin
     var g = settingsGeneral;
@@ -4014,13 +4014,16 @@ async function loadCommandesFromSupabase() {
     var filtTypes = g.akuiteoTypes || [];
     var filtCdStatuts = g.akuiteoStatutsCustom || [];
 
-    if (exclure.length > 0) {
-      // Supabase ne supporte pas "not in" directement, on filtre côté client
+    // Pagination pour dépasser la limite Supabase de 1000 lignes
+    var data = [], off = 0;
+    while (true) {
+      var r = await sbAuth.from('commandes').select(cols).order('date', { ascending: false }).range(off, off + 999);
+      if (r.error) { console.error('[Commandes] Erreur Supabase:', r.error); return; }
+      if (!r.data || r.data.length === 0) break;
+      data = data.concat(r.data);
+      if (r.data.length < 1000) break;
+      off += 1000;
     }
-
-    var result = await query.order('date', { ascending: false }).limit(2000);
-    if (result.error) { console.error('[Commandes] Erreur Supabase:', result.error); return; }
-    var data = result.data || [];
 
     // Filtrer côté client
     commandesData = data.filter(function(c) {
