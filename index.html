@@ -2653,20 +2653,32 @@ function commonParentPath(a, b) {
   }
   return out.join('\\');
 }
-// Recherche récursive d'un dossier contenant affaireRef dans son nom
-// Retourne { handle, relPath } ou null
-async function findAffaireFolder(rootHandle, affaireRef, prefix) {
+// Recherche récursive parallèle d'un dossier contenant affaireRef dans son nom
+// - Vérifie d'abord les noms directs (rapide), puis descend en parallèle
+// - Limite de profondeur pour éviter les arbres infinis
+async function findAffaireFolder(rootHandle, affaireRef, prefix, depth) {
   prefix = prefix || '';
-  for await (var entry of rootHandle.values()) {
-    if (entry.kind === 'directory') {
-      var relPath = prefix + entry.name;
-      if (entry.name.indexOf(affaireRef) >= 0) return { handle: entry, relPath: relPath };
-      try {
-        var sub = await findAffaireFolder(entry, affaireRef, relPath + '/');
-        if (sub) return sub;
-      } catch(e) { /* accès refusé, continuer */ }
+  depth = depth || 0;
+  if (depth > 5) return null;
+  // Collecter tous les sous-dossiers d'un coup
+  var children = [];
+  try {
+    for await (var entry of rootHandle.values()) {
+      if (entry.kind === 'directory') children.push(entry);
+    }
+  } catch(e) { return null; }
+  // 1ère passe : vérifier les noms directs (rapide)
+  for (var i = 0; i < children.length; i++) {
+    if (children[i].name.indexOf(affaireRef) >= 0) {
+      return { handle: children[i], relPath: prefix + children[i].name };
     }
   }
+  // 2ème passe : descendre en parallèle dans tous les sous-dossiers
+  var promises = children.map(function(c) {
+    return findAffaireFolder(c, affaireRef, prefix + c.name + '/', depth + 1).catch(function(){ return null; });
+  });
+  var results = await Promise.all(promises);
+  for (var j = 0; j < results.length; j++) if (results[j]) return results[j];
   return null;
 }
 
@@ -2742,10 +2754,12 @@ async function openDossierAffaire(affaireRef) {
       return;
     }
     showLoader('Recherche du dossier ' + affaireRef + '...');
-    // Rechercher dans les 2 chemins
-    var found = null;
-    if (h1) found = await findAffaireFolder(h1, affaireRef);
-    if (!found && h2) found = await findAffaireFolder(h2, affaireRef);
+    // Rechercher dans les 2 chemins en parallèle
+    var searches = [];
+    if (h1) searches.push(findAffaireFolder(h1, affaireRef));
+    if (h2) searches.push(findAffaireFolder(h2, affaireRef));
+    var results = await Promise.all(searches);
+    var found = results.find(function(r){ return r; }) || null;
     hideLoader();
     if (!found) {
       alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans les chemins configurés.');
