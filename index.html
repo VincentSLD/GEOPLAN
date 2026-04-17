@@ -2670,7 +2670,7 @@ async function findAffaireFolder(rootHandle, affaireRef, prefix) {
   return null;
 }
 
-// Persistance du handle racine dans IndexedDB (survit aux rechargements)
+// Persistance des handles dans IndexedDB (survit aux rechargements)
 function _dossierOpenDb() {
   return new Promise(function(resolve, reject) {
     var req = indexedDB.open('geoplan-dossiers', 1);
@@ -2679,20 +2679,20 @@ function _dossierOpenDb() {
     req.onerror = function(){ reject(req.error); };
   });
 }
-async function _dossierSaveHandle(handle) {
+async function _dossierSaveHandle(key, handle) {
   var db = await _dossierOpenDb();
   return new Promise(function(resolve, reject) {
     var tx = db.transaction('handles', 'readwrite');
-    tx.objectStore('handles').put(handle, 'affaires-root');
+    tx.objectStore('handles').put(handle, key);
     tx.oncomplete = function(){ resolve(); };
     tx.onerror = function(){ reject(tx.error); };
   });
 }
-async function _dossierLoadHandle() {
+async function _dossierLoadHandle(key) {
   try {
     var db = await _dossierOpenDb();
     return new Promise(function(resolve) {
-      var req = db.transaction('handles', 'readonly').objectStore('handles').get('affaires-root');
+      var req = db.transaction('handles', 'readonly').objectStore('handles').get(key);
       req.onsuccess = function(){ resolve(req.result || null); };
       req.onerror = function(){ resolve(null); };
     });
@@ -2706,7 +2706,17 @@ async function _dossierEnsurePermission(handle) {
   return perm === 'granted';
 }
 
-var _dossierRootHandle = null;
+// Configuration : faire autoriser un chemin (appelé depuis Paramètres)
+async function configDossierPath(idx) {
+  if (!window.showDirectoryPicker) { alert('Edge ou Chrome requis'); return; }
+  try {
+    var handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-path-' + idx });
+    await _dossierSaveHandle('path-' + idx, handle);
+    alert('Accès autorisé et mémorisé : ' + handle.name);
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('Erreur : ' + e.message);
+  }
+}
 
 async function openDossierAffaire(affaireRef) {
   if (!window.showDirectoryPicker) {
@@ -2714,34 +2724,34 @@ async function openDossierAffaire(affaireRef) {
     return;
   }
   try {
-    // 1. Essayer de réutiliser le handle en mémoire
-    var handle = _dossierRootHandle;
-    // 2. Sinon, charger depuis IndexedDB
-    if (!handle) {
-      handle = await _dossierLoadHandle();
-      if (handle) _dossierRootHandle = handle;
-    }
-    // 3. Vérifier/demander la permission
-    if (handle && !(await _dossierEnsurePermission(handle))) handle = null;
-    // 4. Sinon, demander à l'utilisateur de sélectionner le dossier racine
-    if (!handle) {
-      handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-root' });
-      _dossierRootHandle = handle;
-      await _dossierSaveHandle(handle);
+    // Charger les 2 handles configurés
+    var h1 = await _dossierLoadHandle('path-1');
+    var h2 = await _dossierLoadHandle('path-2');
+    // Vérifier/demander permissions
+    if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
+    if (h2 && !(await _dossierEnsurePermission(h2))) h2 = null;
+    // Si aucun handle, inviter à configurer dans les paramètres
+    if (!h1 && !h2) {
+      if (confirm('Aucun accès dossier configuré.\nOuvrir les paramètres pour autoriser les chemins ?')) {
+        switchView('settings', document.querySelector('[data-view="settings"]'));
+      }
+      return;
     }
     if (!affaireRef) {
-      await window.showDirectoryPicker({ mode: 'read', startIn: handle });
+      await window.showDirectoryPicker({ mode: 'read', startIn: h1 || h2 });
       return;
     }
-    // 5. Recherche récursive du dossier contenant la référence
     showLoader('Recherche du dossier ' + affaireRef + '...');
-    var found = await findAffaireFolder(handle, affaireRef);
+    // Rechercher dans les 2 chemins
+    var found = null;
+    if (h1) found = await findAffaireFolder(h1, affaireRef);
+    if (!found && h2) found = await findAffaireFolder(h2, affaireRef);
     hideLoader();
     if (!found) {
-      alert('Aucun dossier contenant "' + affaireRef + '" trouvé.');
+      alert('Aucun dossier contenant "' + affaireRef + '" trouvé dans les chemins configurés.');
       return;
     }
-    // 6. Ouvrir le sélecteur positionné directement sur le dossier trouvé
+    // Ouvrir le sélecteur positionné directement sur le dossier trouvé
     await window.showDirectoryPicker({ mode: 'read', startIn: found.handle });
   } catch(e) {
     hideLoader();
@@ -6531,10 +6541,22 @@ function renderSettingsGeneral() {
     </div>
     <div class="stg-general-section">
       <h4>Chemins dossiers affaires</h4>
-      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Le numéro de dossier correspond à la référence de l'affaire (ex: 26.0693.01)</p>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Le numéro de dossier correspond à la référence de l'affaire (ex: 26.0693.01).<br>Cliquez sur <strong>Autoriser</strong> pour chaque chemin et naviguez jusqu'au dossier correspondant — l'accès est mémorisé pour les clics suivants.</p>
       <div class="stg-general-grid">
-        <div class="stg-general-field" style="grid-column:1/-1;"><label>Chemin 1 — Affaires en cours</label><input type="text" id="stg-dossier-path1" value="${(g.dossierPath1||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin"></div>
-        <div class="stg-general-field" style="grid-column:1/-1;"><label>Chemin 2 — Traitement de la demande</label><input type="text" id="stg-dossier-path2" value="${(g.dossierPath2||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin"></div>
+        <div class="stg-general-field" style="grid-column:1/-1;">
+          <label>Chemin 1 — Affaires en cours</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="stg-dossier-path1" value="${(g.dossierPath1||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin" style="flex:1;">
+            <button type="button" onclick="configDossierPath(1)" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--gph-yellow);color:var(--gph-dark);font-weight:700;font-size:0.72rem;cursor:pointer;font-family:inherit;white-space:nowrap;">🔓 Autoriser</button>
+          </div>
+        </div>
+        <div class="stg-general-field" style="grid-column:1/-1;">
+          <label>Chemin 2 — Traitement de la demande</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="stg-dossier-path2" value="${(g.dossierPath2||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin" style="flex:1;">
+            <button type="button" onclick="configDossierPath(2)" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--gph-yellow);color:var(--gph-dark);font-weight:700;font-size:0.72rem;cursor:pointer;font-family:inherit;white-space:nowrap;">🔓 Autoriser</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="stg-general-section">
