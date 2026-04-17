@@ -5835,18 +5835,12 @@ var TYPOLOGIE_LABELS = {
   AUTRE: 'Autre'
 };
 function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.replace(/_/g,' ').toLowerCase().replace(/^./, function(c){return c.toUpperCase();}); }
-function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
+// Ne retourne un label que si la mission est dans la liste des missions valides
+function labelMission(v) { if (!v || MISSION_TYPES_DEFAULT.indexOf(v) < 0) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
 
 function getAllMissionTypes() {
-  // Merge defaults with types found in Geosolia projects
-  var types = {};
-  MISSION_TYPES_DEFAULT.forEach(function(t) { types[t] = true; });
-  geosoliaProjects.forEach(function(p) {
-    if (p.project_data && p.project_data.projectMission) {
-      types[p.project_data.projectMission] = true;
-    }
-  });
-  return Object.keys(types).sort();
+  // Seules les missions valides définies dans MISSION_TYPES_DEFAULT sont affichées
+  return MISSION_TYPES_DEFAULT.slice().sort();
 }
 
 function getCompetencesChecks(teamMember) {
