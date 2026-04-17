@@ -2626,6 +2626,34 @@ function renderTravelBetween(prev, next) {
   return `<div class="travel-block travel-inter"><span>🔄</span><div class="travel-info"><div class="travel-time">${gap} min</div><div class="travel-label">Inter-site</div></div></div>`;
 }
 
+// ===== OUVRIR DOSSIER AFFAIRE =====
+function buildDossierUrl(basePath, affaireRef) {
+  if (!basePath || !affaireRef) return '';
+  // Normaliser : convertir backslashes en slashes, encoder les espaces
+  var full = basePath.replace(/\\/g, '/') + '/' + affaireRef;
+  // Construire URL file:// pour chemin UNC (\\serveur\...)
+  if (full.startsWith('//')) return 'file:' + full.split('/').map(encodeURIComponent).join('/').replace(/%2F/g, '/');
+  return 'file:///' + full.split('/').map(encodeURIComponent).join('/').replace(/%2F/g, '/');
+}
+function openDossierAffaire(affaireRef) {
+  if (!affaireRef) { alert('Aucune référence d\'affaire disponible'); return; }
+  var p1 = settingsGeneral.dossierPath1, p2 = settingsGeneral.dossierPath2;
+  if (!p1 && !p2) { alert('Chemins non configurés. Rendez-vous dans Paramètres → Général.'); return; }
+  var html = '<div style="font-size:0.8rem;margin-bottom:10px;">Ouvrir le dossier <strong>' + affaireRef + '</strong> :</div>';
+  if (p1) html += '<div style="margin-bottom:6px;"><a href="' + buildDossierUrl(p1, affaireRef) + '" style="color:var(--gph-dark);text-decoration:none;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;display:inline-block;font-size:0.75rem;font-family:\'DM Mono\',monospace;">📁 1_Affaire en cours</a></div>';
+  if (p2) html += '<div><a href="' + buildDossierUrl(p2, affaireRef) + '" style="color:var(--gph-dark);text-decoration:none;padding:8px 12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;display:inline-block;font-size:0.75rem;font-family:\'DM Mono\',monospace;">📁 2_Traitement de la demande</a></div>';
+  var pop = document.createElement('div');
+  pop.id = 'dossierPop';
+  pop.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 16px 48px rgba(0,0,0,0.25);z-index:9999;min-width:320px;';
+  pop.innerHTML = html + '<div style="margin-top:12px;text-align:right;"><button onclick="document.getElementById(\'dossierPop\').remove();document.getElementById(\'dossierOverlay\').remove();" style="padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:#f5f5f0;font-size:0.75rem;cursor:pointer;font-family:inherit;">Fermer</button></div>';
+  var ov = document.createElement('div');
+  ov.id = 'dossierOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9998;';
+  ov.onclick = function(){ pop.remove(); ov.remove(); };
+  document.body.appendChild(ov);
+  document.body.appendChild(pop);
+}
+
 // ===== LOADER =====
 function showLoader(msg) {
   var el = document.getElementById('globalLoader');
@@ -3274,7 +3302,7 @@ function openDetail(id){
       <div>${int.location ? '<a href="#" onclick="navigateToAddress(\''+int.location.replace(/'/g,"\\'")+'\');return false;" style="color:var(--text-primary);text-decoration:none;">📍 '+int.location.split(',')[0]+' <span style="font-size:0.6rem;color:var(--gph-yellow);font-weight:700;">GPS↗</span></a>' : '<span style="color:var(--text-muted);">📍 —</span>'}</div>
       <div>${int.client ? '🏢 '+int.client : ''} ${showWeather && !int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div>
     </div>
-    ${int.commandeRef || int.affaireRef || int.marcheRef ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:0.72rem;font-family:\'DM Mono\',monospace;">'+(int.commandeRef?'<span>📋 '+int.commandeRef+'</span>':'')+(int.affaireRef?'<span>📂 '+int.affaireRef+'</span>':'')+(int.marcheRef?'<span>📑 '+int.marcheRef+'</span>':'')+'</div>' : ''}
+    ${int.commandeRef || int.affaireRef || int.marcheRef ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.72rem;font-family:\'DM Mono\',monospace;">'+(int.commandeRef?'<span>📋 '+int.commandeRef+'</span>':'')+(int.affaireRef?'<span>📂 '+int.affaireRef+'</span>':'')+(int.marcheRef?'<span>📑 '+int.marcheRef+'</span>':'')+(int.affaireRef?'<button onclick="openDossierAffaire(\''+int.affaireRef+'\')" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.65rem;cursor:pointer;font-family:inherit;font-weight:600;">📁 Ouvrir dossier</button>':'')+'</div>' : ''}
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;padding:6px;">✏️ Modifier</button>
@@ -4194,7 +4222,7 @@ function renderCommandesList() {
   var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
   var sortArrow = cmdSortCol ? (cmdSortAsc ? ' ▲' : ' ▼') : '';
   var thSort = function(col, label) { var active = cmdSortCol === col; return '<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + fInput(col) + '</th>'; };
-  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Dossier</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
@@ -4230,6 +4258,7 @@ function renderCommandesList() {
     if (cdStatut) html += '<br><span style="font-size:0.6rem;color:var(--text-muted);">' + cdStatut + '</span>';
     html += '</td>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.7rem;font-weight:600;">' + (affRef ? affRef : '—') + '</td>';
+    html += '<td>' + (affRef ? '<button onclick="openDossierAffaire(\''+affRef+'\')" title="Ouvrir le dossier de l\'affaire" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.7rem;cursor:pointer;font-family:inherit;">📁</button>' : '—') + '</td>';
     html += '<td>';
     html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
     html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
@@ -5240,6 +5269,8 @@ const DEFAULT_GENERAL = {
   },
   rayonMax: 150, vitesseMoyenne: 60,
   agenceNom: 'GPH', agenceAdresse: 'La Roche-sur-Yon', agenceLat: 46.671, agenceLon: -1.427,
+  dossierPath1: '\\\\Srvdatagph\\data\\AFFAIRES\\1_Affaire en cours',
+  dossierPath2: '\\\\Srvdatagph\\data\\AFFAIRES\\2_Traitement de la demande',
 };
 
 const DEFAULT_GROUPS = [
@@ -6404,6 +6435,14 @@ function renderSettingsGeneral() {
       <button class="stg-add-btn" onclick="editAgence(null)" style="margin-top:8px;">+ Ajouter une agence</button>
     </div>
     <div class="stg-general-section">
+      <h4>Chemins dossiers affaires</h4>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Le numéro de dossier correspond à la référence de l'affaire (ex: 26.0693.01)</p>
+      <div class="stg-general-grid">
+        <div class="stg-general-field" style="grid-column:1/-1;"><label>Chemin 1 — Affaires en cours</label><input type="text" id="stg-dossier-path1" value="${(g.dossierPath1||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin"></div>
+        <div class="stg-general-field" style="grid-column:1/-1;"><label>Chemin 2 — Traitement de la demande</label><input type="text" id="stg-dossier-path2" value="${(g.dossierPath2||'').replace(/"/g,'&quot;')}" placeholder="\\\\serveur\\partage\\chemin"></div>
+      </div>
+    </div>
+    <div class="stg-general-section">
       <h4>Administration</h4>
       <div class="stg-general-grid">
         <div class="stg-general-field"><label>Mot de passe paramétrage</label><input type="password" id="stg-admin-pwd" value="${g.adminPassword || ''}" placeholder="Laisser vide = pas de mot de passe"></div>
@@ -6771,6 +6810,8 @@ function saveGeneralSettings() {
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
     adminPassword: document.getElementById('stg-admin-pwd').value.trim(),
+    dossierPath1: document.getElementById('stg-dossier-path1').value.trim(),
+    dossierPath2: document.getElementById('stg-dossier-path2').value.trim(),
     akuiteoSocietes: checkedSoc.length === allSoc.length ? [] : checkedSoc,
     akuiteoStatuts: checkedSt.length === allSt.length ? [] : checkedSt,
     akuiteoExclure: excludeSt,
