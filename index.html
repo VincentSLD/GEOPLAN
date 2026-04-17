@@ -2638,7 +2638,9 @@ function buildDossierUrl(basePath, affaireRef) {
 function buildSearchUrl(basePath, affaireRef) {
   if (!basePath || !affaireRef) return '';
   // search-ms: ouvre l'explorateur Windows en mode recherche
-  return 'search-ms:query=' + encodeURIComponent(affaireRef) + '&crumb=location:' + encodeURIComponent(basePath);
+  // Syntaxe AQS : name:~"..." = nom contient, kind:folder = dossiers uniquement
+  var query = 'name:~"' + affaireRef + '" kind:folder';
+  return 'search-ms:query=' + encodeURIComponent(query) + '&crumb=location:' + encodeURIComponent(basePath);
 }
 function openDossierAffaire(affaireRef) {
   if (!affaireRef) { alert('Aucune référence d\'affaire disponible'); return; }
