@@ -2670,7 +2670,42 @@ async function findAffaireFolder(rootHandle, affaireRef, prefix) {
   return null;
 }
 
-// Cache du handle racine en mémoire (persiste tant que l'onglet est ouvert)
+// Persistance du handle racine dans IndexedDB (survit aux rechargements)
+function _dossierOpenDb() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('geoplan-dossiers', 1);
+    req.onupgradeneeded = function(){ req.result.createObjectStore('handles'); };
+    req.onsuccess = function(){ resolve(req.result); };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+async function _dossierSaveHandle(handle) {
+  var db = await _dossierOpenDb();
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'affaires-root');
+    tx.oncomplete = function(){ resolve(); };
+    tx.onerror = function(){ reject(tx.error); };
+  });
+}
+async function _dossierLoadHandle() {
+  try {
+    var db = await _dossierOpenDb();
+    return new Promise(function(resolve) {
+      var req = db.transaction('handles', 'readonly').objectStore('handles').get('affaires-root');
+      req.onsuccess = function(){ resolve(req.result || null); };
+      req.onerror = function(){ resolve(null); };
+    });
+  } catch(e) { return null; }
+}
+async function _dossierEnsurePermission(handle) {
+  if (!handle) return false;
+  var perm = await handle.queryPermission({ mode: 'read' });
+  if (perm === 'granted') return true;
+  perm = await handle.requestPermission({ mode: 'read' });
+  return perm === 'granted';
+}
+
 var _dossierRootHandle = null;
 
 async function openDossierAffaire(affaireRef) {
@@ -2679,21 +2714,26 @@ async function openDossierAffaire(affaireRef) {
     return;
   }
   try {
+    // 1. Essayer de réutiliser le handle en mémoire
     var handle = _dossierRootHandle;
-    // Vérifier permission si handle en cache
-    if (handle) {
-      var perm = await handle.queryPermission({ mode: 'read' });
-      if (perm !== 'granted') {
-        perm = await handle.requestPermission({ mode: 'read' });
-        if (perm !== 'granted') handle = null;
-      }
+    // 2. Sinon, charger depuis IndexedDB
+    if (!handle) {
+      handle = await _dossierLoadHandle();
+      if (handle) _dossierRootHandle = handle;
     }
-    // Sinon, demander à l'utilisateur
+    // 3. Vérifier/demander la permission
+    if (handle && !(await _dossierEnsurePermission(handle))) handle = null;
+    // 4. Sinon, demander à l'utilisateur de sélectionner le dossier racine
     if (!handle) {
       handle = await window.showDirectoryPicker({ mode: 'read', id: 'affaires-root' });
       _dossierRootHandle = handle;
+      await _dossierSaveHandle(handle);
     }
-    if (!affaireRef) return;
+    if (!affaireRef) {
+      await window.showDirectoryPicker({ mode: 'read', startIn: handle });
+      return;
+    }
+    // 5. Recherche récursive du dossier contenant la référence
     showLoader('Recherche du dossier ' + affaireRef + '...');
     var found = await findAffaireFolder(handle, affaireRef);
     hideLoader();
@@ -2701,7 +2741,7 @@ async function openDossierAffaire(affaireRef) {
       alert('Aucun dossier contenant "' + affaireRef + '" trouvé.');
       return;
     }
-    // Ouvrir à nouveau le sélecteur, positionné directement sur le dossier trouvé
+    // 6. Ouvrir le sélecteur positionné directement sur le dossier trouvé
     await window.showDirectoryPicker({ mode: 'read', startIn: found.handle });
   } catch(e) {
     hideLoader();
