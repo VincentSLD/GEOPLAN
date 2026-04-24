@@ -4228,27 +4228,38 @@ async function loadCommandesFromSupabase() {
     }
 
     // Filtrer côté client
+    var DEBUG_AFFAIRE = '26.0725.01';
     commandesData = data.filter(function(c) {
+      var aff = c.affaire_id ? affairesMap[c.affaire_id] : null;
+      var affRef = aff && aff.ref ? aff.ref : '';
+      var isDebug = affRef.indexOf(DEBUG_AFFAIRE) >= 0 || (c.ref || '').indexOf(DEBUG_AFFAIRE) >= 0;
       var s = (c.statut || '').toLowerCase();
-      if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
-      if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
-      if (societes.length > 0 && societes.indexOf(c.societe || '') < 0) return false;
-      // Custom data filters
+      if (exclure.length > 0 && exclure.indexOf(s) >= 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu par statut (liste exclure):', s, c); return false; }
+      if (statuts.length > 0 && statuts.indexOf(s) < 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu car statut absent de la liste autorisée:', s, c); return false; }
+      if (societes.length > 0 && societes.indexOf(c.societe || '') < 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu par société:', c.societe, c); return false; }
       var cd = c.custom_data;
       if (filtCategories.length > 0) {
         var cat = cd && cd['1-alpha05'] && cd['1-alpha05'].value;
-        if (!cat || filtCategories.indexOf(cat) < 0) return false;
+        if (!cat || filtCategories.indexOf(cat) < 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu par catégorie:', cat, c); return false; }
       }
       if (filtTypes.length > 0) {
         var typ = cd && cd['1-alpha06'] && cd['1-alpha06'].value;
-        if (!typ || filtTypes.indexOf(typ) < 0) return false;
+        if (!typ || filtTypes.indexOf(typ) < 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu par type:', typ, c); return false; }
       }
       if (filtCdStatuts.length > 0) {
         var cdSt = cd && cd['1-alpha17'] && cd['1-alpha17'].value;
-        if (!cdSt || filtCdStatuts.indexOf(cdSt) < 0) return false;
+        if (!cdSt || filtCdStatuts.indexOf(cdSt) < 0) { if (isDebug) console.warn('[DEBUG ' + DEBUG_AFFAIRE + '] exclu par statut custom:', cdSt, c); return false; }
       }
+      if (isDebug) console.log('[DEBUG ' + DEBUG_AFFAIRE + '] commande GARDÉE:', c);
       return true;
     });
+    // Diagnostic : vérifier si la commande de l'affaire existe dans data brute
+    var rawHits = data.filter(function(c) {
+      var aff = c.affaire_id ? affairesMap[c.affaire_id] : null;
+      var affRef = aff && aff.ref ? aff.ref : '';
+      return affRef.indexOf(DEBUG_AFFAIRE) >= 0 || (c.ref || '').indexOf(DEBUG_AFFAIRE) >= 0;
+    });
+    console.log('[DEBUG ' + DEBUG_AFFAIRE + '] ' + rawHits.length + ' commande(s) trouvée(s) dans data brute:', rawHits);
 
     // Enrichir avec affaire et marché
     commandesData.forEach(function(cmd) {
