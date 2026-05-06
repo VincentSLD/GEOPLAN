@@ -2,8 +2,8 @@ const https = require('https');
 
 module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Forward-Accept');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const AKUITEO_URL = process.env.AKUITEO_BASE_URL || 'https://novamingenierie-test.myakuiteo.com/akuiteo/rest';
@@ -22,15 +22,17 @@ module.exports = function handler(req, res) {
   const fullUrl = new URL(AKUITEO_URL + apiPath + (qs ? '?' + qs : ''));
   const auth = 'Basic ' + Buffer.from(AKUITEO_USER + ':' + AKUITEO_PASS).toString('base64');
 
-  const postData = req.method === 'POST' && req.body ? JSON.stringify(req.body) : '';
+  const postData = (req.method !== 'GET' && req.body) ? JSON.stringify(req.body) : '';
 
+  // Autorise le client a surcharger Accept via le header X-Forward-Accept
+  const accept = req.headers['x-forward-accept'] || req.headers.accept || 'application/json';
   const options = {
     hostname: fullUrl.hostname,
     path: fullUrl.pathname + fullUrl.search,
     method: req.method,
     headers: {
       'Authorization': auth,
-      'Accept': 'application/json',
+      'Accept': accept,
       'Content-Type': 'application/json',
     },
     timeout: 30000,

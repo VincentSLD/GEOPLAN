@@ -3649,9 +3649,41 @@ async function pushCommandeToAkuiteo(opts) {
   if (!fullOrder.customData['1-date02']) fullOrder.customData['1-date02'] = { name: 'DLC', type: 'DATE' };
   fullOrder.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
   fullOrder.description = newDesc || null;
-  // API Akuiteo /sales/orders est en lecture seule — pas d'écriture possible.
-  // On confirme simplement la sauvegarde Supabase.
-  if (statusEl) { statusEl.textContent = '✓ Sauvegardé'; statusEl.style.color = '#16A34A'; }
+  // Tenter l'écriture vers Akuiteo (plusieurs endpoints en fallback)
+  if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
+  var hdrs = { 'Content-Type': 'application/json', 'X-Forward-Accept': 'text/plain', 'Accept': 'text/plain' };
+  var attempts = [
+    { method: 'POST', path: '/sales/orders/' + encodeURIComponent(akId), body: fullOrder },
+    { method: 'PATCH', path: '/sales/orders/' + encodeURIComponent(akId), body: [{ op: 'replace', path: '/customData/1-alpha17/value', value: newStatut || null }, { op: 'replace', path: '/customData/1-date01/value', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null }, { op: 'replace', path: '/customData/1-date02/value', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null }] },
+    { method: 'POST', path: '/sales/orders/save', body: fullOrder },
+    { method: 'PUT',  path: '/sales/orders/save', body: fullOrder },
+    { method: 'POST', path: '/sales/orders/update', body: fullOrder },
+    { method: 'POST', path: '/sales/orders', body: fullOrder },
+    { method: 'PUT',  path: '/sales/orders/' + encodeURIComponent(akId), body: fullOrder },
+    { method: 'POST', path: '/sales/orders/' + encodeURIComponent(akId) + '/write', body: fullOrder },
+    { method: 'POST', path: '/sales/orders/save', body: { order: fullOrder } },
+    { method: 'POST', path: '/sales/orders/save', body: { detail: fullOrder } },
+    { method: 'POST', path: '/sales/orders/save', body: { orders: [fullOrder] } },
+  ];
+  var lastStatus = 0;
+  for (var a = 0; a < attempts.length; a++) {
+    var att = attempts[a];
+    try {
+      var rSave = await fetch(AKUITEO_PROXY + att.path, { method: att.method, headers: hdrs, body: JSON.stringify(att.body) });
+      var rTxt = await rSave.text();
+      console.log('[Akuiteo push] ' + att.method + ' ' + att.path + ' → ' + rSave.status + ' ' + (rTxt || '').substring(0, 200));
+      lastStatus = rSave.status;
+      if (rSave.ok) {
+        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+        return;
+      }
+      if (rSave.status === 404 || rSave.status === 405 || rSave.status === 406) continue;
+      break;
+    } catch(e) {
+      console.warn('[Akuiteo push] Exception :', e.message);
+    }
+  }
+  if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo (' + lastStatus + ')'; statusEl.style.color = '#D97706'; }
 }
 
 function etudesMsg(msg) {
