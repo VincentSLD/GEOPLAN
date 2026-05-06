@@ -6761,64 +6761,69 @@ function syncTypesToApp() {
 }
 
 // ======== TAB 4: STATUTS ========
-var settingsStatuts = loadSettings('geoplan_statuts', [
-  { id: 'a-faire', label: 'A faire', color: '#6B7280' },
-  { id: 'a-planifier', label: 'A planifier', color: '#7C3AED' },
-  { id: 'en-attente', label: 'En attente', color: '#D97706' },
-  { id: 'en-cours', label: 'En cours', color: '#2563EB' },
-  { id: 'terminee', label: 'Terminée', color: '#16A34A' },
-]);
+// Les statuts correspondent aux valeurs du champ custom_data['1-alpha17'] (données personnalisées Akuiteo).
+var STATUT_CD_VALUES = ['A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'];
+var DEFAULT_STATUT_COLORS = {
+  'A faire': '#6B7280',
+  'A planifier': '#7C3AED',
+  'En attente': '#D97706',
+  'En cours': '#2563EB',
+  'Terminée': '#16A34A',
+};
+var settingsStatuts = loadSettings('geoplan_statuts', STATUT_CD_VALUES.map(function(v) {
+  return { id: v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-'), label: v, color: DEFAULT_STATUT_COLORS[v] || '#888' };
+}));
+
+// S'assurer que tous les statuts custom_data ont une entrée (migration)
+(function() {
+  var changed = false;
+  STATUT_CD_VALUES.forEach(function(v) {
+    var exists = settingsStatuts.find(function(s) { return s.label === v; });
+    if (!exists) {
+      settingsStatuts.push({ id: v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-'), label: v, color: DEFAULT_STATUT_COLORS[v] || '#888' });
+      changed = true;
+    }
+  });
+  if (changed) saveSettings('geoplan_statuts', settingsStatuts);
+})();
 
 function renderSettingsStatuts() {
   var c = document.getElementById('settingsStatuts');
-  var html = '<div class="stg-toolbar"><h3>Statuts (' + settingsStatuts.length + ')</h3><button class="stg-add-btn" onclick="editStatut(null)">+ Ajouter</button></div>';
-  html += '<table class="stg-table"><thead><tr><th></th><th>Label</th><th>Identifiant</th><th>Actions</th></tr></thead><tbody>';
-  settingsStatuts.forEach(function(s) {
-    html += '<tr><td><span class="stg-color-dot" style="background:' + s.color + '"></span></td>';
-    html += '<td><strong>' + s.label + '</strong></td>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;">' + s.id + '</td>';
-    html += '<td><div class="stg-actions"><button class="stg-btn-edit" onclick="editStatut(\'' + s.id + '\')">Modifier</button><button class="stg-btn-del" onclick="deleteStatut(\'' + s.id + '\')">Suppr.</button></div></td></tr>';
+  var html = '<div class="stg-toolbar"><h3>Couleurs des statuts</h3></div>';
+  html += '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px 14px;margin-bottom:12px;font-size:0.72rem;color:var(--text-muted);">' +
+    'Ces couleurs sont liées au champ <strong>Statut</strong> des données personnalisées Akuiteo (<code>custom_data[\'1-alpha17\']</code>).<br>' +
+    'Chaque valeur du menu déroulant est associée à une couleur utilisée dans les blocs d\'intervention sur le planning.</div>';
+  html += '<table class="stg-table"><thead><tr><th style="width:50px;">Couleur</th><th>Statut (donnée personnalisée)</th><th style="width:100px;">Aperçu</th></tr></thead><tbody>';
+  STATUT_CD_VALUES.forEach(function(val) {
+    var s = settingsStatuts.find(function(x) { return x.label === val; });
+    var col = s ? s.color : '#888';
+    html += '<tr>';
+    html += '<td><input type="color" value="' + col + '" data-statut-label="' + val.replace(/"/g, '&quot;') + '" onchange="onStatutColorChange(this)" style="width:36px;height:28px;cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:1px;"></td>';
+    html += '<td><strong>' + val + '</strong></td>';
+    html += '<td><span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + col + '18;color:' + col + ';border:1px solid ' + col + '30;">' + val + '</span></td>';
+    html += '</tr>';
   });
   html += '</tbody></table>';
   c.innerHTML = html;
 }
 
-function editStatut(id) {
-  var s = id ? settingsStatuts.find(function(x) { return x.id === id; }) : { id: '', label: '', color: '#2563EB' };
-  openStgForm('<h3>' + (id ? 'Modifier' : 'Ajouter') + ' un statut</h3>' +
-    '<div class="stg-form-grid">' +
-    '<div class="stg-form-field"><label>Label</label><input id="stf-slabel" value="' + s.label + '"></div>' +
-    '<div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-sid" value="' + s.id + '" ' + (id ? 'disabled' : '') + ' placeholder="ex: en_attente"></div>' +
-    '<div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-scolor" value="' + s.color + '" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px;"></div>' +
-    '</div>' +
-    '<div class="stg-form-actions"><button class="stg-form-cancel" onclick="closeStgForm()">Annuler</button><button class="stg-form-save" onclick="saveStatut(\'' + (id || '') + '\')">Enregistrer</button></div>');
-}
-
-function saveStatut(id) {
-  var label = document.getElementById('stf-slabel').value.trim();
-  var newId = id || document.getElementById('stf-sid').value.trim().toLowerCase().replace(/\s+/g, '_');
-  if (!label || !newId) { alert('Label et identifiant requis'); return; }
-  var data = { id: newId, label: label, color: document.getElementById('stf-scolor').value };
-  if (id) {
-    var idx = settingsStatuts.findIndex(function(x) { return x.id === id; });
-    if (idx >= 0) settingsStatuts[idx] = data;
+function onStatutColorChange(input) {
+  var label = input.getAttribute('data-statut-label');
+  var color = input.value;
+  var s = settingsStatuts.find(function(x) { return x.label === label; });
+  if (s) {
+    s.color = color;
   } else {
-    if (settingsStatuts.find(function(x) { return x.id === newId; })) { alert('Cet identifiant existe déjà'); return; }
-    settingsStatuts.push(data);
+    settingsStatuts.push({ id: label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-'), label: label, color: color });
   }
   saveSettings('geoplan_statuts', settingsStatuts);
-  closeStgForm();
   renderSettingsStatuts();
-  populateStatusSelect();
+  renderCurrentView();
 }
 
-function deleteStatut(id) {
-  if (!confirm('Supprimer ce statut ?')) return;
-  settingsStatuts = settingsStatuts.filter(function(x) { return x.id !== id; });
-  saveSettings('geoplan_statuts', settingsStatuts);
-  renderSettingsStatuts();
-  populateStatusSelect();
-}
+function editStatut() {}
+function deleteStatut() {}
+function saveStatut() {}
 
 function populateStatusSelect() {
   var sel = document.getElementById('intStatus');
