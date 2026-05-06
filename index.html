@@ -3677,13 +3677,17 @@ async function pushCommandeToAkuiteo(opts) {
         if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
         return;
       }
-      if (rSave.status === 404 || rSave.status === 405 || rSave.status === 406) continue;
+      if (rSave.status === 403 || rSave.status === 404 || rSave.status === 405 || rSave.status === 406) continue;
       break;
     } catch(e) {
       console.warn('[Akuiteo push] Exception :', e.message);
     }
   }
-  if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo (' + lastStatus + ')'; statusEl.style.color = '#D97706'; }
+  if (statusEl) {
+    if (lastStatus === 403) { statusEl.textContent = '✓ Sauvegardé · Akuiteo: écriture non autorisée'; }
+    else { statusEl.textContent = '✓ Sauvegardé · Akuiteo refuse (' + lastStatus + ')'; }
+    statusEl.style.color = '#D97706';
+  }
 }
 
 function etudesMsg(msg) {
