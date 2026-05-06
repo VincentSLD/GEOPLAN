@@ -1760,7 +1760,7 @@ body::before {
       <div class="form-row">
         <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
         <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required></div>
-        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="number" min="15" step="15" onchange="updateEndFromDuration()" placeholder="min"></div>
+        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="number" min="0.25" step="0.25" onchange="updateEndFromDuration()" placeholder="h"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
@@ -1771,7 +1771,7 @@ body::before {
       <div id="intGeosoliaInfo" style="display:none;margin:2px 0 4px;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
-      <div class="form-group"><label class="form-label">Infos ADV <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+      <div class="form-group"><label class="form-label">Commentaires sur la commande <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -2910,7 +2910,7 @@ function onTypeChange() {
   if (t && t.dureeDefaut) {
     var durField = document.getElementById('intDuration');
     if (!durField.value || durField.value === '0') {
-      durField.value = t.dureeDefaut;
+      durField.value = (t.dureeDefaut / 60);
       updateEndFromDuration();
     }
   }
@@ -3345,8 +3345,9 @@ function handleDrop(e,tid,ds){
 let _intAddrInitialized = false;
 function updateEndFromDuration(){
   var start=document.getElementById('intStart').value||'08:00';
-  var dur=parseInt(document.getElementById('intDuration').value)||240;
-  var endMin=timeToMin(start)+dur;
+  var durH=parseFloat(document.getElementById('intDuration').value)||4;
+  var durMin=Math.round(durH*60);
+  var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
 function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
@@ -3362,7 +3363,7 @@ function saveIntervention(){
     date:document.getElementById('intDate').value,
     startTime:document.getElementById('intStart').value,
     endTime:document.getElementById('intEnd').value,
-    duration:parseInt(document.getElementById('intDuration').value)||0,
+    duration:Math.round((parseFloat(document.getElementById('intDuration').value)||0)*60),
     techId:parseInt(document.getElementById('intTech').value),
     location:document.getElementById('intAddress').value||'',
     client:document.getElementById('intClient').value||'-',
@@ -3493,7 +3494,7 @@ function editIntervention(id){
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
   document.getElementById('intDate').value=i.date;document.getElementById('intStart').value=i.startTime;
   document.getElementById('intEnd').value=i.endTime;
-  document.getElementById('intDuration').value=i.duration || (timeToMin(i.endTime)-timeToMin(i.startTime)) || 240;
+  document.getElementById('intDuration').value=((i.duration || (timeToMin(i.endTime)-timeToMin(i.startTime)) || 240) / 60);
   document.getElementById('intTech').value=i.techId;
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
@@ -4706,7 +4707,7 @@ function onCommandeSelect() {
   var durInput = document.getElementById('intDuration');
   if (durInput && !durInput.value) {
     var computed = (typeof computeGeoDurationOrNull === 'function') ? computeGeoDurationOrNull(cmd) : null;
-    if (computed) { durInput.value = computed; if (typeof updateEndFromDuration === 'function') updateEndFromDuration(); }
+    if (computed) { durInput.value = (computed / 60); if (typeof updateEndFromDuration === 'function') updateEndFromDuration(); }
   }
 }
 
@@ -5168,7 +5169,7 @@ function onGeosoliaSelect() {
   var editingInt = editingId ? interventions.find(function(i){return i.id===editingId;}) : null;
   var geosoliaTime = (editingInt && editingInt.isRapport && prog.estimatedReportMin) ? prog.estimatedReportMin : prog.timeEstimateMin;
   if (geosoliaTime) {
-    document.getElementById('intDuration').value = geosoliaTime;
+    document.getElementById('intDuration').value = (geosoliaTime / 60);
     updateEndFromDuration();
   }
 
