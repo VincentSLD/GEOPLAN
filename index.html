@@ -3590,11 +3590,14 @@ async function pushCommandeToAkuiteo(opts) {
   if (!cmd) { if (statusEl) statusEl.textContent = '✗ Commande introuvable'; return; }
   var fromDom = !opts.cmdId;
   var statutEl = fromDom ? document.getElementById('cdStatutSelect') : null;
+  var dlrEl = fromDom ? document.getElementById('cdDlrInput') : null;
   var dlcEl = fromDom ? document.getElementById('cdDlcInput') : null;
   var descEl = fromDom ? document.getElementById('intInfosAdv') : null;
   var cdStatutVal = (cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value) || '';
+  var cdDlrVal = (cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value) || '';
   var cdDlcVal = (cmd.custom_data && cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value) || '';
   var newStatut = statutEl ? (statutEl.value || '').trim() : cdStatutVal;
+  var newDlr = dlrEl ? (dlrEl.value || '').trim() : (cdDlrVal && /^\d{4}-\d{2}-\d{2}/.test(String(cdDlrVal)) ? String(cdDlrVal).substring(0, 10) : '');
   var newDlc = dlcEl ? (dlcEl.value || '').trim() : (cdDlcVal && /^\d{4}-\d{2}-\d{2}/.test(String(cdDlcVal)) ? String(cdDlcVal).substring(0, 10) : '');
   var newDesc = descEl ? (descEl.textContent || '').trim() : (cmd.description || '');
   if (statusEl) { statusEl.textContent = '⏳ Sauvegarde Supabase...'; statusEl.style.color = 'var(--text-muted)'; }
@@ -3602,6 +3605,8 @@ async function pushCommandeToAkuiteo(opts) {
   var newCd = Object.assign({}, cmd.custom_data || {});
   if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
   newCd['1-alpha17'].value = newStatut || null;
+  if (!newCd['1-date01']) newCd['1-date01'] = { name: 'DLR', type: 'DATE' };
+  newCd['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
   if (!newCd['1-date02']) newCd['1-date02'] = { name: 'DLC', type: 'DATE' };
   newCd['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
   try {
@@ -3637,6 +3642,8 @@ async function pushCommandeToAkuiteo(opts) {
   if (!fullOrder.customData) fullOrder.customData = {};
   if (!fullOrder.customData['1-alpha17']) fullOrder.customData['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
   fullOrder.customData['1-alpha17'].value = newStatut || null;
+  if (!fullOrder.customData['1-date01']) fullOrder.customData['1-date01'] = { name: 'DLR', type: 'DATE' };
+  fullOrder.customData['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
   if (!fullOrder.customData['1-date02']) fullOrder.customData['1-date02'] = { name: 'DLC', type: 'DATE' };
   fullOrder.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
   fullOrder.description = newDesc || null;
@@ -4752,7 +4759,7 @@ function renderCmdCustomDataHTML(cmd) {
   var ALWAYS_SHOW_KEYS = ['1-alpha10', '1-alpha12'];
   // Champs lecture seule
   Object.keys(CMD_CUSTOM_DATA_LABELS).forEach(function(key) {
-    if (key === '1-alpha17' || key === '1-date02') return; // editables, traités plus loin
+    if (key === '1-alpha17' || key === '1-date01' || key === '1-date02') return; // editables, traités plus loin
     var raw = cd[key];
     var rawVal = raw && typeof raw === 'object' ? ((raw.value !== undefined) ? raw.value : (raw.val !== undefined ? raw.val : '')) : raw;
     var isEmpty = rawVal === null || rawVal === undefined || rawVal === '';
@@ -4782,19 +4789,22 @@ function renderCmdCustomDataHTML(cmd) {
       '<span style="font-size:0.7rem;color:var(--text-muted);">h</span>' +
     '</span>' +
   '</div>';
+  // DLR (toujours présente, editable)
+  var dlrRaw = cd['1-date01'] && cd['1-date01'].value || '';
+  var dvr = '';
+  if (dlrRaw) {
+    var ddr = new Date(dlrRaw);
+    if (!isNaN(ddr.getTime())) { dvr = ddr.getFullYear() + '-' + String(ddr.getMonth()+1).padStart(2,'0') + '-' + String(ddr.getDate()).padStart(2,'0'); }
+    else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlrRaw))) { dvr = String(dlrRaw).substring(0, 10); }
+  }
+  rows += _cdEditableRow('DLR', '<input type="date" id="cdDlrInput" value="' + dvr + '" onchange="onCmdFieldChange(\'dlr\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">');
   // DLC (toujours présente, editable)
   var dlcRaw = cd['1-date02'] && cd['1-date02'].value || '';
   var dv = '';
   if (dlcRaw) {
     var dd = new Date(dlcRaw);
-    if (!isNaN(dd.getTime())) {
-      var y = dd.getFullYear();
-      var m = String(dd.getMonth() + 1).padStart(2, '0');
-      var day = String(dd.getDate()).padStart(2, '0');
-      dv = y + '-' + m + '-' + day;
-    } else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlcRaw))) {
-      dv = String(dlcRaw).substring(0, 10);
-    }
+    if (!isNaN(dd.getTime())) { dv = dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-' + String(dd.getDate()).padStart(2,'0'); }
+    else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlcRaw))) { dv = String(dlcRaw).substring(0, 10); }
   }
   rows += _cdEditableRow('DLC', '<input type="date" id="cdDlcInput" value="' + dv + '" onchange="onCmdFieldChange(\'dlc\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">');
   return '<div id="cdEditBox" data-cmd-id="' + cmd.id + '" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;margin:8px 0;">' +
