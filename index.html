@@ -4578,7 +4578,7 @@ function planifierCommande(cmdId) {
     openModal();
     document.getElementById('intCommande').value = cmdId;
     onCommandeSelect();
-    document.getElementById('intTitle').value = (cmd.nom || cmd.description || cmd.ref || '');
+    document.getElementById('intTitle').value = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
     document.getElementById('intClient').value = cmd.client_name || '';
     if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
     // Pré-sélectionner Géosolia si lié
@@ -4703,7 +4703,7 @@ function onCommandeSelect() {
   }
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
   if (!cmd) return;
-  document.getElementById('intTitle').value = cmd.nom || cmd.description || cmd.ref || '';
+  document.getElementById('intTitle').value = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
   document.getElementById('intClient').value = cmd.client_name || '';
   if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
   document.getElementById('intAffaire').value = cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom || '').substring(0, 40)) : '';
