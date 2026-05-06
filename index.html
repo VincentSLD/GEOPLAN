@@ -3615,6 +3615,7 @@ async function pushCommandeToAkuiteo(opts) {
     if (upd.error) throw upd.error;
     cmd.custom_data = newCd;
     cmd.description = newDesc;
+    if (typeof renderCurrentView === 'function') renderCurrentView();
   } catch(e) {
     if (statusEl) { statusEl.textContent = '✗ Echec Supabase : ' + (e.message || e); statusEl.style.color = '#DC2626'; }
     return;
