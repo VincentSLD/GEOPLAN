@@ -4291,6 +4291,7 @@ async function loadAffairesMarches() {
 }
 
 async function loadCommandesFromSupabase() {
+  showLoader('Chargement des commandes Akuiteo...');
   try {
     // Charger affaires & marchés en parallèle
     if (Object.keys(affairesMap).length === 0) await loadAffairesMarches();
@@ -4381,6 +4382,7 @@ async function loadCommandesFromSupabase() {
     commandesLoaded = true;
     console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées (après filtres), ' + Object.keys(affairesMap).length + ' affaires, ' + Object.keys(marchesMap).length + ' marchés');
   } catch(e) { console.warn('[Commandes] Erreur:', e); }
+  hideLoader();
 }
 
 async function refreshCommandes() {
