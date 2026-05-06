@@ -1770,7 +1770,8 @@ body::before {
       </div>
       <div id="intGeosoliaInfo" style="display:none;margin:2px 0 4px;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
-      <div class="form-group"><label class="form-label">Infos ADV</label><div id="intInfosAdv" contenteditable="true" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/html')||event.clipboardData.getData('text'))"></div></div>
+      <div id="intCustomData" style="display:none;"></div>
+      <div class="form-group"><label class="form-label">Infos ADV <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -3348,7 +3349,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+dur;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -3477,6 +3478,7 @@ function openDetail(id){
       <div>${int.client ? '🏢 '+int.client : ''} ${showWeather && !int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div>
     </div>
     ${int.commandeRef || int.affaireRef || int.marcheRef ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.72rem;font-family:\'DM Mono\',monospace;">'+(int.commandeRef?'<span>📋 '+int.commandeRef+'</span>':'')+(int.affaireRef?'<span>📂 '+int.affaireRef+'</span>':'')+(int.marcheRef?'<span>📑 '+int.marcheRef+'</span>':'')+(int.affaireRef?'<button onclick="openDossierAffaire(\''+int.affaireRef+'\')" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.65rem;cursor:pointer;font-family:inherit;font-weight:600;">📁 Ouvrir dossier</button>':'')+'</div>' : ''}
+    ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderCmdCustomDataHTML(cmd) : ''; })()}
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;padding:6px;">✏️ Modifier</button>
@@ -3562,6 +3564,109 @@ async function akuiteoFetch(method, path, body = null) {
     console.warn(`[Akuiteo] JSON invalide (${text.length} chars) sur ${path} — ${e.message}`);
     throw new Error(`JSON parse error sur ${path} (${text.length} chars)`);
   }
+}
+
+// ═══ SYNC BIDIRECTIONNELLE AKUITEO (debounced) ═══
+var _akuiteoSyncTimer = null;
+function _akuiteoSyncDebounced(reason) {
+  if (_akuiteoSyncTimer) clearTimeout(_akuiteoSyncTimer);
+  var statusEl = document.getElementById('akPushStatus');
+  if (statusEl) { statusEl.textContent = '⏳ Modif. en attente...'; statusEl.style.color = 'var(--text-muted)'; }
+  _akuiteoSyncTimer = setTimeout(function(){ pushCommandeToAkuiteo({ silent: true, reason: reason }); }, 700);
+}
+function onCmdFieldChange(field) { _akuiteoSyncDebounced(field); }
+function onCmdDescriptionChange(evt) { _akuiteoSyncDebounced('description'); }
+
+// Pousse statut + DLC + description vers Supabase puis Akuiteo
+async function pushCommandeToAkuiteo(opts) {
+  opts = opts || {};
+  var box = document.getElementById('cdEditBox');
+  var statusEl = document.getElementById('akPushStatus');
+  var cmdId = opts.cmdId || (box && box.getAttribute('data-cmd-id')) || (function(){
+    var d = document.getElementById('intInfosAdv');
+    return d ? d.getAttribute('data-cmd-id') : null;
+  })();
+  if (!cmdId) { if (statusEl) statusEl.textContent = '✗ Pas de commande'; return; }
+  var cmd = commandesData.find(function(c){ return c.id === cmdId; });
+  if (!cmd) { if (statusEl) statusEl.textContent = '✗ Commande introuvable'; return; }
+  var fromDom = !opts.cmdId;
+  var statutEl = fromDom ? document.getElementById('cdStatutSelect') : null;
+  var dlcEl = fromDom ? document.getElementById('cdDlcInput') : null;
+  var descEl = fromDom ? document.getElementById('intInfosAdv') : null;
+  var cdStatutVal = (cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value) || '';
+  var cdDlcVal = (cmd.custom_data && cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value) || '';
+  var newStatut = statutEl ? (statutEl.value || '').trim() : cdStatutVal;
+  var newDlc = dlcEl ? (dlcEl.value || '').trim() : (cdDlcVal && /^\d{4}-\d{2}-\d{2}/.test(String(cdDlcVal)) ? String(cdDlcVal).substring(0, 10) : '');
+  var newDesc = descEl ? (descEl.textContent || '').trim() : (cmd.description || '');
+  if (statusEl) { statusEl.textContent = '⏳ Sauvegarde Supabase...'; statusEl.style.color = 'var(--text-muted)'; }
+  // 1) Mise a jour Supabase
+  var newCd = Object.assign({}, cmd.custom_data || {});
+  if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+  newCd['1-alpha17'].value = newStatut || null;
+  if (!newCd['1-date02']) newCd['1-date02'] = { name: 'DLC', type: 'DATE' };
+  newCd['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
+  try {
+    var upd = await sbAuth.from('commandes').update({ custom_data: newCd, description: newDesc }).eq('id', cmdId);
+    if (upd.error) throw upd.error;
+    cmd.custom_data = newCd;
+    cmd.description = newDesc;
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗ Echec Supabase : ' + (e.message || e); statusEl.style.color = '#DC2626'; }
+    return;
+  }
+  // 2) Push Akuiteo
+  var akId = cmd.ref || cmdId.replace('akc_', '').replace(/_/g, '-');
+  if (statusEl) statusEl.textContent = '⏳ Lecture commande Akuiteo...';
+  var fullOrder = null;
+  try {
+    var rRead = await fetch(AKUITEO_PROXY + '/sales/orders/' + encodeURIComponent(akId) + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ options: ['CUSTOM_DATA'] }),
+    });
+    if (rRead.ok) {
+      var rReadTxt = await rRead.text();
+      fullOrder = JSON.parse(rReadTxt);
+      if (fullOrder && fullOrder.detail && !fullOrder.customData) fullOrder = fullOrder.detail;
+    }
+  } catch(e) { console.error('[Akuiteo push] Echec lecture :', e); }
+  if (!fullOrder) {
+    if (statusEl) { statusEl.textContent = '⚠ Supabase OK, Akuiteo lecture echouee'; statusEl.style.color = '#D97706'; }
+    return;
+  }
+  // Patch des champs
+  if (!fullOrder.customData) fullOrder.customData = {};
+  if (!fullOrder.customData['1-alpha17']) fullOrder.customData['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+  fullOrder.customData['1-alpha17'].value = newStatut || null;
+  if (!fullOrder.customData['1-date02']) fullOrder.customData['1-date02'] = { name: 'DLC', type: 'DATE' };
+  fullOrder.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
+  fullOrder.description = newDesc || null;
+  if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
+  // Tenter l'ecriture Akuiteo (plusieurs endpoints en fallback)
+  var attempts = [
+    { method: 'POST', path: '/sales/orders/save', body: fullOrder },
+    { method: 'POST', path: '/sales/orders/' + encodeURIComponent(akId) + '/save', body: fullOrder },
+    { method: 'PUT', path: '/sales/orders/' + encodeURIComponent(akId), body: fullOrder },
+  ];
+  var lastStatus = 0;
+  for (var a = 0; a < attempts.length; a++) {
+    try {
+      var att = attempts[a];
+      var rSave = await fetch(AKUITEO_PROXY + att.path, {
+        method: att.method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(att.body),
+      });
+      lastStatus = rSave.status;
+      if (rSave.ok || rSave.status === 204) {
+        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+        return;
+      }
+    } catch(e) {
+      console.error('[Akuiteo push] Exception :', e);
+    }
+  }
+  if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo refuse (' + lastStatus + ')'; statusEl.style.color = '#D97706'; }
 }
 
 function etudesMsg(msg) {
@@ -4587,9 +4692,13 @@ function linkEtudeToIntervention(ref, nom, client) {
 function onCommandeSelect() {
   var sel = document.getElementById('intCommande');
   var cmdId = sel.value;
+  var cdBox = document.getElementById('intCustomData');
+  var infosAdvEl = document.getElementById('intInfosAdv');
   if (!cmdId) {
     document.getElementById('intAffaire').value = '';
     document.getElementById('intMarche').value = '';
+    if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
+    if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
     return;
   }
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
@@ -4599,6 +4708,126 @@ function onCommandeSelect() {
   if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
   document.getElementById('intAffaire').value = cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom || '').substring(0, 40)) : '';
   document.getElementById('intMarche').value = cmd._marche ? (cmd._marche.ref + ' — ' + (cmd._marche.nom || '').substring(0, 40)) : '';
+  // Bloc données personnalisées
+  if (cdBox) {
+    var html = renderCmdCustomDataHTML(cmd);
+    cdBox.innerHTML = html;
+    cdBox.style.display = html ? 'block' : 'none';
+  }
+  // Infos ADV (description commande)
+  if (infosAdvEl) {
+    infosAdvEl.textContent = cmd.description || '';
+    infosAdvEl.setAttribute('data-cmd-id', cmd.id);
+  }
+  // Auto-remplir durée si vide
+  var durInput = document.getElementById('intDuration');
+  if (durInput && !durInput.value) {
+    var computed = (typeof computeGeoDurationOrNull === 'function') ? computeGeoDurationOrNull(cmd) : null;
+    if (computed) { durInput.value = computed; if (typeof updateEndFromDuration === 'function') updateEndFromDuration(); }
+  }
+}
+
+// ═══ BLOC DONNÉES PERSONNALISÉES AKUITEO ═══
+
+// Whitelist : clés custom_data Akuiteo → libellé FR (seules ces clés sont affichées)
+var CMD_CUSTOM_DATA_LABELS = {
+  '1-alpha05': 'Catégorie',
+  '1-alpha06': 'Type de mission',
+  '1-alpha10': 'Apporteur d\'affaire',
+  '1-alpha11': 'Code GO',
+  '1-alpha12': 'Gros Oeuvre',
+  '1-alpha14': 'Options',
+  '1-alpha15': 'Longrines',
+  '1-alpha16': 'Emprises Longrines',
+  '1-alpha17': 'Statut',
+  '1-date01': 'DLR',
+  '1-date02': 'DLC',
+};
+
+function _cdRow(label, value) {
+  return '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px dashed var(--border);font-size:0.72rem;align-items:center;">' +
+    '<span style="flex:0 0 130px;color:var(--text-muted);text-transform:uppercase;font-size:0.6rem;letter-spacing:0.02em;">' + label + '</span>' +
+    '<span style="flex:1;color:var(--text-primary);font-weight:500;">' + value + '</span>' +
+    '</div>';
+}
+function _cdEditableRow(label, inputHtml) {
+  return '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px dashed var(--border);font-size:0.72rem;align-items:center;">' +
+    '<span style="flex:0 0 130px;color:var(--text-muted);text-transform:uppercase;font-size:0.6rem;letter-spacing:0.02em;">' + label + '</span>' +
+    '<span style="flex:1;">' + inputHtml + '</span>' +
+    '</div>';
+}
+function _cdToggleTempsPasse() {
+  var sel = document.getElementById('cdStatutSelect');
+  var row = document.getElementById('cdTempsPasseRow');
+  if (!sel || !row) return;
+  row.style.display = (sel.value === 'Terminée') ? 'flex' : 'none';
+}
+
+function renderCmdCustomDataHTML(cmd) {
+  if (!cmd) return '';
+  var cd = cmd.custom_data || {};
+  var rows = '';
+  // Surface facturée (colonne dédiée si présente)
+  if (cmd.surface_facturee !== null && cmd.surface_facturee !== undefined && cmd.surface_facturee !== '') {
+    var sf = parseFloat(cmd.surface_facturee);
+    if (!isNaN(sf)) rows += _cdRow('Surface facturée', sf.toLocaleString('fr-FR') + ' m²');
+  }
+  // Champs toujours affichés meme si vides
+  var ALWAYS_SHOW_KEYS = ['1-alpha10', '1-alpha12'];
+  // Champs lecture seule
+  Object.keys(CMD_CUSTOM_DATA_LABELS).forEach(function(key) {
+    if (key === '1-alpha17' || key === '1-date02') return; // editables, traités plus loin
+    var raw = cd[key];
+    var rawVal = raw && typeof raw === 'object' ? ((raw.value !== undefined) ? raw.value : (raw.val !== undefined ? raw.val : '')) : raw;
+    var isEmpty = rawVal === null || rawVal === undefined || rawVal === '';
+    var alwaysShow = ALWAYS_SHOW_KEYS.indexOf(key) >= 0;
+    if (isEmpty && !alwaysShow) return;
+    var display = isEmpty ? '<span style="color:var(--text-muted);font-style:italic;">— non renseigné —</span>' : rawVal;
+    if (!isEmpty && typeof display === 'string' && /^\d{4}-\d{2}-\d{2}/.test(display)) {
+      var d = new Date(display);
+      display = isNaN(d.getTime()) ? display : d.toLocaleDateString('fr-FR');
+    }
+    rows += _cdRow(CMD_CUSTOM_DATA_LABELS[key], String(display));
+  });
+  // Statut (toujours present, editable)
+  var statutVal = cd['1-alpha17'] && cd['1-alpha17'].value || '';
+  rows += _cdEditableRow('Statut', '<select id="cdStatutSelect" onchange="_cdToggleTempsPasse(); onCmdFieldChange(\'statut\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">' +
+    ['', 'A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'].map(function(v){
+      var sel = (statutVal || '') === v ? ' selected' : '';
+      return '<option value="' + v.replace(/"/g,'&quot;') + '"' + sel + '>' + (v || '— Non renseigné —') + '</option>';
+    }).join('') + '</select>');
+  // Temps passé (visible uniquement si statut = Terminée)
+  var tpVal = getTempsPasse(cmd.id);
+  var tpDisplay = (statutVal === 'Terminée') ? 'flex' : 'none';
+  rows += '<div id="cdTempsPasseRow" style="display:' + tpDisplay + ';gap:8px;padding:3px 0;border-bottom:1px dashed var(--border);font-size:0.72rem;align-items:center;">' +
+    '<span style="flex:0 0 130px;color:var(--text-muted);text-transform:uppercase;font-size:0.6rem;letter-spacing:0.02em;">Temps passé</span>' +
+    '<span style="flex:1;display:flex;gap:4px;align-items:center;">' +
+      '<input type="number" id="cdTempsPasseInput" data-cmd-id="' + cmd.id + '" value="' + tpVal + '" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="flex:1;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">' +
+      '<span style="font-size:0.7rem;color:var(--text-muted);">h</span>' +
+    '</span>' +
+  '</div>';
+  // DLC (toujours présente, editable)
+  var dlcRaw = cd['1-date02'] && cd['1-date02'].value || '';
+  var dv = '';
+  if (dlcRaw) {
+    var dd = new Date(dlcRaw);
+    if (!isNaN(dd.getTime())) {
+      var y = dd.getFullYear();
+      var m = String(dd.getMonth() + 1).padStart(2, '0');
+      var day = String(dd.getDate()).padStart(2, '0');
+      dv = y + '-' + m + '-' + day;
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlcRaw))) {
+      dv = String(dlcRaw).substring(0, 10);
+    }
+  }
+  rows += _cdEditableRow('DLC', '<input type="date" id="cdDlcInput" value="' + dv + '" onchange="onCmdFieldChange(\'dlc\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">');
+  return '<div id="cdEditBox" data-cmd-id="' + cmd.id + '" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;margin:8px 0;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
+      '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Données personnalisées Akuiteo</div>' +
+      '<span id="akPushStatus" style="font-size:0.6rem;color:var(--text-muted);"></span>' +
+    '</div>' +
+    rows +
+    '</div>';
 }
 
 // Populate commande select in intervention form
@@ -4615,6 +4844,40 @@ function populateCommandeSelect() {
     var aff = c._affaire ? c._affaire.ref + ' — ' + (c._affaire.nom || '').substring(0, 40) : (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 40);
     sel.innerHTML += '<option value="' + c.id + '">' + aff + '</option>';
   });
+}
+
+// ═══ DEADLINE & TEMPS PASSÉ ═══
+
+function getEffectiveDeadline(cmd) {
+  if (!cmd || !cmd.custom_data) return null;
+  var dlc = cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value;
+  var dlr = cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value;
+  return dlc || dlr || null;
+}
+function getEffectiveDeadlineLabel(cmd) {
+  if (!cmd || !cmd.custom_data) return 'DLR';
+  var dlc = cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value;
+  return dlc ? 'DLC' : 'DLR';
+}
+
+function getTempsPasse(cmdId) {
+  return settingsTempsPasseMap && settingsTempsPasseMap[cmdId] != null ? settingsTempsPasseMap[cmdId] : '';
+}
+function setTempsPasse(cmdId, hours) {
+  if (!cmdId) return;
+  var v = parseFloat(hours);
+  if (isNaN(v) || v <= 0) {
+    delete settingsTempsPasseMap[cmdId];
+  } else {
+    settingsTempsPasseMap[cmdId] = v;
+  }
+  saveSettings(SETTINGS_KEYS.tempsPasseMap, settingsTempsPasseMap);
+}
+function onTempsPasseChange(evt) {
+  var input = evt.target;
+  var cmdId = input.getAttribute('data-cmd-id');
+  setTempsPasse(cmdId, input.value);
+  if (typeof renderCurrentView === 'function') renderCurrentView();
 }
 
 // ═══ NAVIGATION GPS ═══
@@ -5344,6 +5607,13 @@ const SETTINGS_KEYS = {
   intTypes: 'geoplan_types',
   general: 'geoplan_general',
   groups: 'geoplan_groups',
+  tempsPasseMap: 'geoplan_temps_passe_map',
+  geoTimeRules: 'geoplan_time_rules',
+  geoFixedDurations: 'geoplan_fixed_durations',
+  geoLongrineRules: 'geoplan_longrine_rules',
+  geoOptions: 'geoplan_options_pct',
+  geoFields: 'geoplan_fields_map',
+  geoExtraTypes: 'geoplan_extra_mission_types',
 };
 
 // Load from localStorage cache (synchronous, fast)
@@ -5414,6 +5684,13 @@ async function loadAllSettingsFromSupabase() {
       commandeGeosoliaLinks = loadSettings('geoplan_cmd_geosolia', {});
       settingsFlags = loadSettings('geoplan_flags', []);
       settingsStatuts = loadSettings('geoplan_statuts', settingsStatuts);
+      settingsTempsPasseMap = loadSettings(SETTINGS_KEYS.tempsPasseMap, {});
+      settingsGeoFields = loadSettings(SETTINGS_KEYS.geoFields, DEFAULT_GEO_FIELDS);
+      settingsGeoTimeRules = loadSettings(SETTINGS_KEYS.geoTimeRules, []);
+      settingsGeoFixedDurations = loadSettings(SETTINGS_KEYS.geoFixedDurations, []);
+      settingsGeoOptionsPct = loadSettings(SETTINGS_KEYS.geoOptions, []);
+      settingsGeoLongrineRules = loadSettings(SETTINGS_KEYS.geoLongrineRules, []);
+      settingsGeoExtraTypes = loadSettings(SETTINGS_KEYS.geoExtraTypes, []);
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
@@ -5444,7 +5721,7 @@ const DEFAULT_GENERAL = {
     samedi:   { actif: false, debut: '08:00', fin: '12:00', pauseDebut: '', pauseFin: '' },
     dimanche: { actif: false, debut: '', fin: '', pauseDebut: '', pauseFin: '' },
   },
-  rayonMax: 150, vitesseMoyenne: 60,
+  rayonMax: 150, vitesseMoyenne: 60, coutHoraire: 0,
   agenceNom: 'GPH', agenceAdresse: 'La Roche-sur-Yon', agenceLat: 46.671, agenceLon: -1.427,
   dossierPath1: '\\\\Srvdatagph\\data\\AFFAIRES\\1_Affaire en cours',
   dossierPath2: '\\\\Srvdatagph\\data\\AFFAIRES\\2_Traitement de la demande',
@@ -5463,6 +5740,123 @@ let settingsVehicles = loadSettings(SETTINGS_KEYS.vehicles, DEFAULT_VEHICLES);
 let settingsIntTypes = loadSettings(SETTINGS_KEYS.intTypes, DEFAULT_INT_TYPES);
 let settingsGeneral = loadSettings(SETTINGS_KEYS.general, DEFAULT_GENERAL);
 let settingsGroups = loadSettings(SETTINGS_KEYS.groups, DEFAULT_GROUPS);
+
+// --- Paramètres calcul durée & temps passé (portés depuis ExéPlan) ---
+var DEFAULT_GEO_FIELDS = {
+  missionType: '1-alpha06',
+  surface: '',
+  longrines: '1-alpha15',
+  empriseLongrines: '1-alpha16',
+  options: '1-alpha14',
+};
+var settingsGeoFields = loadSettings(SETTINGS_KEYS.geoFields, DEFAULT_GEO_FIELDS);
+var settingsTempsPasseMap = loadSettings(SETTINGS_KEYS.tempsPasseMap, {});
+var settingsGeoTimeRules = loadSettings(SETTINGS_KEYS.geoTimeRules, []);
+var settingsGeoFixedDurations = loadSettings(SETTINGS_KEYS.geoFixedDurations, []);
+var settingsGeoOptionsPct = loadSettings(SETTINGS_KEYS.geoOptions, []);
+var settingsGeoLongrineRules = loadSettings(SETTINGS_KEYS.geoLongrineRules, []);
+var settingsGeoExtraTypes = loadSettings(SETTINGS_KEYS.geoExtraTypes, []);
+
+// --- Calcul automatique de durée estimée (porté depuis ExéPlan) ---
+function _applyOptionsPct(cmd, minutes) {
+  if (!minutes || !settingsGeoOptionsPct.length) return minutes;
+  var optionsRaw = (cmd.custom_data && settingsGeoFields.options && cmd.custom_data[settingsGeoFields.options] && cmd.custom_data[settingsGeoFields.options].value) || '';
+  var optStr = String(optionsRaw).toLowerCase();
+  if (!optStr) return minutes;
+  var totalPct = 0;
+  settingsGeoOptionsPct.forEach(function(o) {
+    if (!o.label) return;
+    if (optStr.indexOf(String(o.label).toLowerCase()) >= 0) {
+      totalPct += parseFloat(o.pct) || 0;
+    }
+  });
+  if (totalPct === 0) return minutes;
+  return minutes * (1 - totalPct / 100);
+}
+
+function computeGeoDuration(cmd) {
+  if (!cmd) return 240;
+  var cd = cmd.custom_data || {};
+  var getVal = function(key) { return key && cd[key] && cd[key].value ? cd[key].value : null; };
+  // 0) Catégorie MODIFICATION : montant HT / coût horaire
+  var categorie = getVal('1-alpha05');
+  if (categorie && String(categorie).trim().toUpperCase() === 'MODIFICATION') {
+    var montantMod = parseFloat(cmd.montant) || 0;
+    var coutMod = parseFloat(settingsGeneral && settingsGeneral.coutHoraire) || 0;
+    if (montantMod > 0 && coutMod > 0) {
+      var minMod = (montantMod / coutMod) * 60;
+      minMod = _applyOptionsPct(cmd, minMod);
+      if (minMod > 0) return Math.max(15, Math.ceil(minMod / 15) * 15);
+    }
+  }
+  var missionType = getVal(settingsGeoFields.missionType);
+  if (!missionType) return 240;
+  // 1) Durée fixe par type de mission
+  var fixed = settingsGeoFixedDurations.find(function(r) { return r.missionType === missionType; });
+  if (fixed && parseFloat(fixed.hours) > 0) {
+    var minF = parseFloat(fixed.hours) * 60;
+    minF = _applyOptionsPct(cmd, minF);
+    return Math.max(15, Math.ceil(minF / 15) * 15);
+  }
+  // 2) Ratio m²/h appliqué à la surface facturée
+  var rule = settingsGeoTimeRules.find(function(r) { return r.missionType === missionType; });
+  if (rule) {
+    var minutes = 0;
+    if (rule.m2PerHour && parseFloat(rule.m2PerHour) > 0) {
+      var surface = parseFloat(cmd.surface_facturee);
+      if (!surface || isNaN(surface)) surface = parseFloat(getVal(settingsGeoFields.surface)) || 0;
+      if (surface > 0) minutes += (surface / parseFloat(rule.m2PerHour)) * 60;
+    }
+    // 3) Longrines
+    var longRule = settingsGeoLongrineRules.find(function(r) { return r.missionType === missionType; });
+    if (longRule && parseFloat(longRule.m2PerHour) > 0) {
+      var longrinesRaw = String(getVal(settingsGeoFields.longrines) || '').trim();
+      var optionsRaw2 = String(getVal(settingsGeoFields.options) || '');
+      var hasLong = /^(oui|yes|true|o|1|x)$/i.test(longrinesRaw) || /longrine/i.test(optionsRaw2);
+      if (hasLong) {
+        var empriseL = parseFloat(getVal(settingsGeoFields.empriseLongrines)) || 0;
+        if (empriseL > 0) minutes += (empriseL / parseFloat(longRule.m2PerHour)) * 60;
+      }
+    }
+    minutes = _applyOptionsPct(cmd, minutes);
+    if (minutes > 0) return Math.max(15, Math.ceil(minutes / 15) * 15);
+  }
+  // 4) Types supplémentaires : montant / coût horaire
+  if (settingsGeoExtraTypes && settingsGeoExtraTypes.indexOf(missionType) >= 0) {
+    var montant = parseFloat(cmd.montant) || 0;
+    var coutHoraire = parseFloat(settingsGeneral && settingsGeneral.coutHoraire) || 0;
+    if (montant > 0 && coutHoraire > 0) {
+      var minExtra = (montant / coutHoraire) * 60;
+      minExtra = _applyOptionsPct(cmd, minExtra);
+      if (minExtra > 0) return Math.max(15, Math.ceil(minExtra / 15) * 15);
+    }
+  }
+  // 5) Fallback
+  return 240;
+}
+
+function computeGeoDurationOrNull(cmd) {
+  if (!cmd) return null;
+  var cd = cmd.custom_data || {};
+  var getVal = function(key) { return key && cd[key] && cd[key].value ? cd[key].value : null; };
+  var categorie = getVal('1-alpha05');
+  var isModif = categorie && String(categorie).trim().toUpperCase() === 'MODIFICATION';
+  var hasModifInputs = isModif && parseFloat(cmd.montant) > 0 && parseFloat(settingsGeneral && settingsGeneral.coutHoraire) > 0;
+  if (hasModifInputs) {
+    var d = computeGeoDuration(cmd);
+    if (d && d > 0) return d;
+  }
+  var missionType = getVal(settingsGeoFields.missionType);
+  if (!missionType) return null;
+  var fixed = settingsGeoFixedDurations.find(function(r) { return r.missionType === missionType; });
+  var rule = settingsGeoTimeRules.find(function(r) { return r.missionType === missionType; });
+  var isExtra = settingsGeoExtraTypes && settingsGeoExtraTypes.indexOf(missionType) >= 0;
+  var hasExtraInputs = isExtra && parseFloat(cmd.montant) > 0 && parseFloat(settingsGeneral && settingsGeneral.coutHoraire) > 0;
+  if (!(fixed && parseFloat(fixed.hours) > 0) && !rule && !hasExtraInputs) return null;
+  var d2 = computeGeoDuration(cmd);
+  if (!d2 || d2 <= 0 || d2 === 240) return d2 === 240 ? 240 : null;
+  return d2;
+}
 
 // --- Open / Close ---
 var settingsUnlocked = false;
