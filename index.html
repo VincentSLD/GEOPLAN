@@ -4848,8 +4848,12 @@ function getIntStatusFromCmd(int) {
   var raw = cmd.custom_data['1-alpha17'];
   var val = raw && typeof raw === 'object' ? raw.value : raw;
   if (!val) return fallback;
-  var match = settingsStatuts.find(function(s) { return s.label === val; });
-  return match ? { label: match.label, color: match.color } : { label: val, color: '#888' };
+  var valNorm = val.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  var match = settingsStatuts.find(function(s) {
+    var lblNorm = (s.label || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return lblNorm === valNorm || s.id === valNorm || s.label === val;
+  });
+  return match ? { label: val, color: match.color } : { label: val, color: '#888' };
 }
 
 // ═══ DEADLINE & TEMPS PASSÉ ═══
