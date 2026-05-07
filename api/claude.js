@@ -54,7 +54,7 @@ RÈGLES DE PLANIFICATION :
 6. Vérifier que le technicien a les compétences requises pour le type de mission
 7. Regrouper les interventions par proximité géographique pour un même technicien
 8. Tenir compte du temps de trajet réaliste (base→site, inter-sites, site→base)
-9. Prioriser les interventions urgentes et les commandes dont la DLR approche
+9. PRIORITÉ DE PLANIFICATION : les commandes dont la DLR est dépassée (en retard) sont PRIORITAIRES et doivent être planifiées en premier. Exception : les commandes avec un statut "En attente" ne doivent PAS être planifiées même si leur DLR est dépassée. Ensuite, prioriser celles dont la DLR approche le plus
 10. Respecter les affectations de groupes/équipes régionales quand c'est pertinent
 11. Tenir compte de la météo : reporter les sondages/essais extérieurs par forte pluie (>10mm), vent violent (>60km/h) ou gel
 12. Éviter plus de 3h de trajet cumulé par jour par technicien
