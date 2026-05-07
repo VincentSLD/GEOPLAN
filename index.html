@@ -4626,8 +4626,14 @@ function renderAPlanifier() {
 
   // Compteur blocs par type (sans commande, avec type, depuis aujourd'hui)
   var todayStrBloc = TODAY.toISOString().split('T')[0];
+  var isReservationType = function(typeId) {
+    if (!typeId) return false;
+    var t = settingsIntTypes.find(function(x) { return x.id === typeId; });
+    var label = t ? t.label.toLowerCase() : typeId.toLowerCase();
+    return label.indexOf('réservation') >= 0 || label.indexOf('reservation') >= 0;
+  };
   var blocsFromToday = interventions.filter(function(i) {
-    return !i.commandeId && !i.isRapport && i.type && i.date && i.date >= todayStrBloc;
+    return !i.commandeId && !i.isRapport && i.type && i.date && i.date >= todayStrBloc && isReservationType(i.type);
   });
   var blocsByType = {};
   blocsFromToday.forEach(function(b) {
