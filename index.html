@@ -8646,7 +8646,7 @@ function renderMarkdown(text) {
       let actHtml = `<div class="ai-action-block" id="${actionsId}">`;
       actHtml += `<div class="ai-action-header">📋 ${actions.length} modification(s) proposée(s) — Accepter ou refuser chacune</div>`;
       actions.forEach((a, j) => {
-        const icon = a.action === 'create' ? '➕' : a.action === 'delete' ? '🗑️' : '🔄';
+        const icon = a.action === 'plan' ? '📋' : '🔄';
         const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
         actHtml += `<div class="ai-action-item" id="${actionsId}-item-${j}">
           <span class="ai-action-label">${icon} ${a.label || 'Action ' + (j+1)}</span>
@@ -8702,20 +8702,52 @@ function executeAIAction(action) {
     if (action.techId) int.techId = action.techId;
     if (action.location) int.location = action.location;
     if (action.duration) int.duration = action.duration;
-  } else if (action.action === 'create') {
+  } else if (action.action === 'plan') {
+    // Planifier une commande existante de la liste "À planifier"
+    if (!action.commandeId) return false;
+    var cmd = commandesData.find(function(c) { return c.id === action.commandeId; });
+    if (!cmd) return false;
+    var cd = cmd.custom_data || {};
+    var missionType = cd['1-alpha06'] && cd['1-alpha06'].value ? cd['1-alpha06'].value : '';
+    var aff = cmd._affaire || {};
+    var durMin = (typeof computeGeoDuration === 'function') ? (computeGeoDuration(cmd) || 240) : 240;
+    var addr = [aff.adresse, aff.ville, aff.code_postal].filter(Boolean).join(', ');
     var newId = Math.max.apply(null, interventions.map(function(i){return i.id;}).concat([0])) + 1;
-    interventions.push({
-      id: newId, title: action.title || 'Nouvelle intervention',
-      type: action.type || 'sondage', date: action.date,
-      startTime: action.startTime || '08:00', endTime: action.endTime || '12:00',
-      duration: action.duration || 240, techId: action.techId,
-      location: action.location || '', client: action.client || '-',
-      travelTo: 30, travelFrom: 30, status: 'planned', notes: action.notes || '',
-    });
-  } else if (action.action === 'delete') {
-    var idx = interventions.findIndex(function(i) { return i.id === action.id; });
-    if (idx < 0) return false;
-    interventions.splice(idx, 1);
+    var newInt = {
+      id: newId,
+      title: (cmd.ref || '') + ' — ' + (cmd.client_name || aff.nom || 'Intervention'),
+      type: missionType || 'sondage',
+      date: action.date,
+      startTime: action.startTime || '08:00',
+      endTime: action.endTime || '12:00',
+      duration: durMin,
+      techId: action.techId,
+      location: addr || '',
+      client: cmd.client_name || '-',
+      commandeId: cmd.id,
+      commandeRef: cmd.ref || '',
+      affaireId: cmd.affaire_id || null,
+      affaireRef: aff.ref || '',
+      travelTo: 30, travelFrom: 30,
+      status: 'planned',
+      notes: '',
+    };
+    interventions.push(newInt);
+    // Mettre à jour le statut de planification de la commande
+    cmd.planification = 'Planifiée';
+    (async function() {
+      try {
+        var row = intToRow(newInt);
+        delete row.id;
+        var result = await sbAuth.from('geoplan_interventions').insert([row]).select();
+        if (result.data && result.data[0]) {
+          newInt.id = result.data[0].id;
+        }
+        await sbAuth.from('commandes').update({planification: 'Planifiée'}).eq('id', cmd.id);
+      } catch(e) { console.warn('[AI Plan] Erreur Supabase:', e); }
+      renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
+    })();
+    return true;
   }
   return true;
 }
@@ -8749,8 +8781,12 @@ function acceptAIAction(action, blockId, idx) {
   if (btns) btns.innerHTML = '<span class="ai-action-result" style="color:#16A34A;">✓ Accepté</span>';
 
   if (success) {
-    // Save changed interventions to Supabase
-    interventions.forEach(function(int) { saveInterventionToSupabase(int); });
+    if (action.action === 'move') {
+      // Save the moved intervention to Supabase
+      var movedInt = interventions.find(function(i) { return i.id === action.id; });
+      if (movedInt) saveInterventionToSupabase(movedInt);
+    }
+    // 'plan' action handles its own Supabase save
     renderCurrentView();
     updateTodayCount();
     populateSidebar();
