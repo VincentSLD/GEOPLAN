@@ -4624,7 +4624,15 @@ function renderAPlanifier() {
     });
   }
 
-  var totalCount = unplanned.length + unplannedRapports.length;
+  // Blocs d'intervention sans commande, avec un Type, non planifiés
+  var unplannedBlocs = interventions.filter(function(i) { return !i.commandeId && !i.isRapport && i.type && !i.date; });
+  if (search) {
+    unplannedBlocs = unplannedBlocs.filter(function(i) {
+      return (i.title + ' ' + (i.type || '') + ' ' + (i.client || '')).toLowerCase().indexOf(search) >= 0;
+    });
+  }
+
+  var totalCount = unplanned.length + unplannedRapports.length + unplannedBlocs.length;
   if (countEl) countEl.textContent = totalCount;
 
   if (totalCount === 0) {
@@ -4633,6 +4641,34 @@ function renderAPlanifier() {
   }
 
   var html = '';
+
+  // Blocs d'intervention par type (sans commande)
+  if (unplannedBlocs.length > 0) {
+    // Grouper par type
+    var byType = {};
+    unplannedBlocs.forEach(function(b) {
+      var t = b.type || 'Autre';
+      if (!byType[t]) byType[t] = [];
+      byType[t].push(b);
+    });
+    var typeLabel = function(tid) { var t = settingsIntTypes.find(function(x){return x.id===tid;}); return t ? t.label : tid; };
+    html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="var b=document.getElementById(\'aPlanBlocsBody\');var a=this.querySelector(\'.ap-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}"><span class="ap-arrow">▼</span> 🏷️ Blocs à planifier (' + unplannedBlocs.length + ')</div><div id="aPlanBlocsBody">';
+    Object.keys(byType).sort().forEach(function(tid) {
+      html += '<div style="padding:3px 10px;font-size:0.6rem;font-weight:700;color:var(--gph-primary);background:var(--bg-secondary);border-bottom:1px solid var(--border);">' + typeLabel(tid) + ' (' + byType[tid].length + ')</div>';
+      byType[tid].forEach(function(bloc) {
+        var durLabel = bloc.duration >= 60 ? Math.floor(bloc.duration/60)+'h'+(bloc.duration%60?String(bloc.duration%60).padStart(2,'0'):'') : (bloc.duration || '?')+'min';
+        var tech = TECHNICIANS.find(function(t){return t.id===bloc.techId;});
+        html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+bloc.id+')" style="border-left:3px solid var(--gph-yellow);">';
+        html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">🏷️ ' + (bloc.title || typeLabel(tid)) + '</span><span style="font-size:0.6rem;font-weight:600;color:var(--gph-primary);">' + durLabel + '</span></div>';
+        html += '<div class="aplan-card-info">';
+        if (tech) html += '👤 ' + tech.name;
+        if (bloc.client && bloc.client !== '-') html += ' · 🏢 ' + bloc.client;
+        html += '</div>';
+        html += '</div>';
+      });
+    });
+    html += '</div>';
+  }
 
   // Rapports non planifiés
   if (unplannedRapports.length > 0) {
