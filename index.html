@@ -4638,9 +4638,10 @@ function renderAPlanifier() {
   var blocsByType = {};
   blocsFromToday.forEach(function(b) {
     var t = b.type || 'Autre';
-    if (!blocsByType[t]) blocsByType[t] = { count: 0, totalMin: 0 };
+    if (!blocsByType[t]) blocsByType[t] = { count: 0, totalMin: 0, items: [] };
     blocsByType[t].count++;
     blocsByType[t].totalMin += (b.duration || 0);
+    blocsByType[t].items.push(b);
   });
   var blocTypeKeys = Object.keys(blocsByType).sort();
 
@@ -4661,11 +4662,30 @@ function renderAPlanifier() {
     var totalBlocs = blocsFromToday.length;
     var totalBlocsMin = blocsFromToday.reduce(function(s,b){return s+(b.duration||0);},0);
     html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="var b=document.getElementById(\'aPlanBlocsBody\');var a=this.querySelector(\'.ap-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}"><span class="ap-arrow">▼</span> 🏷️ Blocs planifiés (' + totalBlocs + ' · ' + fmtDur(totalBlocsMin) + ')</div><div id="aPlanBlocsBody">';
-    blocTypeKeys.forEach(function(tid) {
+    blocTypeKeys.forEach(function(tid, tidx) {
       var d = blocsByType[tid];
-      html += '<div style="padding:5px 10px;font-size:0.68rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);">';
-      html += '<span style="font-weight:600;">' + typeLabel(tid) + '</span>';
+      var subId = 'aPlanBlocSub' + tidx;
+      html += '<div style="padding:5px 10px;font-size:0.68rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);cursor:pointer;" onclick="var b=document.getElementById(\'' + subId + '\');var a=this.querySelector(\'.ap-sub-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}">';
+      html += '<span style="font-weight:600;"><span class="ap-sub-arrow" style="font-size:0.5rem;margin-right:4px;">▶</span>' + typeLabel(tid) + '</span>';
       html += '<span style="font-size:0.62rem;font-weight:700;color:var(--gph-primary);background:var(--bg-primary);padding:2px 8px;border-radius:8px;border:1px solid var(--border);">' + d.count + ' · ' + fmtDur(d.totalMin) + '</span>';
+      html += '</div>';
+      // Liste des intitulés par type
+      html += '<div id="' + subId + '" style="display:none;">';
+      // Regrouper par intitulé
+      var byTitle = {};
+      d.items.forEach(function(b) {
+        var t = b.title || '(sans intitulé)';
+        if (!byTitle[t]) byTitle[t] = { count: 0, totalMin: 0 };
+        byTitle[t].count++;
+        byTitle[t].totalMin += (b.duration || 0);
+      });
+      Object.keys(byTitle).sort().forEach(function(title) {
+        var info = byTitle[title];
+        html += '<div style="padding:3px 10px 3px 24px;font-size:0.62rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);color:var(--text-secondary);">';
+        html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + title + '</span>';
+        html += '<span style="font-size:0.58rem;font-weight:600;color:var(--text-muted);white-space:nowrap;margin-left:6px;">' + info.count + ' · ' + fmtDur(info.totalMin) + '</span>';
+        html += '</div>';
+      });
       html += '</div>';
     });
     html += '</div>';
