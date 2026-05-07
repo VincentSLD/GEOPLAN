@@ -3792,7 +3792,7 @@ function saveIntervention(){
   var cmd = cmdId ? commandesData.find(function(c){return c.id===cmdId;}) : null;
   const data={
     id:editingId||null,
-    title:document.getElementById('intTitle').value||'Nouvelle intervention',
+    title:document.getElementById('intTitle').value||'',
     type:document.getElementById('intType').value,
     date:document.getElementById('intDate').value,
     startTime:document.getElementById('intStart').value,
