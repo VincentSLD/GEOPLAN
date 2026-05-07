@@ -105,6 +105,7 @@ IMPORTANT :
 - Utilise UNIQUEMENT les vrais IDs d'intervention, de technicien et de commande du contexte. Ne les invente JAMAIS.
 - Pour "plan", le commandeId est OBLIGATOIRE et doit correspondre à une commande réelle de la liste "À planifier".
 - Rappel : tu PROPOSES, le planificateur DÉCIDE. N'applique rien automatiquement.
+- ⛔ VÉRIFICATION OBLIGATOIRE AVANT CHAQUE ACTION : consulte la section "JOURS INTERDITS CETTE SEMAINE" du contexte. Si la date de l'action figure dans cette liste, NE PAS proposer cette action. Utilise UNIQUEMENT les dates listées dans "JOURS DISPONIBLES POUR PLANIFIER".
 
 Contexte actuel du planning :
 ${context || 'Aucun contexte fourni.'}`;

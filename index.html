@@ -8809,8 +8809,33 @@ function buildPlanningContext() {
     }
   }
 
+  // Construire le calendrier de la semaine avec statut de chaque jour
+  var joursDispo = [];
+  var joursInterdits = [];
+  var dnFr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  for (var di = 0; di < 7; di++) {
+    var dd = new Date(mon); dd.setDate(mon.getDate() + di);
+    var dds = dd.toISOString().split('T')[0];
+    var dow = dd.getDay();
+    var jf = isJourFerie(dds);
+    var label = dnFr[dow] + ' ' + dd.toLocaleDateString('fr-FR', {day:'numeric', month:'long'});
+    if (dow === 0 || dow === 6) {
+      joursInterdits.push(dds + ' (' + label + ') — ⛔ WEEK-END, INTERDIT');
+    } else if (jf) {
+      joursInterdits.push(dds + ' (' + label + ') — ⛔ JOUR FÉRIÉ: ' + jf + ', INTERDIT');
+    } else {
+      joursDispo.push(dds + ' (' + label + ') — ✅ jour ouvré');
+    }
+  }
+
   let ctx = `DATE ACTUELLE: ${todayStr}
 SEMAINE AFFICHÉE: ${mon.toISOString().split('T')[0]} → 7 jours
+
+⛔⛔⛔ JOURS INTERDITS CETTE SEMAINE (NE JAMAIS PROPOSER DE PLANIFIER DESSUS) :
+${joursInterdits.length > 0 ? joursInterdits.join('\n') : 'Aucun jour interdit cette semaine.'}
+
+✅ JOURS DISPONIBLES POUR PLANIFIER :
+${joursDispo.join('\n')}
 
 ÉQUIPE DÉTAILLÉE (avec compétences):
 ${teamDetail}
