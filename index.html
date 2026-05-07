@@ -1782,7 +1782,7 @@ body::before {
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
-        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required></div>
+        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
         <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="number" min="0.25" step="0.25" onchange="updateEndFromDuration()" placeholder="h"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
@@ -1791,6 +1791,23 @@ body::before {
         <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
       </div>
       <select class="form-select" id="intStatus" style="display:none;"></select>
+      <div id="intRecurrenceBlock" style="margin:6px 0;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">
+          <input type="checkbox" id="intRecurrenceEnabled" onchange="toggleRecurrenceUI()"> Récurrence
+        </label>
+        <div id="intRecurrenceOptions" style="display:none;margin-top:8px;">
+          <div class="form-row" style="gap:8px;">
+            <div class="form-group" style="flex:1;"><label class="form-label">Fréquence</label><select class="form-select" id="intRecurrenceFreq" onchange="onRecurrenceFreqChange();updateRecurrencePreview()"><option value="weekly">Toutes les semaines</option><option value="biweekly">Toutes les 2 semaines</option><option value="monthly">Tous les mois (même jour)</option><option value="custom">Personnalisé</option></select></div>
+            <div class="form-group" id="intRecurrenceCustomGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Tous les N jours</label><input class="form-input" id="intRecurrenceCustomDays" type="number" min="1" max="365" value="7" onchange="updateRecurrencePreview()"></div>
+          </div>
+          <div class="form-row" style="gap:8px;margin-top:6px;">
+            <div class="form-group" style="flex:1;"><label class="form-label">Fin de récurrence</label><select class="form-select" id="intRecurrenceEndType" onchange="toggleRecurrenceEndUI();updateRecurrencePreview()"><option value="date">Jusqu'à une date</option><option value="count">Nombre d'occurrences</option></select></div>
+            <div class="form-group" id="intRecurrenceEndDateGroup" style="flex:1;"><label class="form-label">Date de fin</label><input class="form-input" id="intRecurrenceEndDate" type="date" onchange="updateRecurrencePreview()"></div>
+            <div class="form-group" id="intRecurrenceCountGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Occurrences</label><input class="form-input" id="intRecurrenceCount" type="number" min="2" max="52" value="4" onchange="updateRecurrencePreview()"></div>
+          </div>
+          <div id="intRecurrencePreview" style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;"></div>
+        </div>
+      </div>
       <div id="intGeosoliaInfo" style="display:none;margin:2px 0 4px;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
@@ -3531,7 +3548,74 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+// ===== RÉCURRENCE =====
+function toggleRecurrenceUI() {
+  var opts = document.getElementById('intRecurrenceOptions');
+  opts.style.display = document.getElementById('intRecurrenceEnabled').checked ? 'block' : 'none';
+  updateRecurrencePreview();
+}
+function onRecurrenceFreqChange() {
+  var freq = document.getElementById('intRecurrenceFreq').value;
+  document.getElementById('intRecurrenceCustomGroup').style.display = freq === 'custom' ? '' : 'none';
+}
+function toggleRecurrenceEndUI() {
+  var et = document.getElementById('intRecurrenceEndType').value;
+  document.getElementById('intRecurrenceEndDateGroup').style.display = et === 'date' ? '' : 'none';
+  document.getElementById('intRecurrenceCountGroup').style.display = et === 'count' ? '' : 'none';
+}
+function computeRecurrenceDates(startDate, freq, endType, endValue, customDays) {
+  var dates = [];
+  var d = new Date(startDate + 'T00:00:00');
+  if (isNaN(d.getTime())) return dates;
+  dates.push(startDate);
+  var max = 52;
+  for (var i = 1; i < max; i++) {
+    if (freq === 'weekly') d.setDate(d.getDate() + 7);
+    else if (freq === 'biweekly') d.setDate(d.getDate() + 14);
+    else if (freq === 'monthly') { var day = new Date(startDate + 'T00:00:00').getDate(); d.setMonth(d.getMonth() + 1); if (d.getDate() !== day) d.setDate(0); }
+    else if (freq === 'custom') d.setDate(d.getDate() + (parseInt(customDays) || 7));
+    else break;
+    var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (endType === 'date' && ds > endValue) break;
+    dates.push(ds);
+    if (endType === 'count' && dates.length >= parseInt(endValue)) break;
+  }
+  return dates;
+}
+function updateRecurrencePreview() {
+  var el = document.getElementById('intRecurrencePreview');
+  if (!el) return;
+  if (!document.getElementById('intRecurrenceEnabled').checked) { el.textContent = ''; return; }
+  var startDate = document.getElementById('intDate').value;
+  if (!startDate) { el.textContent = 'Sélectionnez une date de début.'; return; }
+  var freq = document.getElementById('intRecurrenceFreq').value;
+  var endType = document.getElementById('intRecurrenceEndType').value;
+  var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : document.getElementById('intRecurrenceCount').value;
+  if (endType === 'date' && !endValue) { el.textContent = 'Sélectionnez une date de fin.'; return; }
+  var customDays = document.getElementById('intRecurrenceCustomDays').value;
+  var dates = computeRecurrenceDates(startDate, freq, endType, endValue, customDays);
+  if (dates.length < 2) { el.textContent = 'Aucune récurrence générée.'; return; }
+  var labels = dates.map(function(ds) {
+    var dd = new Date(ds + 'T00:00:00');
+    return dd.toLocaleDateString('fr-FR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  });
+  el.textContent = dates.length + ' interventions : ' + labels.join(', ');
+}
+function resetRecurrenceUI() {
+  document.getElementById('intRecurrenceEnabled').checked = false;
+  document.getElementById('intRecurrenceOptions').style.display = 'none';
+  document.getElementById('intRecurrenceFreq').selectedIndex = 0;
+  document.getElementById('intRecurrenceEndType').selectedIndex = 0;
+  document.getElementById('intRecurrenceEndDate').value = '';
+  document.getElementById('intRecurrenceCount').value = '4';
+  document.getElementById('intRecurrenceCustomDays').value = '7';
+  document.getElementById('intRecurrenceCustomGroup').style.display = 'none';
+  document.getElementById('intRecurrenceEndDateGroup').style.display = '';
+  document.getElementById('intRecurrenceCountGroup').style.display = 'none';
+  document.getElementById('intRecurrencePreview').textContent = '';
+}
+
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
@@ -3603,12 +3687,34 @@ function saveIntervention(){
           data.id = result.data[0].id;
           interventions.push(data);
         }
+        // Récurrence : créer les occurrences supplémentaires
+        if (document.getElementById('intRecurrenceEnabled').checked) {
+          var freq = document.getElementById('intRecurrenceFreq').value;
+          var endType = document.getElementById('intRecurrenceEndType').value;
+          var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : document.getElementById('intRecurrenceCount').value;
+          var customDays = document.getElementById('intRecurrenceCustomDays').value;
+          var recDates = computeRecurrenceDates(data.date, freq, endType, endValue, customDays);
+          recDates.shift(); // enlever la première date (déjà créée)
+          if (recDates.length > 0) {
+            var recRows = recDates.map(function(ds) {
+              var copy = Object.assign({}, data, { date: ds, id: undefined });
+              var r = intToRow(copy);
+              r.created_by = currentAuthUser ? currentAuthUser.email : null;
+              delete r.id;
+              return r;
+            });
+            var recResult = await sbAuth.from('geoplan_interventions').insert(recRows).select();
+            if (recResult.data) {
+              recResult.data.forEach(function(r) { interventions.push(rowToInt(r)); });
+            }
+          }
+        }
       }
     } catch(e) { console.warn('[Interventions] Erreur save:', e); }
     // Auto-create rapport if new intervention with Geosolia
     if (!editingId && data.geosoliaId && data.commandeId) await createRapportIntervention(data);
     syncCommandeGeosoliaFromInterventions();
-    renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();
+    renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();renderAPlanifier();
     hideLoader();
   })();
 }
@@ -3685,6 +3791,7 @@ function editIntervention(id){
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
   document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
+  resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='none';
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){
