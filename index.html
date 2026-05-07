@@ -7037,108 +7037,6 @@ let luccaAbsencesLoaded = false;
 
 const LUCCA_PROXY = '/api/lucca';
 
-async function luccaFetch(path, params) {
-  params = params || {};
-  var qp = new URLSearchParams(Object.assign({ path: path }, params));
-  var url = LUCCA_PROXY + '?' + qp.toString();
-  for (var attempt = 0; attempt < 5; attempt++) {
-    var resp = await fetch(url);
-    if (resp.status === 429) {
-      var wait = Math.min(2000 * Math.pow(2, attempt), 30000);
-      console.warn('[Lucca] Rate limited, retry in ' + wait + 'ms (attempt ' + (attempt+1) + '/5)');
-      await new Promise(function(r){ setTimeout(r, wait); });
-      continue;
-    }
-    if (!resp.ok) throw new Error('Lucca API ' + resp.status + ': ' + (await resp.text()));
-    return resp.json();
-  }
-  throw new Error('Lucca API: rate limit exceeded after 5 retries');
-}
-
-async function syncLuccaAbsences() {
-  try {
-    console.log('[Lucca] Début sync absences...');
-    // Récupérer tous les collaborateurs Lucca
-    if (luccaCollabs.length === 0) {
-      var { data, error } = await sbAuth.from('collaborateurs_lucca').select('lucca_id');
-      if (error || !data) { console.warn('[Lucca] Pas de collaborateurs pour sync absences'); return; }
-      var luccaIds = data.map(function(c){ return String(c.lucca_id); }).filter(Boolean);
-    } else {
-      var luccaIds = luccaCollabs.map(function(c){ return String(c.lucca_id || c.id); }).filter(Boolean);
-    }
-    if (luccaIds.length === 0) { console.warn('[Lucca] Aucun lucca_id trouvé'); return; }
-
-    var now = new Date();
-    var yearStart = now.getFullYear() + '-01-01';
-    var yearEnd = now.getFullYear() + '-12-31';
-    var totalAbsences = 0;
-    var BATCH = 50;
-
-    for (var b = 0; b < luccaIds.length; b += BATCH) {
-      var batch = luccaIds.slice(b, b + BATCH);
-      try {
-        var leaves = [], leavePage = 0;
-        while (true) {
-          var resp = await luccaFetch('/api/v3/leaves', {
-            fields: 'id,date,isAm,leaveAccount,isActive,leavePeriod.ownerId',
-            'leavePeriod.ownerId': batch.join(','),
-            date: 'between,' + yearStart + ',' + yearEnd,
-            paging: (leavePage * 200) + ',200'
-          });
-          var items = (resp && resp.data && resp.data.items) || [];
-          if (items.length === 0) break;
-          leaves = leaves.concat(items);
-          if (items.length < 200) break;
-          leavePage++;
-          await new Promise(function(r){ setTimeout(r, 2000); });
-        }
-        if (leaves.length > 0) {
-          var absRows = leaves.map(function(l) {
-            var period = 'unknown';
-            if (l.isAm === true) period = 'AM';
-            else if (l.isAm === false) period = 'PM';
-            else if (typeof l.id === 'string') {
-              if (l.id.endsWith('-AM')) period = 'AM';
-              else if (l.id.endsWith('-PM')) period = 'PM';
-            }
-            var dateStr = l.date || null;
-            if (!dateStr && typeof l.id === 'string') {
-              var m = l.id.match(/(\d{4})(\d{2})(\d{2})/);
-              if (m) dateStr = m[1] + '-' + m[2] + '-' + m[3];
-            }
-            var ownerId = (l.leavePeriod && l.leavePeriod.ownerId) || (l.leavePeriod && l.leavePeriod.owner && l.leavePeriod.owner.id) || null;
-            return {
-              id: String(l.id),
-              lucca_id: ownerId ? String(ownerId) : null,
-              date_absence: dateStr,
-              periode: period,
-              type_absence: (l.leaveAccount && l.leaveAccount.name) || 'Autre',
-              actif: l.isActive !== false,
-              updated_at: new Date().toISOString(),
-            };
-          }).filter(function(r){ return r.lucca_id; });
-
-          for (var i = 0; i < absRows.length; i += 100) {
-            var result = await sbAuth.from('absences_lucca').upsert(absRows.slice(i, i + 100), { onConflict: 'id' });
-            if (result.error) console.warn('[Lucca] Upsert absences err:', result.error.message);
-          }
-          totalAbsences += absRows.length;
-        }
-      } catch (err) {
-        console.warn('[Lucca] Erreur sync absences batch ' + b + ':', err.message);
-      }
-      if (b + BATCH < luccaIds.length) await new Promise(function(r){ setTimeout(r, 3000); });
-    }
-    console.log('[Lucca] Sync terminée : ' + totalAbsences + ' absences synchronisées');
-    // Recharger les absences depuis Supabase
-    luccaAbsencesLoaded = false;
-    await loadLuccaAbsences();
-    updateTeamAbsenceStatuses();
-    renderCurrentView();
-    return totalAbsences;
-  } catch(e) { console.warn('[Lucca] Erreur sync absences:', e); return 0; }
-}
-
 async function loadLuccaCollabs() {
   if (luccaCollabs.length > 0) return;
   try {
@@ -7146,11 +7044,6 @@ async function loadLuccaCollabs() {
     if (error) throw error;
     luccaCollabs = data || [];
     await loadLuccaAbsences();
-    // Auto-sync si pas d'absences en base (première utilisation ou données périmées)
-    if (Object.keys(luccaAbsences).length === 0 && luccaCollabs.length > 0) {
-      console.log('[Lucca] Aucune absence en base, lancement sync automatique...');
-      await syncLuccaAbsences();
-    }
     updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
 }
@@ -7313,7 +7206,6 @@ function renderSettingsTeam() {
   });
   html += `</div></div>`;
   html += `<input type="text" id="luccaSearch" placeholder="Rechercher..." oninput="renderLuccaList()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;width:160px;">`;
-  html += `<button id="syncLuccaBtn" onclick="onSyncLuccaAbsences()" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 12px;font-size:0.68rem;font-family:inherit;background:var(--bg-card);cursor:pointer;font-weight:600;white-space:nowrap;">🔄 Sync absences Lucca</button>`;
   html += `</div></div>`;
   html += `<div id="luccaListContainer"></div>`;
   html += `</div></div>`;
@@ -7395,19 +7287,6 @@ document.addEventListener('click', (e) => {
   const menu = document.getElementById('luccaEtabMenu');
   if (dd && menu && !dd.contains(e.target)) menu.classList.remove('open');
 });
-
-async function onSyncLuccaAbsences() {
-  var btn = document.getElementById('syncLuccaBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sync en cours...'; }
-  try {
-    var count = await syncLuccaAbsences();
-    if (btn) btn.textContent = '✓ ' + (count || 0) + ' absence(s) synchronisée(s)';
-    setTimeout(function(){ if (btn) { btn.textContent = '🔄 Sync absences Lucca'; btn.disabled = false; } }, 4000);
-  } catch(e) {
-    if (btn) { btn.textContent = '❌ Erreur sync'; btn.disabled = false; }
-    console.error('[Lucca] Sync error:', e);
-  }
-}
 
 function importLuccaCollab(luccaId) {
   const c = luccaCollabs.find(x => x.id === luccaId);
