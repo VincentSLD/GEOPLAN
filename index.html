@@ -2604,7 +2604,7 @@ function getLunchBreak(dateStr, techId) {
   return { start: timeToMin('12:00'), end: timeToMin('13:00') };
 }
 
-function recalculateSchedule() {
+async function recalculateSchedule() {
   var byTechDate = {};
   interventions.forEach(function(int) {
     var key = int.techId + ':' + int.date;
@@ -2612,7 +2612,7 @@ function recalculateSchedule() {
     byTechDate[key].push(int);
   });
 
-  var changed = false;
+  var changedInts = [];
   Object.keys(byTechDate).forEach(function(key) {
     var dayInts = byTechDate[key];
     var schedTechId = parseInt(key.split(':')[0]);
@@ -2635,23 +2635,27 @@ function recalculateSchedule() {
         int.duration = duration;
       }
 
+      var intChanged = false;
       if (int.startTime !== newStart) {
         int.startTime = newStart;
-        changed = true;
+        intChanged = true;
       }
 
       cursor += duration;
       var newEnd = minToTime(cursor);
       if (int.endTime !== newEnd) {
         int.endTime = newEnd;
-        changed = true;
+        intChanged = true;
       }
+      if (intChanged) changedInts.push(int);
     });
   });
 
-  if (changed) {
-    // Save all changed interventions to Supabase
-    interventions.forEach(function(int) { saveInterventionToSupabase(int); });
+  if (changedInts.length > 0) {
+    // Save only changed interventions to Supabase
+    for (var ci = 0; ci < changedInts.length; ci++) {
+      await saveInterventionToSupabase(changedInts[ci]);
+    }
   }
 }
 
@@ -2684,11 +2688,11 @@ async function computeAllTravel() {
   }
 
   // Recalculate schedule: cascade start times based on travel + duration
-  recalculateSchedule();
+  await recalculateSchedule();
 
   // Save updated travel times to Supabase
   for (var j = 0; j < tasks.length; j++) {
-    saveInterventionToSupabase(tasks[j].int);
+    await saveInterventionToSupabase(tasks[j].int);
   }
 
   renderCurrentView();
@@ -3653,7 +3657,7 @@ function renderList() {
 // ===== DRAG & DROP =====
 let draggedId=null;
 function handleDrag(e,id){draggedId=id;e.dataTransfer.effectAllowed='move';}
-function handleDrop(e,tid,ds){
+async function handleDrop(e,tid,ds){
   e.preventDefault();
   // Drop from A planifier (commande)
   if (draggedCmdId) { dropAPlanifier(e, tid, ds); return; }
@@ -3666,8 +3670,8 @@ function handleDrop(e,tid,ds){
       var linkedRapport = i.commandeId && !i.isRapport ? interventions.find(function(r){return r.commandeId===i.commandeId && r.isRapport;}) : null;
       var moveRapport = linkedRapport && linkedRapport.techId !== tid ? confirm('Un rapport est lié à cette intervention.\nDéplacer aussi le rapport vers ' + (TECHNICIANS.find(function(t){return t.id===tid;}) || {}).name + ' ?') : false;
       i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
-      saveInterventionToSupabase(i);
-      if(moveRapport && linkedRapport){linkedRapport.techId=tid;saveInterventionToSupabase(linkedRapport);}
+      await saveInterventionToSupabase(i);
+      if(moveRapport && linkedRapport){linkedRapport.techId=tid;await saveInterventionToSupabase(linkedRapport);}
       renderCurrentView();computeAllTravel();
     }
     draggedId=null;
@@ -3880,7 +3884,7 @@ function saveIntervention(){
 }
 
 // ===== DETAIL =====
-function swapIntervention(intId, direction) {
+async function swapIntervention(intId, direction) {
   var int = interventions.find(function(i) { return i.id === intId; });
   if (!int) return;
   // Get all interventions for same tech + same day, sorted by startTime
@@ -3895,8 +3899,8 @@ function swapIntervention(intId, direction) {
   int.startTime = other.startTime; int.endTime = other.endTime; int.duration = other.duration;
   other.startTime = tmpStart; other.endTime = tmpEnd; other.duration = tmpDur;
   // Save and re-render
-  saveInterventionToSupabase(int);
-  saveInterventionToSupabase(other);
+  await saveInterventionToSupabase(int);
+  await saveInterventionToSupabase(other);
   renderCurrentView();
   computeAllTravel();
 }
@@ -9166,7 +9170,7 @@ function updateAIActionProgress(blockId) {
   }
 }
 
-function acceptAIAction(action, blockId, idx) {
+async function acceptAIAction(action, blockId, idx) {
   var itemId = blockId + '-item-' + idx;
   var itemEl = document.getElementById(itemId);
   if (!itemEl || itemEl.classList.contains('applied') || itemEl.classList.contains('rejected')) return;
@@ -9180,7 +9184,7 @@ function acceptAIAction(action, blockId, idx) {
     if (action.action === 'move') {
       // Save the moved intervention to Supabase
       var movedInt = interventions.find(function(i) { return i.id === action.id; });
-      if (movedInt) saveInterventionToSupabase(movedInt);
+      if (movedInt) await saveInterventionToSupabase(movedInt);
     }
     // 'plan' action handles its own Supabase save
     renderCurrentView();
