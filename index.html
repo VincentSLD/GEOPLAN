@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
 :root {
   --bg-primary: #f5f5f0;
@@ -883,6 +885,26 @@ body::before {
 .view-content.active { display: flex; }
 .week-view.active { flex-direction: row; }
 
+/* Plan de charge */
+.pc-kpi { background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+.pc-kpi-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em; }
+.pc-kpi-value { font-size:1.3rem; font-weight:700; margin-top:3px; font-family:'DM Mono',monospace; }
+.pc-kpi-sub { font-size:0.66rem; color:var(--text-muted); margin-top:1px; }
+.pc-table { width:100%; border-collapse:collapse; font-size:0.72rem; }
+.pc-table th, .pc-table td { padding:6px 10px; text-align:right; border-bottom:1px solid var(--border); }
+.pc-table th { background:var(--bg-primary); font-weight:700; font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em; position:sticky; top:0; }
+.pc-table th:first-child, .pc-table td:first-child { text-align:left; }
+.pc-table tbody tr { cursor:pointer; }
+.pc-table tbody tr:hover { background:var(--bg-card-hover); }
+.pc-table .pc-overload { color:#DC2626; font-weight:700; }
+.pc-table .pc-ok { color:#16A34A; font-weight:600; }
+.pc-drill-card { border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin-bottom:6px; background:var(--bg-card); }
+.pc-drill-card-ref { font-family:'DM Mono',monospace; font-size:0.65rem; font-weight:700; color:var(--text-muted); }
+.pc-drill-card-title { font-weight:600; font-size:0.74rem; margin-top:2px; }
+.pc-drill-card-meta { font-size:0.62rem; color:var(--text-muted); margin-top:2px; }
+.pc-gran-btn { padding:3px 10px; font-size:0.68rem; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; border-radius:4px; font-family:inherit; }
+.pc-gran-btn.active { background:var(--gph-yellow); color:#000; font-weight:700; border-color:var(--gph-yellow); }
+
 /* Hamburger button (mobile only) */
 .hamburger {
   display: none;
@@ -1578,6 +1600,10 @@ body::before {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Commandes / Études
       </div>
+      <div class="nav-item" data-nav="plancharge" onclick="showView('plancharge')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Plan de charge
+      </div>
       <div class="nav-item" onclick="alert('Module clients — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Clients
@@ -1623,6 +1649,7 @@ body::before {
       <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
       <button class="view-tab" onclick="toggleAPlanifierPanel()" id="aPlanifierTabBtn">A planifier</button>
       <button class="view-tab" onclick="switchView('map',this)">Carte</button>
+      <button class="view-tab" onclick="switchView('plancharge',this)">Plan de charge</button>
     </div>
     <div class="topbar-center">
       <button class="nav-btn" onclick="navigate(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -1725,6 +1752,58 @@ body::before {
         <div id="fleetMapInline" class="map-inline-leaflet"></div>
         <div class="fleet-toast" id="fleetToastInline"></div>
         <div class="map-inline-list" id="fleetListInline"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view-content" id="planchargeView">
+    <div style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border);background:var(--bg-secondary);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-weight:700;font-size:0.95rem;">Plan de charge</span>
+        <span style="font-size:0.7rem;color:var(--text-muted);">Charge DLR vs capacite disponible vs charge planifiee</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:0.7rem;font-weight:600;">Granularite :</label>
+        <div id="pcGranBtns" style="display:flex;gap:2px;">
+          <button class="pc-gran-btn" data-gran="day" onclick="pcSetGranularity('day')">Jour</button>
+          <button class="pc-gran-btn active" data-gran="week" onclick="pcSetGranularity('week')">Semaine</button>
+          <button class="pc-gran-btn" data-gran="month" onclick="pcSetGranularity('month')">Mois</button>
+        </div>
+        <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Collaborateur :</label>
+        <select id="pcCollabFilter" onchange="renderPlanCharge()" style="height:28px;font-size:0.72rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;min-width:160px;"></select>
+        <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Horizon :</label>
+        <select id="pcHorizonFilter" onchange="renderPlanCharge()" style="height:28px;font-size:0.72rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;">
+          <option value="1">1 sem.</option>
+          <option value="2">2 sem.</option>
+          <option value="3">3 sem.</option>
+          <option value="4" selected>4 sem.</option>
+          <option value="8">8 sem.</option>
+          <option value="12">12 sem.</option>
+          <option value="24">24 sem.</option>
+          <option value="52">1 an</option>
+        </select>
+      </div>
+    </div>
+    <div style="flex:1;overflow:auto;padding:16px 20px;background:var(--bg-primary);">
+      <div id="pcKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px;"></div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;color:var(--text-secondary);">Capacite - Charge DLR - Planifie</div>
+        <div style="height:380px;position:relative;"><canvas id="pcChartMain"></canvas></div>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;color:var(--text-secondary);">Reste disponible (capacite - planifie)</div>
+        <div style="height:200px;position:relative;"><canvas id="pcChartDelta"></canvas></div>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;">
+        <div style="font-size:0.78rem;font-weight:700;margin-bottom:8px;color:var(--text-secondary);">Recapitulatif par periode <span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;">- cliquez sur une ligne pour voir les commandes contributrices</span></div>
+        <div id="pcTable" style="overflow-x:auto;"></div>
+      </div>
+      <div id="pcDrillPanel" style="position:fixed;top:0;right:-440px;width:420px;height:100vh;background:var(--bg-secondary);border-left:2px solid var(--border);box-shadow:-4px 0 12px rgba(0,0,0,0.12);z-index:5000;transition:right 0.25s;display:flex;flex-direction:column;">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-weight:700;font-size:0.85rem;" id="pcDrillTitle">Detail periode</div>
+          <button onclick="pcCloseDrill()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--text-muted);">x</button>
+        </div>
+        <div id="pcDrillBody" style="flex:1;overflow-y:auto;padding:10px 14px;font-size:0.72rem;"></div>
       </div>
     </div>
   </div>
@@ -1930,6 +2009,12 @@ const TYPES = {
 const TYPE_RAW = { sondage:'#2563EB', essai:'#16A34A', prelevement:'#7C3AED', reconnaissance:'#D97706', suivi:'#DB2777', labo:'#0891B2', urgent:'#DC2626' };
 
 function getMonday(d) { d = new Date(d); const day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day===0?-6:1))); }
+function dateToLocalStr(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
 
 const TODAY = new Date();
 const MONDAY = getMonday(new Date(TODAY));
@@ -2032,6 +2117,10 @@ let selectedTechId = null; // null = all technicians
 let selectedGroupId = null; // null = all groups
 let showTravel = true;
 let showWeather = true;
+var pcGranularity = 'week';
+var pcChartMain = null;
+var pcChartDelta = null;
+var pcLastBuckets = [];
 let showLunch = true;
 let showHoverInfo = true;
 
@@ -3205,6 +3294,7 @@ function switchView(v,tab) {
   if (v === 'map') { initFleetMap(); }
   else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
   else if (v === 'commandes') { initCommandes(); }
+  else if (v === 'plancharge') { initPlanCharge(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -3227,8 +3317,9 @@ function closeSidebar() {
 // Close sidebar when a nav item is clicked on mobile
 function showView(v) {
   closeSidebar();
-  const idx = ['week','day','month','list','map'].indexOf(v);
-  switchView(v, document.querySelectorAll('.view-tab')[idx]);
+  // Tab order: week(0), day(1), month(2), list(3), commandes(4), aPlanifier(5), map(6), plancharge(7)
+  const idx = ['week','day','month','list','commandes',null,'map','plancharge'].indexOf(v);
+  switchView(v, idx >= 0 ? document.querySelectorAll('.view-tab')[idx] : null);
 }
 function renderCurrentView() {
   const renderers = {week:renderWeek, day:renderDay, month:renderMonth, list:renderList};
@@ -6250,6 +6341,435 @@ function computeGeoDurationOrNull(cmd) {
   var d2 = computeGeoDuration(cmd);
   if (!d2 || d2 <= 0 || d2 === 240) return d2 === 240 ? 240 : null;
   return d2;
+}
+
+// ═══ PLAN DE CHARGE ═══
+
+function pcGetISOWeek(d) {
+  var date = new Date(d);
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+  var yearStart = new Date(date.getFullYear(), 0, 1);
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+function pcBuildBuckets(weeksHorizon) {
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var buckets = [];
+  if (pcGranularity === 'day') {
+    var d = new Date(today);
+    var maxDays = weeksHorizon * 7;
+    for (var i = 0; i < maxDays; i++) {
+      var dow = d.getDay();
+      if (dow !== 0 && dow !== 6) {
+        var ds = dateToLocalStr(d);
+        buckets.push({
+          key: ds,
+          label: d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+          start: new Date(d),
+          end: new Date(d),
+        });
+      }
+      d.setDate(d.getDate() + 1);
+    }
+  } else if (pcGranularity === 'week') {
+    var mon = getMonday(today);
+    for (var w = 0; w < weeksHorizon; w++) {
+      var ws = new Date(mon); ws.setDate(mon.getDate() + w * 7);
+      var we = new Date(ws); we.setDate(ws.getDate() + 4);
+      var weekNum = pcGetISOWeek(ws);
+      buckets.push({
+        key: dateToLocalStr(ws),
+        label: 'S' + weekNum + ' (' + ws.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ')',
+        start: ws,
+        end: we,
+      });
+    }
+  } else {
+    var startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    var nbMonths = Math.ceil(weeksHorizon / 4.33);
+    for (var m = 0; m < nbMonths; m++) {
+      var ms = new Date(startMonth); ms.setMonth(startMonth.getMonth() + m);
+      var me = new Date(ms.getFullYear(), ms.getMonth() + 1, 0);
+      buckets.push({
+        key: dateToLocalStr(ms),
+        label: ms.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+        start: ms,
+        end: me,
+      });
+    }
+  }
+  return buckets;
+}
+
+function pcComputeCapacity(buckets, filteredTechs) {
+  return buckets.map(function(b) {
+    var minutes = 0;
+    var d = new Date(b.start);
+    while (d <= b.end) {
+      var dow = d.getDay();
+      if (dow !== 0 && dow !== 6) {
+        var ds = dateToLocalStr(d);
+        if (!isJourFerie(ds)) {
+          filteredTechs.forEach(function(t) {
+            var abs = getAbsenceForDate(t.luccaId || t.luccaid || t.lucca_id, ds);
+            if (!abs) minutes += 480;
+            else if (abs.full) minutes += 0;
+            else minutes += 240;
+          });
+        }
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return minutes;
+  });
+}
+
+function pcComputeCharge(buckets, filteredCmds, horizonEnd) {
+  var perBucket = buckets.map(function(){ return 0; });
+  var contribsPerBucket = buckets.map(function(){ return []; });
+  var today = new Date(); today.setHours(0,0,0,0);
+  filteredCmds.forEach(function(cmd) {
+    var dlrStr = getEffectiveDeadline(cmd);
+    if (!dlrStr) return;
+    var dlr = new Date(dlrStr); dlr.setHours(0,0,0,0);
+    if (isNaN(dlr.getTime())) return;
+    if (dlr > horizonEnd) return;
+    var dur = computeGeoDuration(cmd) || 0;
+    if (dur <= 0) return;
+    var alreadyPlanned = 0;
+    interventions.forEach(function(i) {
+      if (i.commandeId === cmd.id) alreadyPlanned += (i.duration || 0);
+    });
+    var remaining = Math.max(0, dur - alreadyPlanned);
+    if (remaining <= 0) return;
+    var startDate = new Date(today);
+    var workingDays = [];
+    var d = new Date(startDate);
+    while (d <= dlr) {
+      var dow = d.getDay();
+      if (dow !== 0 && dow !== 6 && !isJourFerie(dateToLocalStr(d))) {
+        workingDays.push(new Date(d));
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    if (workingDays.length === 0) {
+      perBucket[0] += remaining;
+      contribsPerBucket[0].push({ cmd: cmd, minutes: remaining, late: true });
+      return;
+    }
+    var perDay = remaining / workingDays.length;
+    workingDays.forEach(function(wd) {
+      var idx = pcFindBucketIndex(buckets, wd);
+      if (idx >= 0) {
+        perBucket[idx] += perDay;
+        var existing = contribsPerBucket[idx].find(function(x){ return x.cmd.id === cmd.id; });
+        if (existing) existing.minutes += perDay;
+        else contribsPerBucket[idx].push({ cmd: cmd, minutes: perDay, late: false });
+      }
+    });
+  });
+  return { values: perBucket.map(Math.round), contribs: contribsPerBucket };
+}
+
+function pcComputePlanned(buckets, filteredInts) {
+  var per = buckets.map(function(){ return 0; });
+  var contribs = buckets.map(function(){ return []; });
+  filteredInts.forEach(function(i) {
+    if (!i.date || !i.duration) return;
+    var idx = pcFindBucketIndex(buckets, new Date(i.date + 'T12:00:00'));
+    if (idx < 0) return;
+    per[idx] += i.duration;
+    contribs[idx].push({ int: i, minutes: i.duration });
+  });
+  return { values: per, contribs: contribs };
+}
+
+function pcFindBucketIndex(buckets, d) {
+  var t = new Date(d); t.setHours(0,0,0,0);
+  for (var i = 0; i < buckets.length; i++) {
+    var s = new Date(buckets[i].start); s.setHours(0,0,0,0);
+    var e = new Date(buckets[i].end); e.setHours(23,59,59,999);
+    if (t >= s && t <= e) return i;
+  }
+  return -1;
+}
+
+function pcMinToHours(min) { return Math.round((min/60) * 10) / 10; }
+
+function pcSetGranularity(g) {
+  pcGranularity = g;
+  document.querySelectorAll('.pc-gran-btn').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-gran') === g);
+  });
+  renderPlanCharge();
+}
+
+async function initPlanCharge() {
+  if (typeof Chart === 'undefined') {
+    var c = document.getElementById('pcKpis');
+    if (c) c.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:#DC2626;">Chart.js non charge - verifiez la connexion reseau.</div>';
+    return;
+  }
+  if (!commandesLoaded) await loadCommandesFromSupabase();
+  if (luccaCollabs.length === 0) await loadLuccaCollabs();
+  var collabSel = document.getElementById('pcCollabFilter');
+  if (collabSel && collabSel.options.length === 0) {
+    var sortedTechs = TECHNICIANS.slice().sort(function(a, b) {
+      var na = (a.nom || a.name || '').toLocaleLowerCase('fr-FR');
+      var nb = (b.nom || b.name || '').toLocaleLowerCase('fr-FR');
+      return na.localeCompare(nb, 'fr');
+    });
+    var copts = ['<option value="">Tous</option>'].concat(sortedTechs.map(function(t){
+      var label = t.name || ((t.nom || '') + ' ' + (t.prenom || '')).trim() || ('#' + t.id);
+      return '<option value="' + t.id + '">' + label.replace(/"/g,'&quot;') + '</option>';
+    }));
+    collabSel.innerHTML = copts.join('');
+  }
+  renderPlanCharge();
+}
+
+function renderPlanCharge() {
+  if (typeof Chart === 'undefined') return;
+  var horizon = parseInt(document.getElementById('pcHorizonFilter').value || '4');
+  var collabId = document.getElementById('pcCollabFilter').value || '';
+
+  var filteredTechs = TECHNICIANS.slice();
+  if (collabId) filteredTechs = filteredTechs.filter(function(t){ return String(t.id) === String(collabId); });
+  var techIds = filteredTechs.map(function(t){ return t.id; });
+
+  var filteredCmds = commandesData.slice();
+  var filteredInts = interventions.filter(function(i){
+    return techIds.indexOf(i.techId) >= 0;
+  });
+
+  var buckets = pcBuildBuckets(horizon);
+  pcLastBuckets = buckets;
+  var horizonEnd = buckets.length ? new Date(buckets[buckets.length-1].end) : new Date();
+
+  var capMin = pcComputeCapacity(buckets, filteredTechs);
+  var chargeRes = pcComputeCharge(buckets, filteredCmds, horizonEnd);
+  var plannedRes = pcComputePlanned(buckets, filteredInts);
+
+  var capH = capMin.map(pcMinToHours);
+  var plannedH = plannedRes.values.map(pcMinToHours);
+  var chargeH = chargeRes.values.map(pcMinToHours);
+
+  buckets.forEach(function(b, i) {
+    b.chargeContribs = chargeRes.contribs[i] || [];
+    b.plannedContribs = plannedRes.contribs[i] || [];
+    b.capacityMin = capMin[i];
+    b.chargeMin = chargeRes.values[i];
+    b.plannedMin = plannedRes.values[i];
+  });
+
+  // KPIs
+  var totalCap = capH.reduce(function(a,b){ return a+b; }, 0);
+  var totalCharge = chargeH.reduce(function(a,b){ return a+b; }, 0);
+  var totalPlanned = plannedH.reduce(function(a,b){ return a+b; }, 0);
+  var nbOverloaded = 0;
+  buckets.forEach(function(b, i) { if (chargeH[i] > capH[i] && capH[i] > 0) nbOverloaded++; });
+  var lateCmds = 0;
+  filteredCmds.forEach(function(cmd){
+    var dlrStr = getEffectiveDeadline(cmd);
+    if (!dlrStr) return;
+    var dlr = new Date(dlrStr);
+    if (isNaN(dlr.getTime())) return;
+    var alreadyPlanned = 0;
+    interventions.forEach(function(i){ if (i.commandeId === cmd.id) alreadyPlanned += (i.duration || 0); });
+    var dur = computeGeoDuration(cmd) || 0;
+    if (alreadyPlanned >= dur) return;
+    if (dlr < new Date()) lateCmds++;
+  });
+  var ratio = totalCap > 0 ? Math.round(100 * totalPlanned / totalCap) : 0;
+  document.getElementById('pcKpis').innerHTML =
+    '<div class="pc-kpi"><div class="pc-kpi-label">Capacite totale</div><div class="pc-kpi-value">' + Math.round(totalCap) + ' h</div><div class="pc-kpi-sub">' + filteredTechs.length + ' collab. - ' + horizon + ' sem.</div></div>' +
+    '<div class="pc-kpi"><div class="pc-kpi-label">Charge DLR</div><div class="pc-kpi-value" style="color:#2563EB;">' + Math.round(totalCharge) + ' h</div><div class="pc-kpi-sub">' + filteredCmds.length + ' cmd. dans l\'horizon</div></div>' +
+    '<div class="pc-kpi"><div class="pc-kpi-label">Charge planifiee</div><div class="pc-kpi-value" style="color:#7C3AED;">' + Math.round(totalPlanned) + ' h</div><div class="pc-kpi-sub">' + filteredInts.length + ' interv.</div></div>' +
+    '<div class="pc-kpi"><div class="pc-kpi-label">Taux d\'occupation</div><div class="pc-kpi-value" style="color:' + (ratio > 100 ? '#DC2626' : (ratio > 85 ? '#D97706' : '#16A34A')) + ';">' + ratio + ' %</div><div class="pc-kpi-sub">planifie / capacite - ' + nbOverloaded + ' periode(s) en surcharge</div></div>' +
+    '<div class="pc-kpi"><div class="pc-kpi-label">Commandes en retard</div><div class="pc-kpi-value" style="color:' + (lateCmds > 0 ? '#DC2626' : '#16A34A') + ';">' + lateCmds + '</div><div class="pc-kpi-sub">DLR depassee non planifiee</div></div>';
+
+  // Graphique principal
+  var labels = buckets.map(function(b){ return b.label; });
+  var ctx = document.getElementById('pcChartMain');
+  if (pcChartMain) pcChartMain.destroy();
+  pcChartMain = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Capacite disponible (h)',
+          data: capH,
+          borderColor: '#DC2626',
+          backgroundColor: 'rgba(220,38,38,0.10)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 3,
+          borderWidth: 2,
+        },
+        {
+          label: 'Charge DLR (h)',
+          data: chargeH,
+          borderColor: '#2563EB',
+          backgroundColor: 'rgba(37,99,235,0.18)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 3,
+          borderWidth: 2,
+        },
+        {
+          label: 'Charge planifiee (h)',
+          data: plannedH,
+          borderColor: '#7C3AED',
+          backgroundColor: 'rgba(124,58,237,0.10)',
+          fill: false,
+          tension: 0.25,
+          pointRadius: 3,
+          borderWidth: 2,
+          borderDash: [4, 4],
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        datalabels: { display: false },
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            footer: function(items) {
+              var idx = items[0].dataIndex;
+              var cap = capH[idx], ch = chargeH[idx];
+              if (cap > 0 && ch > cap) return 'Surcharge DLR ' + Math.round(ch - cap) + ' h';
+              return '';
+            },
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Heures' } },
+        x: { ticks: { autoSkip: true, maxRotation: 0, font: { size: 10 } } },
+      },
+      onClick: function(evt, elements) {
+        if (elements && elements.length) pcOpenDrill(elements[0].index);
+      },
+    },
+  });
+
+  // Graphique delta
+  var deltaArr = capH.map(function(c, i){ return Math.round((c - plannedH[i]) * 4) / 4; });
+  var ctx2 = document.getElementById('pcChartDelta');
+  if (pcChartDelta) pcChartDelta.destroy();
+  var hasDataLabels = typeof ChartDataLabels !== 'undefined';
+  pcChartDelta = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Reste disponible (h)',
+        data: deltaArr,
+        backgroundColor: deltaArr.map(function(v){ return v < 0 ? 'rgba(220,38,38,0.7)' : 'rgba(22,163,74,0.55)'; }),
+        borderColor: deltaArr.map(function(v){ return v < 0 ? '#DC2626' : '#16A34A'; }),
+        borderWidth: 1,
+        datalabels: {
+          anchor: function(ctx){ return ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end'; },
+          align: function(ctx){ return ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end'; },
+          color: function(ctx){ return ctx.dataset.data[ctx.dataIndex] < 0 ? '#DC2626' : '#15803D'; },
+          font: { size: 10, weight: '700' },
+          formatter: function(v){
+            var r = Math.round(v * 4) / 4;
+            var s = (r === Math.floor(r)) ? String(r) : r.toFixed(2).replace(/0$/, '');
+            return (r >= 0 ? '+' : '') + s;
+          },
+        },
+      }],
+    },
+    plugins: hasDataLabels ? [ChartDataLabels] : [],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 18, bottom: 8 } },
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { title: { display: true, text: 'h' } },
+        x: { ticks: { autoSkip: true, maxRotation: 0, font: { size: 10 } } },
+      },
+      onClick: function(evt, elements) {
+        if (elements && elements.length) pcOpenDrill(elements[0].index);
+      },
+    },
+  });
+
+  // Tableau recap
+  var tbl = '<table class="pc-table"><thead><tr><th>Periode</th><th>Capacite (h)</th><th>Planifiee (h)</th><th>Reste disponible (h)</th><th>Charge DLR (h)</th><th>Reste a planifier (h)</th></tr></thead><tbody>';
+  buckets.forEach(function(b, i) {
+    var reste = capH[i] - plannedH[i];
+    var resteAPlanifier = chargeH[i] - plannedH[i];
+    var resteCls = reste < 0 ? 'pc-overload' : 'pc-ok';
+    tbl += '<tr onclick="pcOpenDrill(' + i + ')">' +
+      '<td>' + b.label + '</td>' +
+      '<td>' + Math.round(capH[i]) + '</td>' +
+      '<td>' + Math.round(plannedH[i]) + '</td>' +
+      '<td class="' + resteCls + '">' + (reste >= 0 ? '+' : '') + Math.round(reste) + '</td>' +
+      '<td>' + Math.round(chargeH[i]) + '</td>' +
+      '<td>' + Math.round(Math.max(0, resteAPlanifier)) + '</td>' +
+    '</tr>';
+  });
+  tbl += '</tbody></table>';
+  document.getElementById('pcTable').innerHTML = tbl;
+}
+
+function pcOpenDrill(idx) {
+  var b = pcLastBuckets[idx];
+  if (!b) return;
+  document.getElementById('pcDrillTitle').textContent = 'Detail - ' + b.label;
+  var html = '';
+  html += '<div style="background:var(--bg-primary);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:0.7rem;line-height:1.5;">';
+  html += '<div><strong>Capacite :</strong> ' + Math.round(b.capacityMin/60) + ' h</div>';
+  html += '<div><strong>Charge DLR :</strong> ' + Math.round(b.chargeMin/60) + ' h</div>';
+  html += '<div><strong>Planifie :</strong> ' + Math.round(b.plannedMin/60) + ' h</div>';
+  html += '</div>';
+  html += '<div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:8px 0 4px;">Charge DLR - commandes contributrices</div>';
+  if (b.chargeContribs.length === 0) {
+    html += '<div style="color:var(--text-muted);font-size:0.7rem;font-style:italic;">Aucune commande contribuant a cette periode.</div>';
+  } else {
+    b.chargeContribs.sort(function(a,b){ return b.minutes - a.minutes; }).forEach(function(c) {
+      var cmd = c.cmd;
+      var dlr = getEffectiveDeadline(cmd);
+      var dlrLbl = getEffectiveDeadlineLabel(cmd);
+      var dlrFmt = dlr ? new Date(dlr).toLocaleDateString('fr-FR') : '-';
+      html += '<div class="pc-drill-card"' + (c.late ? ' style="border-color:#DC2626;background:#fef2f2;"' : '') + '>';
+      html += '<div class="pc-drill-card-ref">' + (cmd.ref || '-') + (c.late ? ' <span style="color:#DC2626;font-weight:700;">EN RETARD</span>' : '') + '</div>';
+      html += '<div class="pc-drill-card-title">' + (cmd.client_name || '-') + '</div>';
+      html += '<div class="pc-drill-card-meta">' + dlrLbl + ' ' + dlrFmt + ' - part : <strong>' + Math.round(c.minutes/60 * 10)/10 + ' h</strong></div>';
+      html += '</div>';
+    });
+  }
+  html += '<div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:14px 0 4px;">Interventions planifiees</div>';
+  if (b.plannedContribs.length === 0) {
+    html += '<div style="color:var(--text-muted);font-size:0.7rem;font-style:italic;">Aucune intervention planifiee sur cette periode.</div>';
+  } else {
+    b.plannedContribs.sort(function(a,b){ return (a.int.date || '').localeCompare(b.int.date || ''); }).forEach(function(c) {
+      var i = c.int;
+      var tech = TECHNICIANS.find(function(t){ return t.id === i.techId; });
+      var hLbl = Math.round((c.minutes || 0)/60 * 10)/10 + ' h';
+      html += '<div class="pc-drill-card">';
+      html += '<div class="pc-drill-card-ref">' + (i.commandeRef || i.affaireRef || '-') + ' - ' + i.date + (i.startTime ? ' ' + i.startTime : '') + '</div>';
+      html += '<div class="pc-drill-card-title">' + (i.title || '(sans titre)') + '</div>';
+      html += '<div class="pc-drill-card-meta">' + (tech ? tech.name : '-') + ' - ' + hLbl + '</div>';
+      html += '</div>';
+    });
+  }
+  document.getElementById('pcDrillBody').innerHTML = html;
+  document.getElementById('pcDrillPanel').style.right = '0';
+}
+
+function pcCloseDrill() {
+  document.getElementById('pcDrillPanel').style.right = '-440px';
 }
 
 // --- Open / Close ---
