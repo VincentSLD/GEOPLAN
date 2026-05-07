@@ -1891,6 +1891,36 @@ body::before {
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
       <div class="form-group"><label class="form-label">Commentaires sur la commande <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+      <div id="habitudesAccordion" style="display:none;margin:8px 0;">
+        <details style="margin-bottom:4px;">
+          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:0.85rem;">📘</span>
+            <span>Habitudes du client</span>
+            <span id="habClientName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+            <span id="habClientBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+          </summary>
+          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+            <div id="habClientTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+            <div id="habClientGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+          </div>
+        </details>
+        <details>
+          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:0.85rem;">🏗</span>
+            <span>Habitudes du gros oeuvre</span>
+            <span id="habGoName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+            <span id="habGoBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+          </summary>
+          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+            <div id="habGoTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+            <div id="habGoGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+          </div>
+        </details>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -2121,6 +2151,8 @@ var pcGranularity = 'week';
 var pcChartMain = null;
 var pcChartDelta = null;
 var pcLastBuckets = [];
+var clientsHabitsCache = {};
+var clientsHabitsLoaded = false;
 let showLunch = true;
 let showHoverInfo = true;
 
@@ -2982,6 +3014,7 @@ async function init() {
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   hideLoader();
   loadLuccaCollabs().then(function() { renderCurrentView(); });
+  loadClientsHabits();
   loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
   loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); });
 }
@@ -3879,6 +3912,7 @@ function openDetail(id){
     ${int.commandeRef || int.affaireRef || int.marcheRef ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.72rem;font-family:\'DM Mono\',monospace;">'+(int.commandeRef?'<span>📋 '+int.commandeRef+'</span>':'')+(int.affaireRef?'<span>📂 '+int.affaireRef+'</span>':'')+(int.marcheRef?'<span>📑 '+int.marcheRef+'</span>':'')+(int.affaireRef?'<button onclick="openDossierAffaire(\''+int.affaireRef+'\')" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.65rem;cursor:pointer;font-family:inherit;font-weight:600;">📁 Ouvrir dossier</button>':'')+'</div>' : ''}
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderCmdCustomDataHTML(cmd) : ''; })()}
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
+    ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderHabitudesDetailHTML(cmd) : ''; })()}
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;padding:6px;">✏️ Modifier</button>
       <button class="btn btn-ghost" onclick="deleteIntervention(${int.id})" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button>
@@ -5161,6 +5195,8 @@ function onCommandeSelect() {
     document.getElementById('intMarche').value = '';
     if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
     if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
+    var habBox = document.getElementById('habitudesAccordion');
+    if (habBox) habBox.style.display = 'none';
     return;
   }
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
@@ -5181,6 +5217,8 @@ function onCommandeSelect() {
     infosAdvEl.textContent = cmd.description || '';
     infosAdvEl.setAttribute('data-cmd-id', cmd.id);
   }
+  // Accordéon Habitudes (client + gros oeuvre)
+  populateHabitudes(cmd);
   // Auto-remplir durée si vide
   var durInput = document.getElementById('intDuration');
   if (durInput && !durInput.value) {
@@ -5293,6 +5331,157 @@ function renderCmdCustomDataHTML(cmd) {
     '</div>' +
     rows +
     '</div>';
+}
+
+// ═══ HABITUDES CLIENTS / GÉOTECHNIQUES ═══
+
+async function loadClientsHabits() {
+  if (clientsHabitsLoaded) return;
+  try {
+    var data = [];
+    var off = 0;
+    while (true) {
+      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques').range(off, off + 999);
+      if (r.error) { console.warn('[Clients] Erreur:', r.error.message); break; }
+      if (!r.data || r.data.length === 0) break;
+      data = data.concat(r.data);
+      if (r.data.length < 1000) break;
+      off += 1000;
+    }
+    data.forEach(function(c){
+      var key = String(c.name || '').trim().toUpperCase();
+      if (key) clientsHabitsCache[key] = c;
+    });
+    clientsHabitsLoaded = true;
+    console.log('[Clients] ' + data.length + ' clients chargés (cache habitudes)');
+  } catch(e) { console.warn('[Clients] Exception:', e); }
+}
+
+function findClientHabits(name) {
+  if (!name) return null;
+  var key = String(name).trim().toUpperCase();
+  return clientsHabitsCache[key] || null;
+}
+
+function _sanitizeHabitsHTML(s) {
+  if (!s) return '';
+  var str = String(s);
+  str = str.replace(/<\s*(script|style)[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  str = str.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '');
+  str = str.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '');
+  str = str.replace(/javascript\s*:/gi, '');
+  return str;
+}
+
+function _looksLikeHTML(s) { return typeof s === 'string' && /<[a-zA-Z][^>]*>/.test(s); }
+
+function _renderHabitsContent(el, value, fallbackMsg) {
+  if (!el) return;
+  if (!value) {
+    el.textContent = fallbackMsg;
+    el.style.fontStyle = 'italic';
+    return;
+  }
+  el.style.fontStyle = 'normal';
+  if (_looksLikeHTML(value)) {
+    el.innerHTML = _sanitizeHabitsHTML(value);
+    el.querySelectorAll('img').forEach(function(img){
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      img.style.borderRadius = '4px';
+      img.style.margin = '4px 0';
+    });
+  } else {
+    el.textContent = value;
+    el.style.whiteSpace = 'pre-wrap';
+  }
+}
+
+function renderHabitudesDetailHTML(cmd) {
+  if (!cmd) return '';
+  var clientName = cmd.client_name || '';
+  var goName = (cmd.custom_data && cmd.custom_data['1-alpha12'] && cmd.custom_data['1-alpha12'].value) || '';
+  var clientH = findClientHabits(clientName);
+  var goH = findClientHabits(goName);
+  function _badge(h, name, isGo) {
+    if (h) { var has = !!(h.habitudes_techniques || h.habitudes_geotechniques); return has ? '<span style="color:#16A34A;font-size:0.6rem;">✓</span>' : '<span style="color:var(--text-muted);font-size:0.6rem;">∅</span>'; }
+    return '<span style="color:var(--text-muted);font-size:0.6rem;">?</span>';
+  }
+  function _content(val, fallback) {
+    if (!val) return '<div style="font-style:italic;color:var(--text-muted);">' + fallback + '</div>';
+    if (_looksLikeHTML(val)) return '<div>' + _sanitizeHabitsHTML(val) + '</div>';
+    return '<div style="white-space:pre-wrap;">' + val.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+  }
+  var html = '<div style="margin:8px 0;">';
+  // Client
+  var cBadge = _badge(clientH, clientName, false);
+  var cTech = clientH ? _content(clientH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
+  var cGeo = clientH ? _content(clientH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  html += '<details style="margin-bottom:4px;"><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
+    '<span style="font-size:0.85rem;">📘</span><span>Habitudes du client</span>' +
+    '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (clientName ? '· ' + clientName : '') + '</span>' + cBadge +
+    '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + cTech +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + cGeo +
+    '</div></details>';
+  // GO
+  var gBadge = _badge(goH, goName, true);
+  var gTech = goH ? _content(goH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', goName ? '— GO introuvable dans la base clients —' : '— pas de gros oeuvre renseigné sur la commande —');
+  var gGeo = goH ? _content(goH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  html += '<details><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
+    '<span style="font-size:0.85rem;">🏗</span><span>Habitudes du gros oeuvre</span>' +
+    '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (goName ? '· ' + goName : '— non renseigné —') + '</span>' + gBadge +
+    '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + gTech +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + gGeo +
+    '</div></details>';
+  html += '</div>';
+  return html;
+}
+
+function populateHabitudes(cmd) {
+  var box = document.getElementById('habitudesAccordion');
+  if (!box) return;
+  var clientName = cmd.client_name || '';
+  var goName = (cmd.custom_data && cmd.custom_data['1-alpha12'] && cmd.custom_data['1-alpha12'].value) || '';
+  var clientH = findClientHabits(clientName);
+  var goH = findClientHabits(goName);
+  // Header info
+  document.getElementById('habClientName').textContent = clientName ? '· ' + clientName : '';
+  document.getElementById('habGoName').textContent = goName ? '· ' + goName : '— non renseigné —';
+  // Badges + contenus client
+  var clientTechEl = document.getElementById('habClientTech');
+  var clientGeoEl = document.getElementById('habClientGeo');
+  var clientBadge = document.getElementById('habClientBadge');
+  if (clientH) {
+    _renderHabitsContent(clientTechEl, clientH.habitudes_techniques, '— aucune habitude technique renseignée —');
+    _renderHabitsContent(clientGeoEl, clientH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
+    var hasAny = !!(clientH.habitudes_techniques || clientH.habitudes_geotechniques);
+    clientBadge.textContent = hasAny ? '✓' : '∅';
+    clientBadge.style.color = hasAny ? '#16A34A' : 'var(--text-muted)';
+  } else {
+    _renderHabitsContent(clientTechEl, '', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
+    _renderHabitsContent(clientGeoEl, '', '');
+    clientBadge.textContent = '?';
+    clientBadge.style.color = 'var(--text-muted)';
+  }
+  // Badges + contenus GO
+  var goTechEl = document.getElementById('habGoTech');
+  var goGeoEl = document.getElementById('habGoGeo');
+  var goBadge = document.getElementById('habGoBadge');
+  if (goH) {
+    _renderHabitsContent(goTechEl, goH.habitudes_techniques, '— aucune habitude technique renseignée —');
+    _renderHabitsContent(goGeoEl, goH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
+    var hasAnyGo = !!(goH.habitudes_techniques || goH.habitudes_geotechniques);
+    goBadge.textContent = hasAnyGo ? '✓' : '∅';
+    goBadge.style.color = hasAnyGo ? '#16A34A' : 'var(--text-muted)';
+  } else {
+    _renderHabitsContent(goTechEl, '', goName ? '— GO introuvable dans la base clients —' : '— pas de gros oeuvre renseigné sur la commande —');
+    _renderHabitsContent(goGeoEl, '', '');
+    goBadge.textContent = '?';
+    goBadge.style.color = 'var(--text-muted)';
+  }
+  box.style.display = 'block';
 }
 
 // Populate commande select in intervention form
