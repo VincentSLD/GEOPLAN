@@ -7043,9 +7043,36 @@ async function loadLuccaCollabs() {
     const { data, error } = await sbAuth.from('collaborateurs_lucca').select('*').order('nom');
     if (error) throw error;
     luccaCollabs = data || [];
+    autoMatchTeamLuccaIds();
     await loadLuccaAbsences();
     updateTeamAbsenceStatuses();
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
+}
+
+// Auto-match settingsTeam members to luccaCollabs by prenom+nom to fill missing luccaId
+function autoMatchTeamLuccaIds() {
+  if (!settingsTeam || !luccaCollabs || luccaCollabs.length === 0) return;
+  var norm = function(s) { return (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+  var changed = 0;
+  settingsTeam.forEach(function(t) {
+    if (t.luccaId) return; // already has a luccaId
+    var tPrenom = norm(t.prenom);
+    var tNom = norm(t.nom);
+    if (!tPrenom && !tNom) return;
+    var match = luccaCollabs.find(function(c) {
+      return norm(c.prenom) === tPrenom && norm(c.nom) === tNom;
+    });
+    if (match && match.lucca_id) {
+      t.luccaId = match.lucca_id;
+      changed++;
+      console.log('[Lucca] Auto-match: ' + t.prenom + ' ' + t.nom + ' → luccaId=' + match.lucca_id);
+    }
+  });
+  if (changed > 0) {
+    saveSettings(SETTINGS_KEYS.team, settingsTeam);
+    syncTeamToTechnicians();
+    console.log('[Lucca] ' + changed + ' technicien(s) auto-matchés avec Lucca');
+  }
 }
 
 async function loadLuccaAbsences() {
@@ -7079,18 +7106,6 @@ async function loadLuccaAbsences() {
 
     luccaAbsencesLoaded = true;
     console.log('[Lucca] ' + allData.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées uniques');
-    // Debug : afficher les clés d'absences et les luccaId des techs pour diagnostiquer
-    if (Object.keys(luccaAbsences).length > 0) {
-      console.log('[Lucca DEBUG] Exemples clés absences:', Object.keys(luccaAbsences).slice(0, 5));
-    }
-    var techsWithLucca = (settingsTeam || []).filter(function(t){ return !!t.luccaId; });
-    console.log('[Lucca DEBUG] Techs avec luccaId: ' + techsWithLucca.length + '/' + (settingsTeam || []).length);
-    if (techsWithLucca.length > 0) {
-      console.log('[Lucca DEBUG] luccaId techs:', techsWithLucca.slice(0, 5).map(function(t){ return t.prenom + ' ' + t.nom + ' → luccaId=' + JSON.stringify(t.luccaId) + ' (type:' + typeof t.luccaId + ')'; }));
-    }
-    if (allData.length > 0) {
-      console.log('[Lucca DEBUG] lucca_id absences sample:', allData.slice(0, 3).map(function(a){ return 'lucca_id=' + JSON.stringify(a.lucca_id) + ' (type:' + typeof a.lucca_id + ') date=' + a.date_absence; }));
-    }
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
