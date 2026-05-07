@@ -7079,6 +7079,18 @@ async function loadLuccaAbsences() {
 
     luccaAbsencesLoaded = true;
     console.log('[Lucca] ' + allData.length + ' absences chargées, ' + Object.keys(luccaAbsences).length + ' entrées uniques');
+    // Debug : afficher les clés d'absences et les luccaId des techs pour diagnostiquer
+    if (Object.keys(luccaAbsences).length > 0) {
+      console.log('[Lucca DEBUG] Exemples clés absences:', Object.keys(luccaAbsences).slice(0, 5));
+    }
+    var techsWithLucca = (settingsTeam || []).filter(function(t){ return !!t.luccaId; });
+    console.log('[Lucca DEBUG] Techs avec luccaId: ' + techsWithLucca.length + '/' + (settingsTeam || []).length);
+    if (techsWithLucca.length > 0) {
+      console.log('[Lucca DEBUG] luccaId techs:', techsWithLucca.slice(0, 5).map(function(t){ return t.prenom + ' ' + t.nom + ' → luccaId=' + JSON.stringify(t.luccaId) + ' (type:' + typeof t.luccaId + ')'; }));
+    }
+    if (allData.length > 0) {
+      console.log('[Lucca DEBUG] lucca_id absences sample:', allData.slice(0, 3).map(function(a){ return 'lucca_id=' + JSON.stringify(a.lucca_id) + ' (type:' + typeof a.lucca_id + ') date=' + a.date_absence; }));
+    }
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
