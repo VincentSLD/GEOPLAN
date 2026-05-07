@@ -8967,7 +8967,6 @@ async function sendAIMessage() {
   typingEl.className = 'ai-typing';
   typingEl.textContent = 'Réflexion en cours...';
   document.getElementById('aiMessages').appendChild(typingEl);
-  scrollAI();
 
   try {
     const context = buildPlanningContext();
@@ -9100,8 +9099,12 @@ function appendAIMessage(role, text) {
   } else {
     el.textContent = text;
   }
-  document.getElementById('aiMessages').appendChild(el);
-  scrollAI();
+  var container = document.getElementById('aiMessages');
+  container.appendChild(el);
+  // Scroll pour que le message utilisateur soit visible en haut, mais ne pas forcer le scroll en bas pour la réponse IA
+  if (role === 'user') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function scrollAI() {
