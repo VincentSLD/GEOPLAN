@@ -1870,7 +1870,7 @@ body::before {
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
       <div class="form-row" style="align-items:flex-end;">
-        <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
+        <div class="form-group" id="intTypeGroup"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
       </div>
       <select class="form-select" id="intStatus" style="display:none;"></select>
       <div id="intRecurrenceBlock" style="margin:6px 0;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
@@ -3715,7 +3715,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -5277,15 +5277,18 @@ function onCommandeSelect() {
   var cmdId = sel.value;
   var cdBox = document.getElementById('intCustomData');
   var infosAdvEl = document.getElementById('intInfosAdv');
+  var typeGroup = document.getElementById('intTypeGroup');
   if (!cmdId) {
     document.getElementById('intAffaire').value = '';
     document.getElementById('intMarche').value = '';
     if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
     if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
+    if (typeGroup) typeGroup.style.display = '';
     var habBox = document.getElementById('habitudesAccordion');
     if (habBox) habBox.style.display = 'none';
     return;
   }
+  if (typeGroup) typeGroup.style.display = 'none';
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
   if (!cmd) return;
   document.getElementById('intTitle').value = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
