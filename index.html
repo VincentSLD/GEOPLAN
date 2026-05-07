@@ -3030,8 +3030,14 @@ async function init() {
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   hideLoader();
   loadClientsHabits();
-  loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
-  loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); });
+  // Charger commandes + Geosolia en parallèle, puis auto-sync et auto-link
+  Promise.all([
+    loadCommandesFromSupabase().then(function() { populateCommandeSelect(); }),
+    loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); })
+  ]).then(function() {
+    syncCustomDataSilent();
+    autoLinkGeosoliaSilent();
+  });
 }
 function populateSidebar() {
   const grpEl = document.getElementById('sidebarGroups');
@@ -4430,6 +4436,62 @@ async function syncCustomData() {
   btn.disabled = false;
   alert('Sync terminé :\n' + synced + ' commande(s) mises à jour\n' + errors + ' erreur(s)');
   if (synced > 0) renderCommandesList();
+}
+
+// Version silencieuse pour le chargement auto au démarrage
+async function syncCustomDataSilent() {
+  var missing = commandesData.filter(function(c) { return !c.custom_data || Object.keys(c.custom_data).length <= 1; });
+  if (missing.length === 0) return;
+  console.log('[Auto-sync] ' + missing.length + ' commande(s) sans données personnalisées, sync en cours...');
+  var synced = 0, errors = 0;
+  for (var i = 0; i < missing.length; i++) {
+    var cmd = missing[i];
+    var akId = cmd.ref || cmd.akuiteo_id || cmd.id.replace('akc_', '').replace(/_/g, '-');
+    try {
+      var r = await fetch(AKUITEO_PROXY + (AKUITEO_PROXY.includes('?path=') ? '/sales/orders/' + akId + '/read' : '/sales/orders/' + akId + '/read'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ options: ['CUSTOM_DATA'] }),
+      });
+      if (r.ok) {
+        var detail = await r.json();
+        var cd = detail.customData || detail.detail?.customData || null;
+        if (cd && Object.keys(cd).length > 0) {
+          await sbAuth.from('commandes').update({ custom_data: cd }).eq('id', cmd.id);
+          cmd.custom_data = cd;
+          synced++;
+        }
+      }
+      if (i < missing.length - 1) await new Promise(function(resolve) { setTimeout(resolve, 300); });
+    } catch(e) { errors++; }
+  }
+  if (synced > 0) {
+    console.log('[Auto-sync] ' + synced + ' commande(s) mises à jour, ' + errors + ' erreur(s)');
+    renderCommandesList();
+  }
+}
+
+function autoLinkGeosoliaSilent() {
+  if (geosoliaProjects.length === 0) return;
+  var linked = 0;
+  commandesData.forEach(function(cmd) {
+    if (commandeGeosoliaLinks[cmd.id]) return;
+    var affRef = cmd._affaire ? cmd._affaire.ref : '';
+    if (!affRef) return;
+    var normRef = affRef.replace(/[.\-\s]/g, '').toLowerCase();
+    var match = geosoliaProjects.find(function(p) {
+      var geoRef = (p.project_ref || '').replace(/[.\-\s]/g, '').toLowerCase();
+      return geoRef && (geoRef === normRef || normRef.indexOf(geoRef) >= 0 || geoRef.indexOf(normRef) >= 0);
+    });
+    if (match) {
+      commandeGeosoliaLinks[cmd.id] = match.id;
+      linked++;
+    }
+  });
+  if (linked > 0) {
+    saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks);
+    console.log('[Auto-link Géosolia] ' + linked + ' commande(s) liée(s) automatiquement');
+  }
 }
 
 function autoLinkGeosolia() {
