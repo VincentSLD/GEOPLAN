@@ -8747,6 +8747,19 @@ ${teamDetail}
 Note: Les interventions marquées "⛔ TEMPS BLOQUÉ" (Réservation A++, Rapports, etc.) sont des créneaux indisponibles.
 ${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
 
+  // Rapports non planifiés
+  var unplannedRapports = interventions.filter(function(i) { return i.isRapport && !i.date; });
+  if (unplannedRapports.length > 0) {
+    var rapLines = unplannedRapports.map(function(r) {
+      var tech = TECHNICIANS.find(function(t) { return t.id === r.techId; });
+      var durLabel = r.duration ? Math.round(r.duration / 60 * 10) / 10 + 'h' : '?';
+      return `- [ID:${r.id}] 📝 ${r.title || 'Rapport'} | Tech: ${tech ? tech.name : '?'} (techId:${r.techId}) | Durée: ${durLabel} | Client: ${r.client || '-'}${r.commandeRef ? ' | Réf: '+r.commandeRef : ''}`;
+    });
+    ctx += `\n\nRAPPORTS À PLANIFIER (${rapLines.length} rapports sans date):
+Ces rapports sont liés à des interventions terrain déjà planifiées. Tu peux proposer de les planifier (action "move" avec une date) sur les créneaux disponibles, de préférence au bureau.
+${rapLines.join('\n')}`;
+  }
+
   if (aPlanifierDetail) {
     ctx += `\n\nCOMMANDES À PLANIFIER (${aPlanifierDetail.split('\n').length} commandes non planifiées, triées par DLR):
 Ces commandes sont réelles (Akuiteo/Geosolia). Tu peux proposer de les planifier sur les créneaux disponibles.
@@ -9027,6 +9040,8 @@ function executeAIAction(action) {
           newInt.id = result.data[0].id;
         }
         await sbAuth.from('commandes').update({planification: 'Planifiée'}).eq('id', cmd.id);
+        // Auto-créer le rapport associé si Geosolia prévoit du temps rapport
+        await createRapportIntervention(newInt);
       } catch(e) { console.warn('[AI Plan] Erreur Supabase:', e); }
       renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
     })();

@@ -39,6 +39,14 @@ Le contexte inclut la liste des commandes non encore planifiées avec leur type 
 - Quand tu proposes de planifier une commande, tiens compte de : la DLR (priorité aux plus urgentes), la zone géographique (regrouper avec les interventions existantes), les compétences du technicien, et la charge de travail.
 - Utilise les vrais IDs de commande du contexte, ne les invente pas.
 
+RAPPORTS À PLANIFIER :
+Le contexte peut inclure une liste de rapports non encore planifiés (pas de date). Ce sont des interventions de type rapport liées à des interventions terrain déjà planifiées.
+- Quand tu proposes un planning, inclure TOUJOURS les rapports à planifier en plus des commandes terrain.
+- Les rapports se font au bureau, pas besoin de temps de trajet.
+- Utilise l'action "move" avec l'ID du rapport pour lui affecter une date et un créneau.
+- Planifie les rapports de préférence après l'intervention terrain correspondante (J+1, J+2, etc.).
+- Quand tu planifies une commande terrain (action "plan"), le rapport associé sera créé automatiquement — tu n'as pas besoin de le créer, mais tu peux proposer de le planifier ensuite.
+
 HABITUDES CLIENTS ET GÉOTECHNIQUES :
 Le contexte peut inclure les habitudes techniques et géotechniques connues pour chaque client ou gros oeuvre (accès chantier, contraintes, matériel requis, exigences particulières, etc.).
 - TOUJOURS consulter et mentionner les habitudes pertinentes quand tu proposes de planifier une commande pour un client donné.
