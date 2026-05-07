@@ -326,7 +326,8 @@ body::before {
   z-index: 6;
   padding: 10px 12px;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
 }
 .grid-corner span {
@@ -3426,7 +3427,7 @@ function jourFerieBadgeHTML(dateStr) {
 // ===== WEEK =====
 function renderWeek() {
   const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
-  let html=`<div class="grid-corner"><span>Techniciens</span></div>`;
+  let html=`<div class="grid-corner"><span style="font-size:0.62rem;font-weight:700;color:var(--text-muted);letter-spacing:0.03em;">S${pcGetISOWeek(mon)}</span><span>Techniciens</span></div>`;
   const days=[];
   for(let i=0;i<7;i++){
     const d=new Date(mon);d.setDate(mon.getDate()+i);
@@ -3660,6 +3661,7 @@ function handleDrop(e,tid,ds){
   if(draggedId){
     const i=interventions.find(x=>x.id===draggedId);
     if(i){
+      if (!confirmIfAbsence(tid, ds)) { draggedId=null; return; }
       var linkedRapport = i.commandeId && !i.isRapport ? interventions.find(function(r){return r.commandeId===i.commandeId && r.isRapport;}) : null;
       var moveRapport = linkedRapport && linkedRapport.techId !== tid ? confirm('Un rapport est lié à cette intervention.\nDéplacer aussi le rapport vers ' + (TECHNICIANS.find(function(t){return t.id===tid;}) || {}).name + ' ?') : false;
       i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
@@ -3816,6 +3818,9 @@ function saveIntervention(){
   // Vérifier compétence avant sauvegarde
   var compWarn = checkCompetenceAlert(data);
   if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
+
+  // Vérifier absence avant sauvegarde
+  if (data.date && data.techId && !confirmIfAbsence(data.techId, data.date)) return;
 
   if(editingId){
     data.id = editingId;
@@ -4622,6 +4627,8 @@ function dropAPlanifier(e, techId, dateStr) {
   var cmd = commandesData.find(function(c) { return c.id === draggedCmdId; });
   if (!cmd) { draggedCmdId = null; return; }
 
+  // Check absence
+  if (!confirmIfAbsence(techId, dateStr)) { draggedCmdId = null; return; }
   // Check if already planned
   var existing = interventions.find(function(i) { return i.commandeId === cmd.id && !i.isRapport; });
   if (existing) { alert('Cette commande est déjà planifiée.'); draggedCmdId = null; return; }
@@ -7155,6 +7162,24 @@ function updateTeamAbsenceStatuses() {
   });
 }
 
+// Check absence and return info, or null if no absence
+function getAbsenceForTech(techId, dateStr) {
+  var teamMember = settingsTeam.find(function(t) { return t.id === techId; });
+  if (!teamMember || !teamMember.luccaId) return null;
+  return getAbsenceForDate(teamMember.luccaId, dateStr);
+}
+
+// Show confirm dialog if tech has absence on date. Returns true if should proceed, false if cancelled.
+function confirmIfAbsence(techId, dateStr) {
+  var abs = getAbsenceForTech(techId, dateStr);
+  if (!abs) return true;
+  var tech = TECHNICIANS.find(function(t) { return t.id === techId; });
+  var techName = tech ? tech.name : 'Ce technicien';
+  var d = new Date(dateStr);
+  var dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return confirm('⚠ ' + techName + ' est en absence le ' + dateLabel + '\n(' + abs.label + ')\n\nPlanifier quand même ?');
+}
+
 function absenceBadgeHTML(techId, dateStr) {
   var teamMember = settingsTeam.find(function(t) { return t.id === techId; });
   if (!teamMember || !teamMember.luccaId) return '';
@@ -9039,6 +9064,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ═══ ACTIONS IA APPLICABLES ═══
 function executeAIAction(action) {
+  var aTechId = action.techId;
+  var aDate = action.date;
+  if (aTechId && aDate && !confirmIfAbsence(aTechId, aDate)) return false;
   if (action.action === 'move') {
     var int = interventions.find(function(i) { return i.id === action.id; });
     if (!int) return false;
@@ -9058,6 +9086,8 @@ function executeAIAction(action) {
     var aff = cmd._affaire || {};
     var durMin = (typeof computeGeoDuration === 'function') ? (computeGeoDuration(cmd) || 240) : 240;
     var addr = [aff.adresse, aff.ville, aff.code_postal].filter(Boolean).join(', ');
+    var geoId = commandeGeosoliaLinks[cmd.id] || null;
+    var geoPrj = geoId ? geosoliaProjects.find(function(p){ return p.id === geoId; }) : null;
     var newId = Math.max.apply(null, interventions.map(function(i){return i.id;}).concat([0])) + 1;
     var newInt = {
       id: newId,
@@ -9074,6 +9104,9 @@ function executeAIAction(action) {
       commandeRef: cmd.ref || '',
       affaireId: cmd.affaire_id || null,
       affaireRef: aff.ref || '',
+      geosoliaId: geoId,
+      geosoliaRef: geoPrj ? geoPrj.project_ref : null,
+      geosoliaName: geoPrj ? geoPrj.project_name : null,
       travelTo: 30, travelFrom: 30,
       status: 'planned',
       notes: '',
