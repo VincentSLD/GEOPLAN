@@ -8496,6 +8496,17 @@ ${teamDetail}
   if (generalDetail) ctx += `\nPARAMÈTRES GÉNÉRAUX:\n${generalDetail}\n`;
   if (meteoDetail) ctx += `\nMÉTÉO PRÉVISIONS:\n${meteoDetail}\n`;
 
+  // Jours fériés proches (8 semaines)
+  var feriesLines = [];
+  var currentYear = TODAY.getFullYear();
+  var feries = Object.assign({}, getJoursFeries(currentYear), getJoursFeries(currentYear + 1));
+  var horizon8w = new Date(TODAY); horizon8w.setDate(horizon8w.getDate() + 56);
+  Object.entries(feries).forEach(function(entry) {
+    var d = new Date(entry[0] + 'T12:00:00');
+    if (d >= TODAY && d <= horizon8w) feriesLines.push(entry[0] + ' — ' + entry[1]);
+  });
+  if (feriesLines.length > 0) ctx += `\nJOURS FÉRIÉS (ne JAMAIS planifier dessus) :\n${feriesLines.join('\n')}\n`;
+
   ctx += `\nINTERVENTIONS DE LA SEMAINE (${weekInts.length} au total):
 Note: Les interventions marquées "⛔ TEMPS BLOQUÉ" (Réservation A++, Rapports, etc.) sont des créneaux indisponibles.
 ${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
