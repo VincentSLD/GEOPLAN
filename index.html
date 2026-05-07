@@ -8367,28 +8367,30 @@ function buildPlanningContext() {
   const todayStr = TODAY.toISOString().split('T')[0];
   const mon = getMonday(currentDate);
 
-  // Interventions de la semaine
+  // Interventions de la semaine (avec ID pour actions)
   const weekInts = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(mon); d.setDate(mon.getDate() + i);
     const ds = d.toISOString().split('T')[0];
-    const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => (a.startTime||'').localeCompare(b.startTime||''));
     dayInts.forEach(int => {
       const tech = TECHNICIANS.find(t => t.id === int.techId);
-      weekInts.push(`${ds} | ${int.startTime}-${int.endTime} | ${tech ? tech.name : '?'} (base: ${tech ? tech.base : '?'}) | ${int.title} [${int.type}] | ${int.location} | Client: ${int.client} | Trajet aller: ${int.travelTo}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status}`);
+      const isBlocked = int.type && !int.commandeId;
+      weekInts.push(`[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`);
     });
   }
 
-  // Équipe détaillée depuis settingsTeam
+  // Équipe détaillée depuis settingsTeam (avec compétences)
   let teamDetail = '';
   if (typeof settingsTeam !== 'undefined' && settingsTeam.length > 0) {
     teamDetail = settingsTeam.map(t => {
       const grp = (typeof settingsGroups !== 'undefined') ? settingsGroups.find(g => g.id === t.groupeId) : null;
-      const habs = t.habilitations && t.habilitations.length > 0 ? t.habilitations.join(', ') : 'aucune';
-      return `- ${t.prenom} ${t.nom} (${t.role}) — Base: ${t.base} [GPS: ${t.lat || '?'}, ${t.lon || '?'}] | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
+      const habs = t.habilitations && t.habilitations.length > 0 ? t.habilitations.map(h => typeof h === 'object' ? h.nom : h).join(', ') : 'aucune';
+      const comps = t.competences && t.competences.length > 0 ? t.competences.join(', ') : 'toutes (non restreint)';
+      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — Base: ${t.base} [GPS: ${t.lat || '?'}, ${t.lon || '?'}] | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
     }).join('\n');
   } else {
-    teamDetail = TECHNICIANS.map(t => `- ${t.name} (${t.role}) — base: ${t.base}`).join('\n');
+    teamDetail = TECHNICIANS.map(t => `- [techId:${t.id}] ${t.name} (${t.role}) — base: ${t.base}`).join('\n');
   }
 
   // Véhicules
@@ -8444,10 +8446,47 @@ function buildPlanningContext() {
     if (meteoLines.length > 0) meteoDetail = meteoLines.join('\n');
   }
 
+  // Commandes À planifier (avec données Akuiteo + Geosolia)
+  let aPlanifierDetail = '';
+  if (typeof getUnplannedCommandes === 'function') {
+    const unplanned = getUnplannedCommandes();
+    if (unplanned.length > 0) {
+      aPlanifierDetail = unplanned.slice(0, 50).map(cmd => {
+        const cd = cmd.custom_data || {};
+        const getCD = (key) => cd[key] && cd[key].value ? cd[key].value : '';
+        const dlr = getCD('1-date01');
+        const dlc = getCD('1-date02');
+        const categorie = getCD('1-alpha05');
+        const missionType = getCD('1-alpha06');
+        const statut = getCD('1-alpha17');
+        const codeGO = getCD('1-alpha11');
+        const grosOeuvre = getCD('1-alpha12');
+        const options = getCD('1-alpha14');
+        const longrines = getCD('1-alpha15');
+        const apporteur = getCD('1-alpha10');
+        const aff = cmd._affaire ? `Affaire: ${cmd._affaire.ref || ''} — ${cmd._affaire.nom || ''}` : '';
+        const addr = cmd._affaire ? [cmd._affaire.adresse, cmd._affaire.ville, cmd._affaire.code_postal].filter(Boolean).join(', ') : '';
+        const durMin = (typeof computeGeoDuration === 'function') ? computeGeoDuration(cmd) : 0;
+        const durH = durMin ? Math.round(durMin / 60 * 10) / 10 : '?';
+        // Geosolia
+        let geoInfo = '';
+        const geoId = (typeof commandeGeosoliaLinks !== 'undefined') ? commandeGeosoliaLinks[cmd.id] : null;
+        if (geoId && typeof getGeosoliaProgram === 'function') {
+          const prog = getGeosoliaProgram(geoId);
+          if (prog) {
+            const sondages = Object.entries(prog.sondageCounts || {}).map(([k, n]) => `${prog.sondageLabels[k] || k}: ${n}`).join(', ');
+            geoInfo = ` | Geosolia: mission=${prog.mission || '-'}, adresse=${prog.address || '-'}, sondages=[${sondages}], temps terrain=${prog.timeEstimateMin}min${prog.timeIsReal ? ' (réel)' : ' (estimé)'}${prog.pelleNecessaire ? ', PELLE NÉCESSAIRE' : ''}${prog.laboratoire ? ', LABO' : ''}${prog.infoGeotechnicien ? ', Info: '+prog.infoGeotechnicien : ''}`;
+          }
+        }
+        return `- [cmdId:${cmd.id}] Réf: ${cmd.ref || '-'} | Client: ${cmd.client_name || '-'} | ${aff} | Société: ${cmd.societe || '-'} | Catégorie: ${categorie || '-'} | Mission: ${missionType || '-'} | Statut: ${statut || '-'} | DLR: ${dlr || '-'} | DLC: ${dlc || '-'} | Durée estimée: ${durH}h | Montant: ${cmd.montant || '-'}€ | Adresse: ${addr || '-'}${codeGO ? ' | Code GO: '+codeGO : ''}${grosOeuvre ? ' | GO: '+grosOeuvre : ''}${options ? ' | Options: '+options : ''}${longrines ? ' | Longrines: '+longrines : ''}${apporteur ? ' | Apporteur: '+apporteur : ''}${geoInfo}`;
+      }).join('\n');
+    }
+  }
+
   let ctx = `DATE ACTUELLE: ${todayStr}
 SEMAINE AFFICHÉE: ${mon.toISOString().split('T')[0]} → 7 jours
 
-ÉQUIPE DÉTAILLÉE:
+ÉQUIPE DÉTAILLÉE (avec compétences):
 ${teamDetail}
 `;
 
@@ -8457,7 +8496,15 @@ ${teamDetail}
   if (generalDetail) ctx += `\nPARAMÈTRES GÉNÉRAUX:\n${generalDetail}\n`;
   if (meteoDetail) ctx += `\nMÉTÉO PRÉVISIONS:\n${meteoDetail}\n`;
 
-  ctx += `\nINTERVENTIONS DE LA SEMAINE (${weekInts.length} au total):\n${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
+  ctx += `\nINTERVENTIONS DE LA SEMAINE (${weekInts.length} au total):
+Note: Les interventions marquées "⛔ TEMPS BLOQUÉ" (Réservation A++, Rapports, etc.) sont des créneaux indisponibles.
+${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
+
+  if (aPlanifierDetail) {
+    ctx += `\n\nCOMMANDES À PLANIFIER (${aPlanifierDetail.split('\n').length} commandes non planifiées, triées par DLR):
+Ces commandes sont réelles (Akuiteo/Geosolia). Tu peux proposer de les planifier sur les créneaux disponibles.
+${aPlanifierDetail}`;
+  }
 
   return ctx;
 }
