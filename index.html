@@ -4624,48 +4624,43 @@ function renderAPlanifier() {
     });
   }
 
-  // Blocs d'intervention sans commande, avec un Type, non planifiés
-  var unplannedBlocs = interventions.filter(function(i) { return !i.commandeId && !i.isRapport && i.type && !i.date; });
-  if (search) {
-    unplannedBlocs = unplannedBlocs.filter(function(i) {
-      return (i.title + ' ' + (i.type || '') + ' ' + (i.client || '')).toLowerCase().indexOf(search) >= 0;
-    });
-  }
+  // Compteur blocs par type (sans commande, avec type, depuis aujourd'hui)
+  var todayStrBloc = TODAY.toISOString().split('T')[0];
+  var blocsFromToday = interventions.filter(function(i) {
+    return !i.commandeId && !i.isRapport && i.type && i.date && i.date >= todayStrBloc;
+  });
+  var blocsByType = {};
+  blocsFromToday.forEach(function(b) {
+    var t = b.type || 'Autre';
+    if (!blocsByType[t]) blocsByType[t] = { count: 0, totalMin: 0 };
+    blocsByType[t].count++;
+    blocsByType[t].totalMin += (b.duration || 0);
+  });
+  var blocTypeKeys = Object.keys(blocsByType).sort();
 
-  var totalCount = unplanned.length + unplannedRapports.length + unplannedBlocs.length;
+  var totalCount = unplanned.length + unplannedRapports.length;
   if (countEl) countEl.textContent = totalCount;
 
-  if (totalCount === 0) {
+  if (totalCount === 0 && blocTypeKeys.length === 0) {
     list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.75rem;">Tout est planifié</div>';
     return;
   }
 
   var html = '';
 
-  // Blocs d'intervention par type (sans commande)
-  if (unplannedBlocs.length > 0) {
-    // Grouper par type
-    var byType = {};
-    unplannedBlocs.forEach(function(b) {
-      var t = b.type || 'Autre';
-      if (!byType[t]) byType[t] = [];
-      byType[t].push(b);
-    });
+  // Blocs compteur par type
+  if (blocTypeKeys.length > 0) {
     var typeLabel = function(tid) { var t = settingsIntTypes.find(function(x){return x.id===tid;}); return t ? t.label : tid; };
-    html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="var b=document.getElementById(\'aPlanBlocsBody\');var a=this.querySelector(\'.ap-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}"><span class="ap-arrow">▼</span> 🏷️ Blocs à planifier (' + unplannedBlocs.length + ')</div><div id="aPlanBlocsBody">';
-    Object.keys(byType).sort().forEach(function(tid) {
-      html += '<div style="padding:3px 10px;font-size:0.6rem;font-weight:700;color:var(--gph-primary);background:var(--bg-secondary);border-bottom:1px solid var(--border);">' + typeLabel(tid) + ' (' + byType[tid].length + ')</div>';
-      byType[tid].forEach(function(bloc) {
-        var durLabel = bloc.duration >= 60 ? Math.floor(bloc.duration/60)+'h'+(bloc.duration%60?String(bloc.duration%60).padStart(2,'0'):'') : (bloc.duration || '?')+'min';
-        var tech = TECHNICIANS.find(function(t){return t.id===bloc.techId;});
-        html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+bloc.id+')" style="border-left:3px solid var(--gph-yellow);">';
-        html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">🏷️ ' + (bloc.title || typeLabel(tid)) + '</span><span style="font-size:0.6rem;font-weight:600;color:var(--gph-primary);">' + durLabel + '</span></div>';
-        html += '<div class="aplan-card-info">';
-        if (tech) html += '👤 ' + tech.name;
-        if (bloc.client && bloc.client !== '-') html += ' · 🏢 ' + bloc.client;
-        html += '</div>';
-        html += '</div>';
-      });
+    var fmtDur = function(m) { return m >= 60 ? Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'') : m+'min'; };
+    var totalBlocs = blocsFromToday.length;
+    var totalBlocsMin = blocsFromToday.reduce(function(s,b){return s+(b.duration||0);},0);
+    html += '<div style="padding:6px 10px;font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);background:var(--bg-primary);border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="var b=document.getElementById(\'aPlanBlocsBody\');var a=this.querySelector(\'.ap-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}"><span class="ap-arrow">▼</span> 🏷️ Blocs planifiés (' + totalBlocs + ' · ' + fmtDur(totalBlocsMin) + ')</div><div id="aPlanBlocsBody">';
+    blocTypeKeys.forEach(function(tid) {
+      var d = blocsByType[tid];
+      html += '<div style="padding:5px 10px;font-size:0.68rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);">';
+      html += '<span style="font-weight:600;">' + typeLabel(tid) + '</span>';
+      html += '<span style="font-size:0.62rem;font-weight:700;color:var(--gph-primary);background:var(--bg-primary);padding:2px 8px;border-radius:8px;border:1px solid var(--border);">' + d.count + ' · ' + fmtDur(d.totalMin) + '</span>';
+      html += '</div>';
     });
     html += '</div>';
   }
