@@ -8706,6 +8706,42 @@ Ces commandes sont réelles (Akuiteo/Geosolia). Tu peux proposer de les planifie
 ${aPlanifierDetail}`;
   }
 
+  // Habitudes clients et géotechniques
+  if (clientsHabitsLoaded && Object.keys(clientsHabitsCache).length > 0) {
+    var relevantNames = {};
+    // Clients des interventions de la semaine
+    weekInts.forEach(function(line) {
+      var m = line.match(/Client:\s*([^|]+)/);
+      if (m) { var n = m[1].trim(); if (n && n !== '-') relevantNames[n.toUpperCase()] = n; }
+    });
+    // Clients et GO des commandes à planifier
+    if (typeof getUnplannedCommandes === 'function') {
+      getUnplannedCommandes().slice(0, 50).forEach(function(cmd) {
+        if (cmd.client_name) relevantNames[cmd.client_name.trim().toUpperCase()] = cmd.client_name;
+        var go = cmd.custom_data && cmd.custom_data['1-alpha12'] && cmd.custom_data['1-alpha12'].value;
+        if (go) relevantNames[go.trim().toUpperCase()] = go;
+      });
+    }
+    var habLines = [];
+    var stripHtml = function(s) { return s ? String(s).replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim() : ''; };
+    Object.keys(relevantNames).forEach(function(key) {
+      var h = clientsHabitsCache[key];
+      if (!h) return;
+      var tech = stripHtml(h.habitudes_techniques);
+      var geo = stripHtml(h.habitudes_geotechniques);
+      if (!tech && !geo) return;
+      var line = `- ${relevantNames[key]}:`;
+      if (tech) line += ` [Hab. techniques] ${tech}`;
+      if (geo) line += ` [Hab. géotechniques] ${geo}`;
+      habLines.push(line);
+    });
+    if (habLines.length > 0) {
+      ctx += `\n\nHABITUDES CLIENTS ET GÉOTECHNIQUES:
+Ces habitudes proviennent de la base Supabase. Elles décrivent les exigences et particularités connues pour chaque client ou gros oeuvre. Tu DOIS en tenir compte dans tes propositions de planification (accès chantier, contraintes spécifiques, matériel requis, etc.).
+${habLines.join('\n')}`;
+    }
+  }
+
   return ctx;
 }
 
