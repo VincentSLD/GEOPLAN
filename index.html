@@ -1473,6 +1473,24 @@ body::before {
 .stg-group-tag { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:700; white-space:nowrap; }
 .stg-group-members { display:flex; flex-wrap:wrap; gap:4px; }
 .stg-group-member { padding:2px 8px; border-radius:10px; font-size:0.62rem; font-weight:600; background:var(--bg-primary); border:1px solid var(--border); }
+/* ===== TOOLTIP SURVOL INTERVENTION ===== */
+#tlBarTooltip {
+  position: fixed; z-index: 10000; pointer-events: none;
+  background: #1F2937; color: #F9FAFB;
+  border: 1px solid #374151; border-radius: 6px;
+  padding: 10px 12px; font-size: 0.72rem; line-height: 1.45;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+  max-width: 420px; min-width: 240px;
+  display: none;
+}
+#tlBarTooltip .ttp-title { font-size: 0.78rem; font-weight: 700; color: #FACC15; margin-bottom: 4px; }
+#tlBarTooltip .ttp-sub { font-size: 0.66rem; color: #9CA3AF; margin-bottom: 6px; }
+#tlBarTooltip .ttp-row { display: flex; gap: 6px; padding: 1px 0; }
+#tlBarTooltip .ttp-row .ttp-k { color: #9CA3AF; min-width: 110px; flex-shrink: 0; font-size: 0.66rem; }
+#tlBarTooltip .ttp-row .ttp-v { color: #F9FAFB; font-weight: 500; word-break: break-word; }
+#tlBarTooltip .ttp-sect { margin-top: 8px; padding-top: 6px; border-top: 1px solid #374151; }
+#tlBarTooltip .ttp-sect-h { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; color: #9CA3AF; margin-bottom: 4px; letter-spacing: 0.04em; }
+#tlBarTooltip .ttp-warn { color: #F87171; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1547,6 +1565,11 @@ body::before {
         <input type="checkbox" id="showWeatherToggle" checked onchange="toggleWeather()">
         <span class="sidebar-toggle-check"></span>
         <span>Afficher météo</span>
+      </label>
+      <label class="sidebar-toggle" title="Afficher les infos détaillées au survol d'une intervention">
+        <input type="checkbox" id="showHoverInfoToggle" checked onchange="toggleHoverInfo()">
+        <span class="sidebar-toggle-check"></span>
+        <span>Infos survol</span>
       </label>
     </div>
     <div class="nav-section">
@@ -1993,6 +2016,7 @@ let selectedGroupId = null; // null = all groups
 let showTravel = true;
 let showWeather = true;
 let showLunch = true;
+let showHoverInfo = true;
 
 // ===== MÉTÉO (Open-Meteo API) =====
 const LOCATION_COORDS = {
@@ -2844,6 +2868,7 @@ function hideLoader() {
 async function init() {
   showLoader('Chargement des données...');
   syncTeamToTechnicians(); syncTypesToApp(); populateSidebar(); populateTechSelect(); populateTypeSelect(); populateStatusSelect(); updateTopbarDate();
+  showHoverInfo = loadHoverInfo(); var _hiCb = document.getElementById('showHoverInfoToggle'); if (_hiCb) _hiCb.checked = showHoverInfo;
   // Load interventions from Supabase
   await loadInterventionsFromSupabase();
   await migrateInterventionsToSupabase();
@@ -2891,6 +2916,160 @@ function toggleWeather() {
   showWeather = document.getElementById('showWeatherToggle').checked;
   renderCurrentView();
 }
+
+// ===== TOOLTIP SURVOL INTERVENTIONS =====
+function toggleHoverInfo() {
+  showHoverInfo = document.getElementById('showHoverInfoToggle').checked;
+  saveHoverInfo(showHoverInfo);
+  if (!showHoverInfo) _tlHideBarTooltip();
+}
+function saveHoverInfo(checked) {
+  try { localStorage.setItem('geoplan_hover_info', checked ? '1' : '0'); } catch(e) {}
+}
+function loadHoverInfo() {
+  try { var v = localStorage.getItem('geoplan_hover_info'); if (v === null) return true; return v === '1'; } catch(e) { return true; }
+}
+function isHoverInfoOn() {
+  var cb = document.getElementById('showHoverInfoToggle');
+  return cb ? cb.checked : loadHoverInfo();
+}
+function _tlEscape(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function _tlFmtDateFr(s) {
+  if (!s) return '';
+  var d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('fr-FR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+}
+function _tlFmtDur(min) {
+  if (!min || min <= 0) return '';
+  var h = min / 60, hi = Math.floor(h), m = Math.round((h - hi) * 60);
+  return m === 0 ? hi + ' h' : hi + ' h ' + String(m).padStart(2, '0');
+}
+function _tlFmtMontant(v) {
+  if (v == null || v === '') return '';
+  var n = Number(v);
+  if (!isFinite(n)) return String(v);
+  return n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' \u20ac';
+}
+function _tlBarTooltipHtml(intId) {
+  var int = interventions.find(function(i){ return i.id === intId; });
+  if (!int) return '';
+  var tech = TECHNICIANS.find(function(t){ return t.id === int.techId; });
+  var cmd = (int.commandeId && typeof commandesData !== 'undefined')
+    ? commandesData.find(function(c){ return c.id === int.commandeId; }) : null;
+  var cmdStatus = getIntStatusFromCmd(int);
+  var typeObj = TYPES[int.type] || null;
+  // Header
+  var projetRef = '', projetNom = '';
+  if (cmd && cmd._affaire) { projetRef = cmd._affaire.ref || ''; projetNom = cmd._affaire.nom || ''; }
+  else { projetRef = int.affaireRef || int.commandeRef || ''; projetNom = int.title || ''; }
+  var titleHtml = _tlEscape([projetRef, projetNom].filter(Boolean).join(' \u2014 ')) || _tlEscape(int.title || '(sans titre)');
+  var subBits = [];
+  if (cmd && cmd.societe) subBits.push(_tlEscape(cmd.societe));
+  if (typeObj) subBits.push(_tlEscape(typeObj.label));
+  else if (int.type) subBits.push(_tlEscape(int.type));
+  if (cmdStatus.label) subBits.push('<span style="color:' + _tlEscape(cmdStatus.color || '#9CA3AF') + ';font-weight:700;">\u25CF</span> ' + _tlEscape(cmdStatus.label));
+  var html = '<div class="ttp-title">' + titleHtml + '</div>';
+  if (subBits.length) html += '<div class="ttp-sub">' + subBits.join(' \u00b7 ') + '</div>';
+  // Section Planning
+  html += '<div class="ttp-sect"><div class="ttp-sect-h">Planning</div>';
+  if (tech) html += '<div class="ttp-row"><div class="ttp-k">Technicien</div><div class="ttp-v">' + _tlEscape(tech.name || ((tech.firstName||'') + ' ' + (tech.lastName||''))) + (tech.company ? ' <span style="color:#9CA3AF;">(' + _tlEscape(tech.company) + ')</span>' : '') + '</div></div>';
+  if (int.date) html += '<div class="ttp-row"><div class="ttp-k">Date</div><div class="ttp-v">' + _tlEscape(_tlFmtDateFr(int.date)) + (int.startTime ? ' \u00e0 ' + _tlEscape(int.startTime) : '') + '</div></div>';
+  var durMin = int.duration || ((int.startTime && int.endTime) ? (timeToMin(int.endTime) - timeToMin(int.startTime)) : 0);
+  if (durMin > 0) html += '<div class="ttp-row"><div class="ttp-k">Dur\u00e9e</div><div class="ttp-v">' + _tlEscape(_tlFmtDur(durMin)) + '</div></div>';
+  if (int.endTime) html += '<div class="ttp-row"><div class="ttp-k">Fin</div><div class="ttp-v">' + _tlEscape(int.endTime) + '</div></div>';
+  if (int.location) html += '<div class="ttp-row"><div class="ttp-k">Lieu</div><div class="ttp-v">' + _tlEscape(int.location) + '</div></div>';
+  if (int.notes) html += '<div class="ttp-row"><div class="ttp-k">Notes</div><div class="ttp-v">' + _tlEscape(int.notes) + '</div></div>';
+  var _cmtSrc = (cmd && cmd.description) ? cmd.description : (int.infosAdv || '');
+  if (_cmtSrc) {
+    var _adv = String(_cmtSrc).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|li)>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/\n{2,}/g,'\n').trim();
+    if (_adv) html += '<div class="ttp-row"><div class="ttp-k">Commentaires</div><div class="ttp-v" style="white-space:pre-wrap;">' + _tlEscape(_adv) + '</div></div>';
+  }
+  html += '</div>';
+  // Section Commande Akuiteo
+  if (cmd) {
+    html += '<div class="ttp-sect"><div class="ttp-sect-h">Commande Akuiteo</div>';
+    if (cmd.ref) html += '<div class="ttp-row"><div class="ttp-k">R\u00e9f\u00e9rence</div><div class="ttp-v">' + _tlEscape(cmd.ref) + '</div></div>';
+    if (cmd.nom) html += '<div class="ttp-row"><div class="ttp-k">Intitul\u00e9</div><div class="ttp-v">' + _tlEscape(cmd.nom) + '</div></div>';
+    if (cmd.client_name) html += '<div class="ttp-row"><div class="ttp-k">Client</div><div class="ttp-v">' + _tlEscape(cmd.client_name) + '</div></div>';
+    if (cmd._affaire && cmd._affaire.ref) html += '<div class="ttp-row"><div class="ttp-k">Affaire</div><div class="ttp-v">' + _tlEscape(cmd._affaire.ref) + (cmd._affaire.nom ? ' \u2014 ' + _tlEscape(cmd._affaire.nom) : '') + '</div></div>';
+    if (cmd.statut) html += '<div class="ttp-row"><div class="ttp-k">Statut</div><div class="ttp-v">' + _tlEscape(cmd.statut) + '</div></div>';
+    if (cmd.date) html += '<div class="ttp-row"><div class="ttp-k">Date commande</div><div class="ttp-v">' + _tlEscape(_tlFmtDateFr(cmd.date)) + '</div></div>';
+    if (cmd.montant != null && cmd.montant !== '') html += '<div class="ttp-row"><div class="ttp-k">Montant HT</div><div class="ttp-v">' + _tlEscape(_tlFmtMontant(cmd.montant)) + '</div></div>';
+    if (cmd.surface_facturee != null && cmd.surface_facturee !== '') html += '<div class="ttp-row"><div class="ttp-k">Surface factur\u00e9e</div><div class="ttp-v">' + _tlEscape(cmd.surface_facturee) + ' m\u00b2</div></div>';
+    if (cmd._adresse) html += '<div class="ttp-row"><div class="ttp-k">Adresse</div><div class="ttp-v">' + _tlEscape(cmd._adresse) + '</div></div>';
+    var _respName = cmd._responsable || cmd.responsable_id;
+    if (_respName) html += '<div class="ttp-row"><div class="ttp-k">Responsable</div><div class="ttp-v">' + _tlEscape(_respName) + '</div></div>';
+    html += '</div>';
+    // Custom data
+    if (cmd.custom_data && typeof cmd.custom_data === 'object') {
+      var orderedKeys = Object.keys(CMD_CUSTOM_DATA_LABELS);
+      var rendered = '';
+      orderedKeys.forEach(function(k) {
+        var entry = cmd.custom_data[k];
+        if (!entry) return;
+        var val = (typeof entry === 'object') ? entry.value : entry;
+        if (val == null || val === '') return;
+        var lbl = CMD_CUSTOM_DATA_LABELS[k] || k;
+        var extra = '';
+        if (k === '1-date01' && val) {
+          var dd = new Date(val);
+          if (!isNaN(dd.getTime())) {
+            var diffDays = Math.ceil((dd - Date.now()) / 86400000);
+            if (diffDays < 0) extra = ' <span class="ttp-warn">(en retard)</span>';
+            else if (diffDays <= 7) extra = ' <span class="ttp-warn">(' + diffDays + ' j)</span>';
+            val = _tlFmtDateFr(val);
+          }
+        } else if (k === '1-date02' && val) {
+          var dd2 = new Date(val);
+          if (!isNaN(dd2.getTime())) val = _tlFmtDateFr(val);
+        }
+        rendered += '<div class="ttp-row"><div class="ttp-k">' + _tlEscape(lbl) + '</div><div class="ttp-v">' + _tlEscape(val) + extra + '</div></div>';
+      });
+      if (rendered) html += '<div class="ttp-sect"><div class="ttp-sect-h">Donn\u00e9es personnalis\u00e9es</div>' + rendered + '</div>';
+    }
+  } else if (int.commandeRef) {
+    html += '<div class="ttp-sect"><div class="ttp-sect-h">Commande</div>';
+    html += '<div class="ttp-row"><div class="ttp-k">R\u00e9f\u00e9rence</div><div class="ttp-v">' + _tlEscape(int.commandeRef) + '</div></div>';
+    if (int.client) html += '<div class="ttp-row"><div class="ttp-k">Client</div><div class="ttp-v">' + _tlEscape(int.client) + '</div></div>';
+    html += '</div>';
+  }
+  // Section Geosolia
+  if (int.geosoliaRef || int.geosoliaName) {
+    html += '<div class="ttp-sect"><div class="ttp-sect-h">Geosolia</div>';
+    if (int.geosoliaRef) html += '<div class="ttp-row"><div class="ttp-k">R\u00e9f\u00e9rence</div><div class="ttp-v">' + _tlEscape(int.geosoliaRef) + '</div></div>';
+    if (int.geosoliaName) html += '<div class="ttp-row"><div class="ttp-k">Projet</div><div class="ttp-v">' + _tlEscape(int.geosoliaName) + '</div></div>';
+    html += '</div>';
+  }
+  return html;
+}
+function _tlShowBarTooltip(intId, evt) {
+  if (!isHoverInfoOn()) return;
+  var ttp = document.getElementById('tlBarTooltip');
+  if (!ttp) return;
+  ttp.innerHTML = _tlBarTooltipHtml(intId);
+  ttp.style.display = 'block';
+  _tlMoveBarTooltip(evt);
+}
+function _tlMoveBarTooltip(evt) {
+  var ttp = document.getElementById('tlBarTooltip');
+  if (!ttp || ttp.style.display === 'none') return;
+  var pad = 14;
+  var x = evt.clientX + pad, y = evt.clientY + pad;
+  var w = ttp.offsetWidth, h = ttp.offsetHeight;
+  if (x + w + 8 > window.innerWidth) x = evt.clientX - w - pad;
+  if (y + h + 8 > window.innerHeight) y = evt.clientY - h - pad;
+  if (x < 4) x = 4; if (y < 4) y = 4;
+  ttp.style.left = x + 'px';
+  ttp.style.top = y + 'px';
+}
+function _tlHideBarTooltip() {
+  var ttp = document.getElementById('tlBarTooltip');
+  if (ttp) ttp.style.display = 'none';
+}
+
 function getFilteredTechs() {
   let techs = TECHNICIANS;
   if (selectedGroupId && typeof settingsTeam !== 'undefined') {
@@ -3163,7 +3342,7 @@ function renderWeek() {
         var durLabel = intDur >= 60 ? Math.floor(intDur/60) + 'h' + (intDur%60 ? String(intDur%60).padStart(2,'0') : '') : intDur + 'min';
         var typeColor = int.type ? (TYPE_RAW[int.type] || '') : '';
         var intBorder = typeColor ? 'border:2px solid '+typeColor+';border-left:4px solid '+typeColor+';' : 'border:1px solid '+statusColor+'60;border-left:4px solid '+statusColor+';';
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" onclick="openDetail(${int.id})" ondblclick="event.stopPropagation();editIntervention(${int.id})"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} ${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-secondary);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.affaireId&&affairesMap[int.affaireId]?' — '+affairesMap[int.affaireId].nom.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} ${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-secondary);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.affaireId&&affairesMap[int.affaireId]?' — '+affairesMap[int.affaireId].nom.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}${di.length>1?'<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">'+(idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▲</button>':'')+(idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;">▼</button>':'')+'</div>':''}</div>`;
         var isLastTerrain = !int.isRapport && !di.slice(idx+1).some(function(x){return !x.isRapport;});
         if(showTravel && int.commandeId && !int.isRapport && isLastTerrain) html+=renderTravelRetour(int,tech);
         html+=`</div>`
@@ -3256,7 +3435,7 @@ function renderDay() {
       var iH = Math.max(intDur * PX_PER_MIN, 30);
       var typeColor = TYPE_RAW[int.type] || color;
 
-      html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeColor + '12;border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" onclick="openDetail(' + int.id + ')" ondblclick="event.stopPropagation();editIntervention(' + int.id + ')">';
+      html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeColor + '12;border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" ondblclick="event.stopPropagation();editIntervention(' + int.id + ')" onmouseenter="_tlShowBarTooltip(' + int.id + ',event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()">';
       html += '<div style="font-size:0.65rem;font-weight:700;color:' + typeColor + ';">' + int.startTime + ' – ' + int.endTime;
       html += (!int.isRapport ? ' <span data-weather-int="' + int.id + '" data-weather-size="sm">' + weatherBadgeHTML(getWeatherForInt(int)) + '</span>' : '') + '</div>';
       html += '<div style="font-size:0.72rem;font-weight:600;margin-top:2px;">' + int.title + '</div>';
@@ -3314,7 +3493,7 @@ function renderList() {
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
       const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), _cs=getIntStatusFromCmd(int);
-      html+=`<div class="list-item" onclick="openDetail(${int.id})" ondblclick="event.stopPropagation();editIntervention(${int.id})"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
+      html+=`<div class="list-item" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
     });
     html+=`</div>`;
   }
@@ -8029,5 +8208,6 @@ sbAuth.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT') 
   showLogin();
 })();
 </script>
+<div id="tlBarTooltip"></div>
 </body>
 </html>
