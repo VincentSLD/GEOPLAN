@@ -3687,30 +3687,30 @@ function saveIntervention(){
           data.id = result.data[0].id;
           interventions.push(data);
         }
-        // Récurrence : créer les occurrences supplémentaires
-        if (document.getElementById('intRecurrenceEnabled').checked) {
-          var freq = document.getElementById('intRecurrenceFreq').value;
-          var endType = document.getElementById('intRecurrenceEndType').value;
-          var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : document.getElementById('intRecurrenceCount').value;
-          var customDays = document.getElementById('intRecurrenceCustomDays').value;
-          var recDates = computeRecurrenceDates(data.date, freq, endType, endValue, customDays);
-          recDates.shift(); // enlever la première date (déjà créée)
-          if (recDates.length > 0) {
-            var recRows = recDates.map(function(ds) {
-              var copy = Object.assign({}, data, { date: ds, id: undefined });
-              var r = intToRow(copy);
-              r.created_by = currentAuthUser ? currentAuthUser.email : null;
-              delete r.id;
-              return r;
-            });
-            var recResult = await sbAuth.from('geoplan_interventions').insert(recRows).select();
-            if (recResult.data) {
-              recResult.data.forEach(function(r) { interventions.push(rowToInt(r)); });
-            }
-          }
-        }
       }
     } catch(e) { console.warn('[Interventions] Erreur save:', e); }
+    // Récurrence : créer les occurrences supplémentaires
+    if (document.getElementById('intRecurrenceEnabled').checked) {
+      var freq = document.getElementById('intRecurrenceFreq').value;
+      var endType = document.getElementById('intRecurrenceEndType').value;
+      var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : document.getElementById('intRecurrenceCount').value;
+      var customDays = document.getElementById('intRecurrenceCustomDays').value;
+      var recDates = computeRecurrenceDates(data.date, freq, endType, endValue, customDays);
+      recDates.shift(); // enlever la première date (déjà créée/modifiée)
+      if (recDates.length > 0) {
+        var recRows = recDates.map(function(ds) {
+          var copy = Object.assign({}, data, { date: ds, id: undefined, commandeId: null, commandeRef: null });
+          var r = intToRow(copy);
+          r.created_by = currentAuthUser ? currentAuthUser.email : null;
+          delete r.id;
+          return r;
+        });
+        var recResult = await sbAuth.from('geoplan_interventions').insert(recRows).select();
+        if (recResult.data) {
+          recResult.data.forEach(function(r) { interventions.push(rowToInt(r)); });
+        }
+      }
+    }
     // Auto-create rapport if new intervention with Geosolia
     if (!editingId && data.geosoliaId && data.commandeId) await createRapportIntervention(data);
     syncCommandeGeosoliaFromInterventions();
@@ -3791,7 +3791,8 @@ function editIntervention(id){
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
   document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
-  resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='none';
+  resetRecurrenceUI();
+  document.getElementById('intRecurrenceBlock').style.display = i.commandeId ? 'none' : '';
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){
