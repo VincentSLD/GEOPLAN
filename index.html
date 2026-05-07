@@ -2002,6 +2002,9 @@ body::before {
   <div class="ai-header" id="aiHeader">
     <div class="ai-header-title"><div class="ai-header-icon">🤖</div><h3>Assistant IA</h3></div>
     <div class="ai-header-btns">
+      <button onclick="resetAIConversation()" title="Nouvelle conversation">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </button>
       <button onclick="toggleAIMaximize()" id="aiMaxBtn" title="Agrandir">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="1" width="12" height="12" rx="1.5"/></svg>
       </button>
@@ -8627,6 +8630,13 @@ function openAIPanel() {
 function closeAIPanel() {
   document.getElementById('ai-panel').classList.remove('open');
   document.getElementById('ai-panel').classList.remove('ai-maximized');
+}
+function resetAIConversation() {
+  aiConversation = [];
+  var msgs = document.getElementById('aiMessages');
+  msgs.innerHTML = '<div class="ai-msg-system">Assistant IA propulsé par Claude — spécialisé en planification de tournées géotechniques</div>';
+  document.getElementById('aiInput').value = '';
+  document.getElementById('aiInput').focus();
 }
 function toggleAIMaximize() {
   var panel = document.getElementById('ai-panel');
