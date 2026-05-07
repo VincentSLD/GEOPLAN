@@ -3839,23 +3839,26 @@ function unplanIntervention(id) {
 function deleteRecurrenceGroup(id) {
   var int = interventions.find(function(i){return i.id===id;});
   if (!int) return;
-  // Trouver toutes les interventions similaires (même titre, type, technicien, date >= celle-ci)
   var group = interventions.filter(function(i){
     return i.id !== int.id && !i.commandeId && !i.isRapport
       && i.title === int.title && i.type === int.type && i.techId === int.techId
       && i.date >= int.date;
   });
-  if (group.length === 0) { alert('Aucune autre récurrence trouvée pour cette intervention.'); return; }
-  var msg = 'Supprimer cette intervention + ' + group.length + ' récurrence(s) similaire(s) ?\n\n';
-  msg += 'Critères : même titre, type et technicien, à partir du ' + int.date + '\n';
-  msg += 'Total à supprimer : ' + (group.length + 1) + ' interventions';
-  if (!confirm(msg)) return;
-  var allIds = [int.id].concat(group.map(function(i){return i.id;}));
-  interventions = interventions.filter(function(i){return allIds.indexOf(i.id) < 0;});
-  showLoader('Suppression de ' + allIds.length + ' interventions...');
+  var choice;
+  if (group.length === 0) {
+    if (!confirm('Supprimer cette intervention ?')) return;
+    choice = 'one';
+  } else {
+    var r = prompt('Cette intervention fait partie d\'une série de ' + (group.length + 1) + ' récurrences.\n\nTapez :\n  1 — Supprimer uniquement cette intervention\n  2 — Supprimer toute la série (' + (group.length + 1) + ' interventions)\n\nVotre choix :', '1');
+    if (r === null) return;
+    choice = r.trim() === '2' ? 'all' : 'one';
+  }
+  var idsToDelete = choice === 'all' ? [int.id].concat(group.map(function(i){return i.id;})) : [int.id];
+  interventions = interventions.filter(function(i){return idsToDelete.indexOf(i.id) < 0;});
+  showLoader('Suppression de ' + idsToDelete.length + ' intervention(s)...');
   (async function(){
-    for (var k = 0; k < allIds.length; k++) {
-      await deleteInterventionFromSupabase(allIds[k]);
+    for (var k = 0; k < idsToDelete.length; k++) {
+      await deleteInterventionFromSupabase(idsToDelete[k]);
     }
     closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
     hideLoader();
