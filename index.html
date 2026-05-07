@@ -1768,8 +1768,8 @@ body::before {
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <label style="font-size:0.7rem;font-weight:600;">Granularite :</label>
         <div id="pcGranBtns" style="display:flex;gap:2px;">
-          <button class="pc-gran-btn" data-gran="day" onclick="pcSetGranularity('day')">Jour</button>
-          <button class="pc-gran-btn active" data-gran="week" onclick="pcSetGranularity('week')">Semaine</button>
+          <button class="pc-gran-btn active" data-gran="day" onclick="pcSetGranularity('day')">Jour</button>
+          <button class="pc-gran-btn" data-gran="week" onclick="pcSetGranularity('week')">Semaine</button>
           <button class="pc-gran-btn" data-gran="month" onclick="pcSetGranularity('month')">Mois</button>
         </div>
         <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Collaborateur :</label>
@@ -2155,7 +2155,7 @@ let selectedTechId = null; // null = all technicians
 let selectedGroupId = null; // null = all groups
 let showTravel = true;
 let showWeather = true;
-var pcGranularity = 'week';
+var pcGranularity = 'day';
 var pcChartMain = null;
 var pcChartDelta = null;
 var pcLastBuckets = [];
