@@ -3427,7 +3427,7 @@ function jourFerieBadgeHTML(dateStr) {
 // ===== WEEK =====
 function renderWeek() {
   const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
-  let html=`<div class="grid-corner"><span style="font-size:0.62rem;font-weight:700;color:var(--text-muted);letter-spacing:0.03em;">S${pcGetISOWeek(mon)}</span><span>Techniciens</span></div>`;
+  let html=`<div class="grid-corner"><span style="font-size:1.24rem;font-weight:700;color:var(--text-muted);letter-spacing:0.03em;">S${pcGetISOWeek(mon)}</span><span>Techniciens</span></div>`;
   const days=[];
   for(let i=0;i<7;i++){
     const d=new Date(mon);d.setDate(mon.getDate()+i);
