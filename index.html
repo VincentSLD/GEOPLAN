@@ -1663,7 +1663,7 @@ body::before {
           <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="flex:1;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;">
         </div>
       </div>
-      <div style="flex:1;overflow-y:auto;" id="aPlanifierList2"></div>
+      <div style="flex:1;overflow-y:auto;" id="aPlanifierList2" ondragover="event.preventDefault();this.style.background='rgba(245,197,24,0.08)';" ondragleave="this.style.background='';" ondrop="this.style.background='';dropToAPlanifier(event)"></div>
     </div>
     <div class="planning-container"><div class="planning-grid" id="weekGrid"></div></div>
   </div>
@@ -3537,6 +3537,25 @@ function handleDrop(e,tid,ds){
     }
     draggedId=null;
   }
+}
+function dropToAPlanifier(e) {
+  e.preventDefault();
+  if (!draggedId) return;
+  var int = interventions.find(function(i){return i.id===draggedId;});
+  draggedId = null;
+  if (!int) return;
+  var linkedRapport = int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
+  (async function(){
+    await deleteInterventionFromSupabase(int.id);
+    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+    if (int.commandeId) {
+      await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
+      var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
+      if (cmd) cmd.planification = 'A planifier';
+    }
+    renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+  })();
 }
 
 // ===== MODAL =====
