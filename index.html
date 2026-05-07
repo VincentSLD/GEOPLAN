@@ -3018,9 +3018,9 @@ async function init() {
   await loadInterventionsFromSupabase();
   await migrateInterventionsToSupabase();
   syncCommandeGeosoliaFromInterventions();
+  await loadLuccaCollabs();
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   hideLoader();
-  loadLuccaCollabs().then(function() { renderCurrentView(); });
   loadClientsHabits();
   loadCommandesFromSupabase().then(function() { populateCommandeSelect(); });
   loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); });
@@ -3548,6 +3548,7 @@ function renderDay() {
     html += '<div style="position:sticky;top:0;z-index:2;background:var(--bg-secondary);padding:4px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">';
     html += '<div style="width:20px;height:20px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;">' + tech.initials + '</div>';
     html += '<span style="font-size:0.72rem;font-weight:600;">' + tech.name + '</span></div>';
+    html += absenceBadgeHTML(tech.id, ds);
 
     // Hour grid lines
     for (var h2 = START_HOUR; h2 <= END_HOUR; h2++) {
@@ -8644,6 +8645,25 @@ function buildPlanningContext() {
     }).join('\n');
   }
 
+  // Absences de la semaine (Lucca)
+  let absencesDetail = '';
+  if (typeof settingsTeam !== 'undefined' && settingsTeam.length > 0) {
+    var absLines = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      const ds = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
+      settingsTeam.forEach(t => {
+        if (!t.luccaId) return;
+        var abs = getAbsenceForDate(t.luccaId, ds);
+        if (abs) {
+          absLines.push(`- ${ds} (${dayName}) : ${t.prenom} ${t.nom} — ${abs.label}${abs.full ? ' (JOURNÉE ENTIÈRE — INDISPONIBLE)' : ' (DEMI-JOURNÉE)'}`);
+        }
+      });
+    }
+    if (absLines.length > 0) absencesDetail = absLines.join('\n');
+  }
+
   // Horaires de travail jour par jour
   let horairesDetail = '';
   if (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) {
@@ -8730,6 +8750,9 @@ ${teamDetail}
   if (groupsDetail) ctx += `\nGROUPES/ÉQUIPES RÉGIONALES:\n${groupsDetail}\n`;
   if (horairesDetail) ctx += `\nHORAIRES DE TRAVAIL:\n${horairesDetail}\n`;
   if (generalDetail) ctx += `\nPARAMÈTRES GÉNÉRAUX:\n${generalDetail}\n`;
+  if (absencesDetail) ctx += `\nABSENCES DE LA SEMAINE (Lucca):
+NE JAMAIS planifier d'intervention terrain sur un technicien absent (journée entière). Pour les demi-journées, ne planifier que sur la période disponible.
+${absencesDetail}\n`;
   if (meteoDetail) ctx += `\nMÉTÉO PRÉVISIONS:\n${meteoDetail}\n`;
 
   // Jours fériés proches (8 semaines)
