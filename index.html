@@ -8083,6 +8083,18 @@ function renderMobileHeader() {
 function renderMobileView() {
   if (mobileView === 'day') renderMobileDay();
   else renderMobileWeek();
+  // Charger la météo pour les interventions visibles du tech
+  if (showWeather && mobileMyTechId) {
+    var visibleInts = interventions.filter(function(i) { return !i.isRapport && i.techId === mobileMyTechId; });
+    var needFetch = visibleInts.some(function(i) { return !getWeatherForInt(i); });
+    if (needFetch) {
+      loadWeatherForInterventions(visibleInts).then(function() {
+        // Re-render avec les données météo maintenant en cache
+        if (mobileView === 'day') renderMobileDay();
+        else renderMobileWeek();
+      });
+    }
+  }
 }
 
 function switchMobileView(v) {
