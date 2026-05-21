@@ -4157,7 +4157,7 @@ function deleteRecurrenceGroup(id) {
 }
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
-document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block'))closeDetail();});
+document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block,.mob-card'))closeDetail();});
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDetail();}});
 
