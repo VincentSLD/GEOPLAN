@@ -1108,8 +1108,8 @@ body.mob-active .sidebar-open-btn { display:none !important; }
 body.mob-active::before { display:none; }
 
 .mob-header {
-  background:var(--gph-dark); color:#fff; padding:10px 16px;
-  display:flex; align-items:center; gap:10px; flex-shrink:0;
+  background:var(--gph-dark); color:#fff; padding:0;
+  display:flex; flex-direction:column; flex-shrink:0;
   box-shadow:0 2px 8px rgba(0,0,0,0.15);
 }
 .mob-avatar {
@@ -1200,6 +1200,28 @@ body.mob-active::before { display:none; }
   font-size:0.65rem; padding:4px 10px; margin:8px 12px;
   background:#fef9e7; border:1px solid #fde68a; border-radius:6px;
   color:#92400E; text-align:center;
+}
+.mob-options {
+  display:flex; align-items:center; gap:14px; padding:6px 16px;
+  background:var(--bg-secondary); border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.mob-opt-label {
+  display:flex; align-items:center; gap:5px; font-size:0.68rem;
+  color:var(--text-secondary); cursor:pointer; user-select:none;
+}
+.mob-opt-label input[type="checkbox"] {
+  width:16px; height:16px; accent-color:var(--gph-yellow); cursor:pointer;
+}
+.mob-card-travel {
+  display:flex; gap:8px; margin-top:4px; flex-wrap:wrap;
+}
+.mob-card-travel-item {
+  font-size:0.65rem; color:var(--text-secondary);
+  display:flex; align-items:center; gap:3px;
+}
+.mob-card-weather {
+  display:inline-flex; align-items:center; gap:3px; margin-top:4px; font-size:0.65rem;
 }
 
 /* Legacy overlay (kept for backward compat but hidden) */
@@ -4060,10 +4082,7 @@ function openDetail(id){
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderHabitudesDetailHTML(cmd) : ''; })()}
     ${int.location && mobileMyTechId ? '<div style="margin-top:10px;"><a href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(int.location)+'" target="_blank" rel="noopener" style="display:block;text-align:center;padding:10px;background:var(--gph-yellow);color:#000;border-radius:8px;font-weight:700;font-size:0.82rem;text-decoration:none;">🧭 Itinéraire GPS</a></div>' : ''}
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;padding:6px;">✏️ Modifier</button>
-      <button class="btn btn-ghost" onclick="deleteIntervention(${int.id})" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button>
-    </div>`;
+    ${!mobileMyTechId || window.innerWidth > 768 ? '<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-dark" onclick="editIntervention('+int.id+')" style="flex:1;padding:6px;">✏️ Modifier</button><button class="btn btn-ghost" onclick="deleteIntervention('+int.id+')" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button></div>' : ''}`;
   document.getElementById('detailPanel').classList.add('open');
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
@@ -5977,7 +5996,8 @@ function renderGeosoliaEnquete(prog) {
   html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
   html += field('Type de mission', labelMission(prog.mission) || '—');
   html += field('Lieu', '📍 ' + (prog.address || '—'));
-  var timeLabel = prog.timeEstimateMin + ' min' + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.55rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.55rem;">(estimé)</span>');
+  var fmtH = function(m) { return m >= 60 ? Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'') : m+'min'; };
+  var timeLabel = fmtH(prog.timeEstimateMin) + (prog.timeIsReal ? ' <span style="color:#16A34A;font-size:0.55rem;">(Géosolia)</span>' : ' <span style="color:var(--text-muted);font-size:0.55rem;">(estimé)</span>');
   html += field('Temps terrain', '⏱ ' + timeLabel);
   html += '</div>';
 
@@ -6013,8 +6033,8 @@ function renderGeosoliaEnquete(prog) {
   // Ligne 5 : Temps rapport + relecture
   if (prog.estimatedReportMin || prog.estimatedReviewMin) {
     html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">';
-    if (prog.estimatedReportMin) html += field('Temps rapport', '📝 ' + prog.estimatedReportMin + ' min');
-    if (prog.estimatedReviewMin) html += field('Temps relecture', '👁 ' + prog.estimatedReviewMin + ' min');
+    if (prog.estimatedReportMin) html += field('Temps rapport', '📝 ' + fmtH(prog.estimatedReportMin));
+    if (prog.estimatedReviewMin) html += field('Temps relecture', '👁 ' + fmtH(prog.estimatedReviewMin));
     html += '</div>';
   }
 
@@ -7994,14 +8014,20 @@ function renderMobileHeader() {
   var tech = TECHNICIANS.find(function(t) { return t.id === mobileMyTechId; });
   if (!tech) return;
   document.getElementById('mobHeader').innerHTML =
-    '<div class="mob-avatar" style="background:' + tech.color + ';">' + tech.initials + '</div>' +
-    '<div style="flex:1;">' +
-      '<div class="mob-tech-name">' + tech.name + '</div>' +
-      '<div class="mob-tech-role">' + (tech.role || 'Technicien') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;">' +
+      '<div class="mob-avatar" style="background:' + tech.color + ';">' + tech.initials + '</div>' +
+      '<div style="flex:1;">' +
+        '<div class="mob-tech-name">' + tech.name + '</div>' +
+        '<div class="mob-tech-role">' + (tech.role || 'Technicien') + '</div>' +
+      '</div>' +
+      '<div class="mob-view-toggle">' +
+        '<button class="mob-view-btn ' + (mobileView === 'day' ? 'active' : '') + '" onclick="switchMobileView(\'day\')">Jour</button>' +
+        '<button class="mob-view-btn ' + (mobileView === 'week' ? 'active' : '') + '" onclick="switchMobileView(\'week\')">Semaine</button>' +
+      '</div>' +
     '</div>' +
-    '<div class="mob-view-toggle">' +
-      '<button class="mob-view-btn ' + (mobileView === 'day' ? 'active' : '') + '" onclick="switchMobileView(\'day\')">Jour</button>' +
-      '<button class="mob-view-btn ' + (mobileView === 'week' ? 'active' : '') + '" onclick="switchMobileView(\'week\')">Semaine</button>' +
+    '<div class="mob-options">' +
+      '<label class="mob-opt-label"><input type="checkbox" id="mobTravelToggle" ' + (showTravel ? 'checked' : '') + ' onchange="toggleMobileOpt(\'travel\')">Trajets</label>' +
+      '<label class="mob-opt-label"><input type="checkbox" id="mobWeatherToggle" ' + (showWeather ? 'checked' : '') + ' onchange="toggleMobileOpt(\'weather\')">Météo</label>' +
     '</div>';
 }
 
@@ -8013,6 +8039,19 @@ function renderMobileView() {
 function switchMobileView(v) {
   mobileView = v;
   renderMobileHeader();
+  renderMobileView();
+}
+
+function toggleMobileOpt(opt) {
+  if (opt === 'travel') {
+    showTravel = document.getElementById('mobTravelToggle').checked;
+    var deskToggle = document.getElementById('showTravelToggle');
+    if (deskToggle) deskToggle.checked = showTravel;
+  } else if (opt === 'weather') {
+    showWeather = document.getElementById('mobWeatherToggle').checked;
+    var deskToggle = document.getElementById('showWeatherToggle');
+    if (deskToggle) deskToggle.checked = showWeather;
+  }
   renderMobileView();
 }
 
@@ -8053,6 +8092,29 @@ function buildMobileCard(int, compact) {
         if (f) html += '<span class="mob-card-flag" style="background:' + f.color + '15;color:' + f.color + ';">' + f.label + '</span>';
       });
       html += '</div>';
+    }
+  }
+  // Trajet
+  if (showTravel && !int.isRapport) {
+    var hasTravelInfo = (int.travelTo && int.travelTo > 0) || (int.travelFrom && int.travelFrom > 0);
+    if (hasTravelInfo) {
+      html += '<div class="mob-card-travel">';
+      if (int.travelTo > 0) {
+        var toKm = int.travelToKm ? ' · ' + Math.round(int.travelToKm) + 'km' : '';
+        html += '<span class="mob-card-travel-item">🚗 Aller ' + int.travelTo + 'min' + toKm + '</span>';
+      }
+      if (int.travelFrom > 0) {
+        var fromKm = int.travelFromKm ? ' · ' + Math.round(int.travelFromKm) + 'km' : '';
+        html += '<span class="mob-card-travel-item">🏠 Retour ' + int.travelFrom + 'min' + fromKm + '</span>';
+      }
+      html += '</div>';
+    }
+  }
+  // Météo
+  if (showWeather && !int.isRapport) {
+    var weather = getWeatherForInt(int);
+    if (weather) {
+      html += '<div class="mob-card-weather">' + weatherBadgeHTML(weather, 'sm') + '</div>';
     }
   }
   html += '</div>';
