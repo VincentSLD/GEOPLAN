@@ -2845,13 +2845,14 @@ async function computeAllTravel() {
 }
 
 // ===== RENDER HELPERS =====
+function fmtTravelTime(m) { return m >= 60 ? Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'') : m+'min'; }
 function renderTravelAller(int, tech) {
   const km = int.travelToKm ? ` · ${int.travelToKm} km` : '';
-  return `<div class="travel-block travel-aller" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'depart')" title="Modifier le lieu de départ"><span>🚗</span><div class="travel-info"><div class="travel-time">${int.travelTo} min${km}</div><div class="travel-label">Trajet aller ✏️</div></div></div>`;
+  return `<div class="travel-block travel-aller" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'depart')" title="Modifier le lieu de départ"><span>🚗</span><div class="travel-info"><div class="travel-time">${fmtTravelTime(int.travelTo)}${km}</div><div class="travel-label">Trajet aller ✏️</div></div></div>`;
 }
 function renderTravelRetour(int, tech) {
   const km = int.travelFromKm ? ` · ${int.travelFromKm} km` : '';
-  return `<div class="travel-block travel-retour" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'arrivee')" title="Modifier le lieu d'arrivée"><span>🏠</span><div class="travel-info"><div class="travel-time">${int.travelFrom} min${km}</div><div class="travel-label">Trajet retour ✏️</div></div></div>`;
+  return `<div class="travel-block travel-retour" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'arrivee')" title="Modifier le lieu d'arrivée"><span>🏠</span><div class="travel-info"><div class="travel-time">${fmtTravelTime(int.travelFrom)}${km}</div><div class="travel-label">Trajet retour ✏️</div></div></div>`;
 }
 function editTravelLieu(intId, type) {
   var int = interventions.find(function(i) { return i.id === intId; });
@@ -3764,7 +3765,7 @@ function renderDay() {
         var tLabel = idx === 0 ? '🚗 Trajet aller' : '🔄 Inter-site';
         var tColor = idx === 0 ? '#e0f2fe' : '#f0fdf4';
         html += '<div style="position:absolute;left:4px;right:4px;top:' + tTop + 'px;height:' + tH + 'px;background:' + tColor + ';border:1px solid ' + color + '30;border-radius:4px;padding:2px 6px;font-size:0.58rem;overflow:hidden;opacity:0.8;display:flex;align-items:center;gap:4px;">';
-        html += '<span>' + tLabel + '</span><span style="font-family:\'DM Mono\',monospace;">' + int.travelTo + 'min</span>';
+        html += '<span>' + tLabel + '</span><span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(int.travelTo) + '</span>';
         if (int.travelToKm) html += '<span style="opacity:0.6;">' + int.travelToKm + 'km</span>';
         html += '</div>';
       }
@@ -3790,7 +3791,7 @@ function renderDay() {
         var retTop = (intEndMin - START_HOUR * 60) * PX_PER_MIN;
         var retH = Math.max(int.travelFrom * PX_PER_MIN, 18);
         html += '<div style="position:absolute;left:4px;right:4px;top:' + retTop + 'px;height:' + retH + 'px;background:#fef2f2;border:1px solid ' + color + '30;border-radius:4px;padding:2px 6px;font-size:0.58rem;overflow:hidden;opacity:0.8;display:flex;align-items:center;gap:4px;">';
-        html += '<span>🏠 Retour</span><span style="font-family:\'DM Mono\',monospace;">' + int.travelFrom + 'min</span>';
+        html += '<span>🏠 Retour</span><span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(int.travelFrom) + '</span>';
         if (int.travelFromKm) html += '<span style="opacity:0.6;">' + int.travelFromKm + 'km</span>';
         html += '</div>';
       }
@@ -6338,7 +6339,7 @@ function renderMapTournees() {
         '<br><span style="font-size:0.72rem;color:#666;">👤 ' + tech.name + '</span>' +
         '<br><span style="font-size:0.72rem;">⏱ ' + int.startTime + ' – ' + int.endTime + '</span>' +
         '<br><span style="font-size:0.7rem;color:#888;">📍 ' + int.location + '</span>' +
-        (int.travelTo ? '<br><span style="font-size:0.65rem;color:#aaa;">🚗 Trajet: ' + int.travelTo + ' min' + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</span>' : '') +
+        (int.travelTo ? '<br><span style="font-size:0.65rem;color:#aaa;">🚗 Trajet: ' + fmtTravelTime(int.travelTo) + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</span>' : '') +
         '</div>'
       );
       mapTourneeMarkers.push(marker);
@@ -6410,7 +6411,7 @@ function renderMapTourneeList() {
       html += '}" style="flex-direction:column;align-items:flex-start;gap:2px;padding:6px 12px 6px 24px;">';
       html += '<div style="font-size:0.72rem;font-weight:600;">' + (idx+1) + '. ' + int.title.substring(0, 30) + '</div>';
       html += '<div style="font-size:0.62rem;color:var(--text-muted);">' + int.startTime + '–' + int.endTime + ' · 📍 ' + (int.location || '').split(',')[0] + '</div>';
-      if (int.travelTo) html += '<div style="font-size:0.58rem;color:var(--text-muted);">🚗 ' + int.travelTo + ' min' + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</div>';
+      if (int.travelTo) html += '<div style="font-size:0.58rem;color:var(--text-muted);">🚗 ' + fmtTravelTime(int.travelTo) + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</div>';
       html += '</div>';
     });
   });
@@ -8162,11 +8163,11 @@ function buildMobileCard(int, compact) {
       html += '<div class="mob-card-travel">';
       if (int.travelTo > 0) {
         var toKm = int.travelToKm ? ' · ' + Math.round(int.travelToKm) + 'km' : '';
-        html += '<span class="mob-card-travel-item">🚗 Aller ' + int.travelTo + 'min' + toKm + '</span>';
+        html += '<span class="mob-card-travel-item">🚗 Aller ' + fmtTravelTime(int.travelTo) + toKm + '</span>';
       }
       if (int.travelFrom > 0) {
         var fromKm = int.travelFromKm ? ' · ' + Math.round(int.travelFromKm) + 'km' : '';
-        html += '<span class="mob-card-travel-item">🏠 Retour ' + int.travelFrom + 'min' + fromKm + '</span>';
+        html += '<span class="mob-card-travel-item">🏠 Retour ' + fmtTravelTime(int.travelFrom) + fromKm + '</span>';
       }
       html += '</div>';
     }
