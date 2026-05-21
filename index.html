@@ -532,7 +532,7 @@ body::before {
   position: fixed; inset: 0;
   background: rgba(26,26,26,0.45);
   backdrop-filter: blur(5px);
-  z-index: 100;
+  z-index: 120;
   display: none;
   align-items: center; justify-content: center;
 }
@@ -1041,6 +1041,9 @@ body::before {
   .detail-panel {
     width: 100%;
     right: -100%;
+    z-index: 110;
+    top: 0;
+    height: 100vh;
   }
   .detail-panel.open { right: 0; }
   .detail-header { padding: 16px; }
@@ -1093,6 +1096,110 @@ body::before {
 
 @media (max-width: 768px) {
   .map-inline-list { display:none; }
+}
+
+/* === MODE MOBILE TECHNICIEN === */
+.mob-container { display:none; }
+body.mob-active .mob-container { display:flex; flex-direction:column; height:100vh; width:100%; position:fixed; inset:0; z-index:100; }
+body.mob-active .sidebar,
+body.mob-active .main,
+body.mob-active .sidebar-overlay,
+body.mob-active .sidebar-open-btn { display:none !important; }
+body.mob-active::before { display:none; }
+
+.mob-header {
+  background:var(--gph-dark); color:#fff; padding:10px 16px;
+  display:flex; align-items:center; gap:10px; flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,0.15);
+}
+.mob-avatar {
+  width:36px; height:36px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; font-size:0.7rem;
+  font-weight:700; color:#fff; flex-shrink:0;
+}
+.mob-tech-name { font-weight:600; font-size:0.85rem; }
+.mob-tech-role { font-size:0.62rem; color:rgba(255,255,255,0.6); }
+
+.mob-view-toggle {
+  display:flex; gap:0; border:1px solid rgba(255,255,255,0.2); border-radius:6px; overflow:hidden;
+}
+.mob-view-btn {
+  padding:6px 14px; font-size:0.72rem; font-family:inherit; font-weight:600;
+  background:transparent; color:rgba(255,255,255,0.7); border:none; cursor:pointer;
+}
+.mob-view-btn.active { background:var(--gph-yellow); color:#000; }
+
+.mob-content { flex:1; overflow-y:auto; background:var(--bg-primary); }
+
+.mob-date-nav {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px; background:var(--bg-secondary);
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5;
+}
+.mob-date-label { font-weight:700; font-size:0.85rem; }
+.mob-date-sub { font-size:0.65rem; color:var(--text-muted); }
+.mob-date-btn {
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--border);
+  background:var(--bg-secondary); font-size:1rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-family:inherit;
+}
+.mob-today-btn {
+  padding:4px 10px; border-radius:12px; border:1px solid var(--gph-yellow);
+  background:var(--gph-yellow-light); font-size:0.65rem; font-weight:700;
+  cursor:pointer; font-family:inherit; color:var(--text-primary);
+}
+
+.mob-day-section { margin-bottom:2px; }
+.mob-day-header {
+  padding:8px 16px; font-weight:700; font-size:0.78rem;
+  background:var(--bg-secondary); border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.mob-day-header.today { background:var(--gph-yellow-light); }
+.mob-day-header.ferie { background:#fef2f2; color:#DC2626; }
+.mob-day-count { font-size:0.65rem; color:var(--text-muted); font-weight:400; }
+
+.mob-card {
+  margin:8px 12px; padding:12px 14px; background:var(--bg-card);
+  border-radius:10px; border:1px solid var(--border);
+  border-left:4px solid var(--text-muted);
+  box-shadow:var(--shadow-sm); cursor:pointer;
+  transition:transform 0.15s, box-shadow 0.15s;
+}
+.mob-card:active { transform:scale(0.98); box-shadow:var(--shadow-lg); }
+.mob-card-time {
+  font-family:'DM Mono',monospace; font-size:0.78rem; font-weight:500;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.mob-card-duration {
+  font-size:0.68rem; color:var(--text-muted); font-weight:400;
+  background:var(--bg-primary); padding:2px 6px; border-radius:4px;
+}
+.mob-card-title { font-weight:600; font-size:0.82rem; margin-top:4px; }
+.mob-card-type {
+  display:inline-block; font-size:0.62rem; font-weight:600;
+  padding:2px 8px; border-radius:4px; margin-top:4px;
+}
+.mob-card-location { font-size:0.7rem; color:var(--text-secondary); margin-top:4px; }
+.mob-card-client { font-size:0.66rem; color:var(--text-muted); margin-top:2px; }
+.mob-card-flags { display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; }
+.mob-card-flag {
+  font-size:0.58rem; padding:1px 6px; border-radius:3px;
+  background:var(--bg-primary); color:var(--text-secondary);
+}
+
+.mob-empty {
+  text-align:center; padding:40px 20px; color:var(--text-muted); font-size:0.82rem;
+}
+.mob-absence-badge {
+  font-size:0.65rem; padding:4px 10px; margin:8px 12px;
+  background:#fef2f2; border:1px solid #fecaca; border-radius:6px;
+  color:#DC2626; text-align:center;
+}
+.mob-ferie-badge {
+  font-size:0.65rem; padding:4px 10px; margin:8px 12px;
+  background:#fef9e7; border:1px solid #fde68a; border-radius:6px;
+  color:#92400E; text-align:center;
 }
 
 /* Legacy overlay (kept for backward compat but hidden) */
@@ -1560,6 +1667,13 @@ body::before {
 </div>
 
 <div class="app" style="display:none;width:100%;height:100vh;">
+
+<!-- Mobile technician view -->
+<div id="mobileContainer" class="mob-container">
+  <div class="mob-header" id="mobHeader"></div>
+  <div class="mob-content" id="mobContent"></div>
+</div>
+
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo" style="justify-content:space-between;">
     <h1 class="logo-inline">Géo<span class="hl">Plan'</span><span class="by-gph">by GPH</span></h1>
@@ -2162,6 +2276,8 @@ var pcGranularity = 'day';
 var pcChartMain = null;
 var pcChartDelta = null;
 var pcLastBuckets = [];
+var mobileMyTechId = null;
+var mobileView = 'day';
 var clientsHabitsCache = {};
 var clientsHabitsLoaded = false;
 let showLunch = true;
@@ -3029,6 +3145,7 @@ async function init() {
   await loadLuccaCollabs();
   renderCurrentView(); updateTodayCount(); computeAllTravel();
   hideLoader();
+  initMobileMode();
   loadClientsHabits();
   // Charger commandes + Geosolia en parallèle, puis auto-sync et auto-link
   Promise.all([
@@ -3376,6 +3493,7 @@ function showView(v) {
   switchView(v, idx >= 0 ? document.querySelectorAll('.view-tab')[idx] : null);
 }
 function renderCurrentView() {
+  if (mobileMyTechId && window.innerWidth <= 768) { renderMobileView(); return; }
   const renderers = {week:renderWeek, day:renderDay, month:renderMonth, list:renderList};
   if (renderers[currentView]) { renderers[currentView](); loadVisibleWeather(); }
   if (aPlanifierOpen) renderAPlanifier();
@@ -3941,6 +4059,7 @@ function openDetail(id){
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderCmdCustomDataHTML(cmd) : ''; })()}
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderHabitudesDetailHTML(cmd) : ''; })()}
+    ${int.location && mobileMyTechId ? '<div style="margin-top:10px;"><a href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(int.location)+'" target="_blank" rel="noopener" style="display:block;text-align:center;padding:10px;background:var(--gph-yellow);color:#000;border-radius:8px;font-weight:700;font-size:0.82rem;text-decoration:none;">🧭 Itinéraire GPS</a></div>' : ''}
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn btn-dark" onclick="editIntervention(${int.id})" style="flex:1;padding:6px;">✏️ Modifier</button>
       <button class="btn btn-ghost" onclick="deleteIntervention(${int.id})" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button>
@@ -7188,23 +7307,27 @@ async function loadLuccaCollabs() {
   } catch(e) { console.warn('[Lucca] Erreur chargement:', e); }
 }
 
-// Auto-match settingsTeam members to luccaCollabs by prenom+nom to fill missing luccaId
+// Auto-match settingsTeam members to luccaCollabs by prenom+nom to fill missing luccaId and email
 function autoMatchTeamLuccaIds() {
   if (!settingsTeam || !luccaCollabs || luccaCollabs.length === 0) return;
   var norm = function(s) { return (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
   var changed = 0;
   settingsTeam.forEach(function(t) {
-    if (t.luccaId) return; // already has a luccaId
     var tPrenom = norm(t.prenom);
     var tNom = norm(t.nom);
     if (!tPrenom && !tNom) return;
     var match = luccaCollabs.find(function(c) {
       return norm(c.prenom) === tPrenom && norm(c.nom) === tNom;
     });
-    if (match && match.lucca_id) {
-      t.luccaId = match.lucca_id;
-      changed++;
-      console.log('[Lucca] Auto-match: ' + t.prenom + ' ' + t.nom + ' → luccaId=' + match.lucca_id);
+    if (match) {
+      if (!t.luccaId && match.lucca_id) {
+        t.luccaId = match.lucca_id;
+        changed++;
+      }
+      if (!t.email && match.email) {
+        t.email = match.email;
+        changed++;
+      }
     }
   });
   if (changed > 0) {
@@ -7820,6 +7943,226 @@ function syncTeamToTechnicians() {
   populateSidebar();
   populateTechSelect();
   renderCurrentView();
+}
+
+// ======== MODE MOBILE TECHNICIEN ========
+
+function getLoggedTechId() {
+  if (!currentAuthUser || !currentAuthUser.email) return null;
+  var email = currentAuthUser.email.toLowerCase().trim();
+  // 1) Match direct par email dans settingsTeam
+  var member = settingsTeam.find(function(t) {
+    return t.email && t.email.toLowerCase().trim() === email && t.statut === 'actif';
+  });
+  if (member) return member.id;
+  // 2) Match via luccaCollabs : email → lucca_id → settingsTeam.luccaId
+  if (luccaCollabs && luccaCollabs.length > 0) {
+    var luccaMatch = luccaCollabs.find(function(c) {
+      return c.email && c.email.toLowerCase().trim() === email;
+    });
+    if (luccaMatch && luccaMatch.lucca_id) {
+      var memberByLucca = settingsTeam.find(function(t) {
+        return t.luccaId === luccaMatch.lucca_id && t.statut === 'actif';
+      });
+      if (memberByLucca) return memberByLucca.id;
+    }
+  }
+  return null;
+}
+
+function initMobileMode() {
+  if (window.innerWidth > 768) {
+    if (mobileMyTechId !== null) {
+      mobileMyTechId = null;
+      document.body.classList.remove('mob-active');
+    }
+    return;
+  }
+  var techId = getLoggedTechId();
+  if (!techId) {
+    mobileMyTechId = null;
+    document.body.classList.remove('mob-active');
+    return;
+  }
+  mobileMyTechId = techId;
+  document.body.classList.add('mob-active');
+  renderMobileHeader();
+  renderMobileView();
+}
+
+function renderMobileHeader() {
+  var tech = TECHNICIANS.find(function(t) { return t.id === mobileMyTechId; });
+  if (!tech) return;
+  document.getElementById('mobHeader').innerHTML =
+    '<div class="mob-avatar" style="background:' + tech.color + ';">' + tech.initials + '</div>' +
+    '<div style="flex:1;">' +
+      '<div class="mob-tech-name">' + tech.name + '</div>' +
+      '<div class="mob-tech-role">' + (tech.role || 'Technicien') + '</div>' +
+    '</div>' +
+    '<div class="mob-view-toggle">' +
+      '<button class="mob-view-btn ' + (mobileView === 'day' ? 'active' : '') + '" onclick="switchMobileView(\'day\')">Jour</button>' +
+      '<button class="mob-view-btn ' + (mobileView === 'week' ? 'active' : '') + '" onclick="switchMobileView(\'week\')">Semaine</button>' +
+    '</div>';
+}
+
+function renderMobileView() {
+  if (mobileView === 'day') renderMobileDay();
+  else renderMobileWeek();
+}
+
+function switchMobileView(v) {
+  mobileView = v;
+  renderMobileHeader();
+  renderMobileView();
+}
+
+function navigateMobileDate(dir) {
+  if (mobileView === 'day') {
+    currentDate.setDate(currentDate.getDate() + dir);
+  } else {
+    currentDate.setDate(currentDate.getDate() + dir * 7);
+  }
+  renderMobileView();
+}
+
+function mobileGoToday() {
+  currentDate = new Date(TODAY);
+  renderMobileView();
+}
+
+function buildMobileCard(int, compact) {
+  var type = TYPES[int.type] || { label: int.type || 'Intervention', class: '' };
+  var sit = settingsIntTypes.find(function(x) { return x.id === int.type; });
+  if (sit) { type = { label: sit.label, class: sit.class || '' }; }
+  var typeColor = TYPE_RAW[int.type] || (sit && sit.color ? sit.color : '#888');
+  var durMin = int.duration || (timeToMin(int.endTime) - timeToMin(int.startTime)) || 0;
+  var durLabel = durMin >= 60 ? Math.floor(durMin / 60) + 'h' + (durMin % 60 ? String(durMin % 60).padStart(2, '0') : '') : durMin + 'min';
+  var html = '<div class="mob-card" style="border-left-color:' + typeColor + ';" onclick="openDetail(' + int.id + ')">';
+  html += '<div class="mob-card-time"><span>' + int.startTime + ' — ' + int.endTime + '</span><span class="mob-card-duration">' + durLabel + '</span></div>';
+  html += '<div class="mob-card-title">' + (int.title || type.label) + '</div>';
+  html += '<div class="mob-card-type" style="background:' + typeColor + '12;color:' + typeColor + ';">' + type.label + '</div>';
+  if (int.location) html += '<div class="mob-card-location">📍 ' + int.location.split(',')[0] + '</div>';
+  if (!compact) {
+    if (int.client) html += '<div class="mob-card-client">🏢 ' + int.client + '</div>';
+    var cmdStatus = getIntStatusFromCmd(int);
+    if (cmdStatus.label) html += '<div class="mob-card-client" style="color:' + (cmdStatus.color || '#888') + ';font-weight:600;">' + cmdStatus.label + '</div>';
+    if (int.flags && int.flags.length > 0) {
+      html += '<div class="mob-card-flags">';
+      int.flags.forEach(function(fid) {
+        var f = settingsFlags.find(function(x) { return x.id === fid; });
+        if (f) html += '<span class="mob-card-flag" style="background:' + f.color + '15;color:' + f.color + ';">' + f.label + '</span>';
+      });
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderMobileDay() {
+  var ds = currentDate.toISOString().split('T')[0];
+  var todayStr = TODAY.toISOString().split('T')[0];
+  var dateLabel = currentDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  dateLabel = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+  var jf = isJourFerie(ds);
+  var abs = getAbsenceForTech(mobileMyTechId, ds);
+
+  var myInts = interventions.filter(function(i) {
+    return i.techId === mobileMyTechId && i.date === ds;
+  }).sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+
+  var c = document.getElementById('mobContent');
+  var html = '<div class="mob-date-nav">';
+  html += '<button class="mob-date-btn" onclick="navigateMobileDate(-1)">◀</button>';
+  html += '<div style="text-align:center;">';
+  html += '<div class="mob-date-label">' + dateLabel + '</div>';
+  html += '<div class="mob-date-sub">' + myInts.length + ' intervention' + (myInts.length > 1 ? 's' : '') + '</div>';
+  html += '</div>';
+  html += '<button class="mob-today-btn" onclick="mobileGoToday()">Aujourd\'hui</button>';
+  html += '<button class="mob-date-btn" onclick="navigateMobileDate(1)">▶</button>';
+  html += '</div>';
+
+  if (jf) html += '<div class="mob-ferie-badge">🚩 Jour férié : ' + jf + '</div>';
+  if (abs) html += '<div class="mob-absence-badge">🏖 Absence : ' + abs.label + '</div>';
+
+  if (myInts.length === 0) {
+    html += '<div class="mob-empty">Aucune intervention ' + (ds === todayStr ? 'aujourd\'hui' : 'ce jour') + '</div>';
+  } else {
+    myInts.forEach(function(int) {
+      html += buildMobileCard(int, false);
+    });
+    // Summary
+    var totalMin = myInts.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+    var travelMin = myInts.filter(function(i) { return !i.isRapport; }).reduce(function(s, i) { return s + (i.travelTo || 0) + (i.travelFrom || 0); }, 0);
+    var terrainMin = myInts.filter(function(i) { return !i.isRapport; }).reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+    var rapportMin = myInts.filter(function(i) { return i.isRapport; }).reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+    var fmtMin = function(m) { return m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '') : m + 'min'; };
+    html += '<div style="margin:12px;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;display:flex;justify-content:space-around;text-align:center;">';
+    html += '<div><div style="font-weight:700;font-size:0.85rem;">' + fmtMin(terrainMin) + '</div><div style="color:var(--text-muted);">Terrain</div></div>';
+    if (rapportMin > 0) html += '<div><div style="font-weight:700;font-size:0.85rem;">' + fmtMin(rapportMin) + '</div><div style="color:var(--text-muted);">Rapports</div></div>';
+    if (travelMin > 0) html += '<div><div style="font-weight:700;font-size:0.85rem;">' + fmtMin(travelMin) + '</div><div style="color:var(--text-muted);">Trajet</div></div>';
+    html += '</div>';
+  }
+  c.innerHTML = html;
+}
+
+function renderMobileWeek() {
+  var mon = getMonday(currentDate);
+  var todayStr = TODAY.toISOString().split('T')[0];
+  var weekNum = pcGetISOWeek(mon);
+  var monLabel = mon.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  var fri = new Date(mon); fri.setDate(fri.getDate() + 4);
+  var friLabel = fri.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+  var c = document.getElementById('mobContent');
+  var html = '<div class="mob-date-nav">';
+  html += '<button class="mob-date-btn" onclick="navigateMobileDate(-1)">◀</button>';
+  html += '<div style="text-align:center;">';
+  html += '<div class="mob-date-label">Semaine ' + weekNum + '</div>';
+  html += '<div class="mob-date-sub">' + monLabel + ' — ' + friLabel + '</div>';
+  html += '</div>';
+  html += '<button class="mob-today-btn" onclick="mobileGoToday()">Aujourd\'hui</button>';
+  html += '<button class="mob-date-btn" onclick="navigateMobileDate(1)">▶</button>';
+  html += '</div>';
+
+  var totalWeekInts = 0;
+  for (var d = 0; d < 5; d++) {
+    var day = new Date(mon); day.setDate(mon.getDate() + d);
+    var ds = day.toISOString().split('T')[0];
+    var jf = isJourFerie(ds);
+    var abs = getAbsenceForTech(mobileMyTechId, ds);
+    var dayInts = interventions.filter(function(i) {
+      return i.techId === mobileMyTechId && i.date === ds;
+    }).sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
+    totalWeekInts += dayInts.length;
+
+    var dayLabel = day.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
+    dayLabel = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+    var isToday = ds === todayStr;
+    var headerClass = 'mob-day-header' + (isToday ? ' today' : '') + (jf ? ' ferie' : '');
+
+    html += '<div class="mob-day-section">';
+    html += '<div class="' + headerClass + '" onclick="currentDate=new Date(\'' + ds + '\');switchMobileView(\'day\')">';
+    html += '<span>' + dayLabel + (jf ? ' — 🚩 ' + jf : '') + '</span>';
+    html += '<span class="mob-day-count">' + dayInts.length + ' int.' + '</span>';
+    html += '</div>';
+
+    if (abs) html += '<div class="mob-absence-badge">🏖 ' + abs.label + '</div>';
+
+    if (dayInts.length === 0 && !jf && !abs) {
+      html += '<div style="padding:8px 16px;font-size:0.7rem;color:var(--text-muted);font-style:italic;">Aucune intervention</div>';
+    }
+    dayInts.forEach(function(int) {
+      html += buildMobileCard(int, true);
+    });
+    html += '</div>';
+  }
+
+  if (totalWeekInts === 0) {
+    html += '<div class="mob-empty">Aucune intervention cette semaine</div>';
+  }
+
+  c.innerHTML = html;
 }
 
 // ======== TAB 2: VÉHICULES (Webfleet + attributions) ========
@@ -9240,6 +9583,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (ta) ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
 });
 
+// Mobile mode resize listener
+var _mobResizeTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_mobResizeTimer);
+  _mobResizeTimer = setTimeout(initMobileMode, 300);
+});
+
 // ═══ ACTIONS IA APPLICABLES ═══
 function executeAIAction(action) {
   var aTechId = action.techId;
@@ -9409,7 +9759,7 @@ function showLogin() {
   document.getElementById('auth-user-bar-inline').classList.remove('visible');
 }
 
-async function authLogout() { await sbAuth.auth.signOut(); showLogin(); }
+async function authLogout() { mobileMyTechId = null; document.body.classList.remove('mob-active'); await sbAuth.auth.signOut(); showLogin(); }
 
 const ADMIN_EMAILS = ['vsalaud@be-gph.fr'];
 
