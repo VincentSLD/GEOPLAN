@@ -2046,12 +2046,6 @@ body.mob-active::before { display:none; }
   </div>
 </div>
 
-<!-- DETAIL PANEL -->
-<div class="detail-panel" id="detailPanel">
-  <div class="detail-header"><h2 id="detailTitle"></h2><button class="modal-close" onclick="closeDetail()">×</button></div>
-  <div class="detail-body" id="detailBody"></div>
-</div>
-
 <!-- ÉTUDES OVERLAY -->
 <div class="etudes-overlay" id="etudesOverlay" onclick="if(event.target===this)closeEtudes()">
   <div class="etudes-panel">
@@ -2145,6 +2139,12 @@ body.mob-active::before { display:none; }
 </div>
 
 <!-- Settings panel removed — now inline in settingsView -->
+
+<!-- DETAIL PANEL (outside .main for mobile compatibility) -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header"><h2 id="detailTitle"></h2><button class="modal-close" onclick="closeDetail()">×</button></div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
 
 </div><!-- .app -->
 
