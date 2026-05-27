@@ -6248,7 +6248,7 @@ function renderGeosoliaList() {
     var labo = prog ? prog.laboratoire : false;
     var totalSondages = prog ? prog.totalSondages : 0;
     var cmdRef = geoToCmdRef[p.id] || '';
-    var cloud = !!p.project_data;
+    var cloud = true;
     return { id: p.id, ref: p.project_ref || '', name: p.project_name || '', addr: addr, mission: mission, missionRaw: prog ? prog.mission : '', timeMin: timeMin, pelle: pelle, labo: labo, totalSondages: totalSondages, cmdRef: cmdRef, prog: prog, cloud: cloud };
   });
 
