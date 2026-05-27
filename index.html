@@ -6248,9 +6248,27 @@ function renderGeosoliaList() {
     var labo = prog ? prog.laboratoire : false;
     var totalSondages = prog ? prog.totalSondages : 0;
     var cmdRef = geoToCmdRef[p.id] || '';
-    var cloud = true;
+    var cloud = !!p.project_data;
     return { id: p.id, ref: p.project_ref || '', name: p.project_name || '', addr: addr, mission: mission, missionRaw: prog ? prog.mission : '', timeMin: timeMin, pelle: pelle, labo: labo, totalSondages: totalSondages, cmdRef: cmdRef, prog: prog, cloud: cloud };
   });
+
+  // Deduplicate by ref + name (merge cmdRef and cloud data)
+  var dedup = {};
+  rows.forEach(function(r) {
+    var key = r.ref + '|' + r.name;
+    if (!dedup[key]) {
+      dedup[key] = r;
+    } else {
+      if (r.cloud && !dedup[key].cloud) {
+        var prevCmd = dedup[key].cmdRef;
+        dedup[key] = r;
+        if (!dedup[key].cmdRef) dedup[key].cmdRef = prevCmd;
+      } else {
+        if (r.cmdRef && !dedup[key].cmdRef) dedup[key].cmdRef = r.cmdRef;
+      }
+    }
+  });
+  rows = Object.keys(dedup).map(function(k) { return dedup[k]; });
 
   // Filter
   if (search) {
