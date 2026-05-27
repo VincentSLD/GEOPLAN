@@ -7898,7 +7898,7 @@ var TYPOLOGIE_LABELS = {
 };
 function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.replace(/_/g,' ').toLowerCase().replace(/^./, function(c){return c.toUpperCase();}); }
 // Ne retourne un label que si la mission est dans la liste des missions valides
-function labelMission(v) { if (!v || MISSION_TYPES_DEFAULT.indexOf(v) < 0) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
+function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
 
 function getAllMissionTypes() {
   // Seules les missions valides définies dans MISSION_TYPES_DEFAULT sont affichées
