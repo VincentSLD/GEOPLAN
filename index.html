@@ -5178,15 +5178,15 @@ async function loadCommandesFromSupabase() {
       }
       if (filtCategories.length > 0) {
         var cat = cd && cd['1-alpha05'] && cd['1-alpha05'].value;
-        if (!cat || filtCategories.indexOf(cat) < 0) return false;
+        if (cat && filtCategories.indexOf(cat) < 0) return false;
       }
       if (filtTypes.length > 0) {
         var typ = cd && cd['1-alpha06'] && cd['1-alpha06'].value;
-        if (!typ || filtTypes.indexOf(typ) < 0) return false;
+        if (typ && filtTypes.indexOf(typ) < 0) return false;
       }
       if (filtCdStatuts.length > 0) {
         var cdSt = cd && cd['1-alpha17'] && cd['1-alpha17'].value;
-        if (!cdSt || filtCdStatuts.indexOf(cdSt) < 0) return false;
+        if (cdSt && filtCdStatuts.indexOf(cdSt) < 0) return false;
       }
       return true;
     });
@@ -5228,6 +5228,16 @@ async function loadCommandesFromSupabase() {
     commandesFiltered = commandesData.slice();
     commandesLoaded = true;
     console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées (après filtres), ' + Object.keys(affairesMap).length + ' affaires, ' + Object.keys(marchesMap).length + ' marchés');
+    if (data.length !== commandesData.length) {
+      var filtered = data.length - commandesData.length;
+      console.log('[Commandes] ' + filtered + ' commandes filtrées. Filtres actifs : ' +
+        (exclure.length ? 'exclure=[' + exclure.join(',') + '] ' : '') +
+        (statuts.length ? 'statuts=[' + statuts.join(',') + '] ' : '') +
+        (societes.length ? 'societes=[' + societes.join(',') + '] ' : '') +
+        (filtCategories.length ? 'categories=[' + filtCategories.join(',') + '] ' : '') +
+        (filtTypes.length ? 'types=[' + filtTypes.join(',') + '] ' : '') +
+        (filtCdStatuts.length ? 'statutsCustom=[' + filtCdStatuts.join(',') + ']' : ''));
+    }
   } catch(e) { console.warn('[Commandes] Erreur:', e); }
   if (!mobileMyTechId) hideLoader();
 }
