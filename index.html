@@ -6248,7 +6248,8 @@ function renderGeosoliaList() {
     var labo = prog ? prog.laboratoire : false;
     var totalSondages = prog ? prog.totalSondages : 0;
     var cmdRef = geoToCmdRef[p.id] || '';
-    return { id: p.id, ref: p.project_ref || '', name: p.project_name || '', addr: addr, mission: mission, missionRaw: prog ? prog.mission : '', timeMin: timeMin, pelle: pelle, labo: labo, totalSondages: totalSondages, cmdRef: cmdRef, prog: prog };
+    var cloud = !!p.project_data;
+    return { id: p.id, ref: p.project_ref || '', name: p.project_name || '', addr: addr, mission: mission, missionRaw: prog ? prog.mission : '', timeMin: timeMin, pelle: pelle, labo: labo, totalSondages: totalSondages, cmdRef: cmdRef, prog: prog, cloud: cloud };
   });
 
   // Filter
@@ -6283,6 +6284,7 @@ function renderGeosoliaList() {
   var html = '<table style="width:100%;border-collapse:collapse;font-size:0.72rem;">';
   html += '<thead style="position:sticky;top:0;z-index:2;background:var(--bg-secondary);">';
   html += '<tr style="border-bottom:2px solid var(--border);text-align:left;">';
+  html += '<th style="width:45px;text-align:center;cursor:pointer;user-select:none;" onclick="sortGeosoliaBy(\'cloud\')">Cloud' + sortIcon('cloud') + '</th>';
   html += th('ref', 'Réf.', '120px');
   html += th('name', 'Nom du projet');
   html += th('addr', 'Adresse');
@@ -6297,6 +6299,7 @@ function renderGeosoliaList() {
 
   rows.forEach(function(r) {
     html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onmouseenter="this.style.background=\'var(--bg-secondary)\'" onmouseleave="this.style.background=\'\'">';
+    html += '<td style="padding:6px 8px;text-align:center;">' + (r.cloud ? '<span style="color:#16A34A;font-weight:700;" title="Données enregistrées">✓</span>' : '<span style="color:#DC2626;font-weight:700;" title="Pas de données">✗</span>') + '</td>';
     html += '<td style="padding:6px 8px;font-family:\'DM Mono\',monospace;font-weight:600;white-space:nowrap;">' + r.ref + '</td>';
     html += '<td style="padding:6px 8px;font-weight:500;">' + r.name + '</td>';
     html += '<td style="padding:6px 8px;color:var(--text-secondary);font-size:0.68rem;">' + (r.addr || '<span style="color:var(--text-muted);">—</span>') + '</td>';
