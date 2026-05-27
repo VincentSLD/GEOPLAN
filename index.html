@@ -1756,6 +1756,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Commandes / Études
       </div>
+      <div class="nav-item" data-nav="geosolia" onclick="showView('geosolia')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Géosolia
+      </div>
       <div class="nav-item" data-nav="plancharge" onclick="showView('plancharge')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
         Plan de charge
@@ -1803,6 +1807,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="view-tab" onclick="switchView('month',this)">Mois</button>
       <button class="view-tab" onclick="switchView('list',this)">Liste</button>
       <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
+      <button class="view-tab" onclick="switchView('geosolia',this)">Géosolia</button>
       <button class="view-tab" onclick="toggleAPlanifierPanel()" id="aPlanifierTabBtn">A planifier</button>
       <button class="view-tab" onclick="switchView('map',this)">Carte</button>
       <button class="view-tab" onclick="switchView('plancharge',this)">Plan de charge</button>
@@ -1876,6 +1881,22 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     </div>
   </div>
 
+  <div class="view-content" id="geosoliaView">
+    <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg-secondary);flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-weight:700;font-size:0.9rem;">🌍 Dossiers Géosolia</span>
+        <span class="badge-count" id="geosoliaCount">0</span>
+        <input type="text" id="geosoliaSearch" placeholder="Rechercher ref, nom, adresse, mission..." oninput="filterGeosoliaList()" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.72rem;font-family:inherit;width:260px;">
+      </div>
+      <button class="btn btn-ghost" onclick="refreshGeosoliaView()" style="font-size:0.72rem;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Rafraîchir
+      </button>
+    </div>
+    <div style="flex:1;overflow:auto;padding:16px 20px;" id="geosoliaListContainer">
+      <div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">Chargement des dossiers Géosolia...</div>
+    </div>
+  </div>
 
   <div class="view-content" id="mapView">
     <div class="map-inline-container" id="mapInlineContainer">
@@ -3544,6 +3565,7 @@ function switchView(v,tab) {
   if (v === 'map') { initFleetMap(); }
   else if (v === 'settings') { closeStgForm(); renderSettingsTeam(); }
   else if (v === 'commandes') { initCommandes(); }
+  else if (v === 'geosolia') { initGeosoliaView(); }
   else if (v === 'plancharge') { initPlanCharge(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
@@ -3567,8 +3589,8 @@ function closeSidebar() {
 // Close sidebar when a nav item is clicked on mobile
 function showView(v) {
   closeSidebar();
-  // Tab order: week(0), day(1), month(2), list(3), commandes(4), aPlanifier(5), map(6), plancharge(7)
-  const idx = ['week','day','month','list','commandes',null,'map','plancharge'].indexOf(v);
+  // Tab order: week(0), day(1), month(2), list(3), commandes(4), geosolia(5), aPlanifier(6), map(7), plancharge(8)
+  const idx = ['week','day','month','list','commandes','geosolia',null,'map','plancharge'].indexOf(v);
   switchView(v, idx >= 0 ? document.querySelectorAll('.view-tab')[idx] : null);
 }
 function renderCurrentView() {
@@ -6172,6 +6194,124 @@ function populateGeosoliaSelect() {
     if (linkedGeoIds[p.id] && p.id !== currentGeoId) return;
     sel.innerHTML += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '') + '</option>';
   });
+}
+
+// ═══ VUE GÉOSOLIA — LISTE COMPLÈTE DES DOSSIERS ═══
+var geosoliaViewSortCol = 'ref';
+var geosoliaViewSortAsc = true;
+
+function initGeosoliaView() {
+  if (geosoliaProjects.length === 0) {
+    loadGeosoliaProjects().then(function() { renderGeosoliaList(); });
+  } else {
+    renderGeosoliaList();
+  }
+}
+
+async function refreshGeosoliaView() {
+  geosoliaProjects = [];
+  geosoliaDataMap = {};
+  await loadGeosoliaProjects();
+  renderGeosoliaList();
+}
+
+function sortGeosoliaBy(col) {
+  if (geosoliaViewSortCol === col) geosoliaViewSortAsc = !geosoliaViewSortAsc;
+  else { geosoliaViewSortCol = col; geosoliaViewSortAsc = true; }
+  renderGeosoliaList();
+}
+
+function filterGeosoliaList() {
+  renderGeosoliaList();
+}
+
+function renderGeosoliaList() {
+  var container = document.getElementById('geosoliaListContainer');
+  if (!container) return;
+  var search = (document.getElementById('geosoliaSearch') ? document.getElementById('geosoliaSearch').value : '').toLowerCase().trim();
+
+  // Build reverse lookup: geoId → cmdRef
+  var geoToCmdRef = {};
+  Object.keys(commandeGeosoliaLinks).forEach(function(cmdId) {
+    var geoId = commandeGeosoliaLinks[cmdId];
+    var cmd = commandesData.find(function(c) { return String(c.id) === String(cmdId); });
+    if (cmd) geoToCmdRef[geoId] = cmd._affaire ? cmd._affaire.ref : cmd.ref;
+  });
+
+  // Parse all projects
+  var rows = geosoliaProjects.map(function(p) {
+    var prog = getGeosoliaProgram(p.id);
+    var addr = prog ? prog.address : '';
+    var mission = prog ? labelMission(prog.mission) : '';
+    var timeMin = prog ? prog.timeEstimateMin : 0;
+    var pelle = prog ? prog.pelleNecessaire : false;
+    var labo = prog ? prog.laboratoire : false;
+    var totalSondages = prog ? prog.totalSondages : 0;
+    var cmdRef = geoToCmdRef[p.id] || '';
+    return { id: p.id, ref: p.project_ref || '', name: p.project_name || '', addr: addr, mission: mission, missionRaw: prog ? prog.mission : '', timeMin: timeMin, pelle: pelle, labo: labo, totalSondages: totalSondages, cmdRef: cmdRef, prog: prog };
+  });
+
+  // Filter
+  if (search) {
+    rows = rows.filter(function(r) {
+      return (r.ref + ' ' + r.name + ' ' + r.addr + ' ' + r.mission + ' ' + r.cmdRef).toLowerCase().indexOf(search) >= 0;
+    });
+  }
+
+  // Sort
+  var col = geosoliaViewSortCol;
+  rows.sort(function(a, b) {
+    var va = a[col] || '', vb = b[col] || '';
+    if (typeof va === 'number' && typeof vb === 'number') return geosoliaViewSortAsc ? va - vb : vb - va;
+    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+    return geosoliaViewSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  // Count
+  var countEl = document.getElementById('geosoliaCount');
+  if (countEl) countEl.textContent = rows.length;
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">Aucun dossier Géosolia trouvé.</div>';
+    return;
+  }
+
+  // Table header
+  var sortIcon = function(c) { return geosoliaViewSortCol === c ? (geosoliaViewSortAsc ? ' ▲' : ' ▼') : ' <span style="opacity:0.2;">⇅</span>'; };
+  var th = function(c, label, w) { return '<th style="cursor:pointer;user-select:none;white-space:nowrap;' + (w ? 'width:'+w+';' : '') + '" onclick="sortGeosoliaBy(\'' + c + '\')">' + label + sortIcon(c) + '</th>'; };
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:0.72rem;">';
+  html += '<thead style="position:sticky;top:0;z-index:2;background:var(--bg-secondary);">';
+  html += '<tr style="border-bottom:2px solid var(--border);text-align:left;">';
+  html += th('ref', 'Réf.', '120px');
+  html += th('name', 'Nom du projet');
+  html += th('addr', 'Adresse');
+  html += th('mission', 'Mission', '100px');
+  html += th('timeMin', 'Temps', '70px');
+  html += '<th style="width:50px;text-align:center;">Pelle</th>';
+  html += '<th style="width:50px;text-align:center;">Labo</th>';
+  html += th('totalSondages', 'Sondages', '70px');
+  html += th('cmdRef', 'Commande', '110px');
+  html += '<th style="width:60px;">Ouvrir</th>';
+  html += '</tr></thead><tbody>';
+
+  rows.forEach(function(r) {
+    html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onmouseenter="this.style.background=\'var(--bg-secondary)\'" onmouseleave="this.style.background=\'\'">';
+    html += '<td style="padding:6px 8px;font-family:\'DM Mono\',monospace;font-weight:600;white-space:nowrap;">' + r.ref + '</td>';
+    html += '<td style="padding:6px 8px;font-weight:500;">' + r.name + '</td>';
+    html += '<td style="padding:6px 8px;color:var(--text-secondary);font-size:0.68rem;">' + (r.addr || '<span style="color:var(--text-muted);">—</span>') + '</td>';
+    html += '<td style="padding:6px 8px;">' + (r.mission ? '<span style="padding:2px 6px;border-radius:4px;font-size:0.62rem;font-weight:600;background:#eff6ff;color:#2563EB;">' + r.mission + '</span>' : '<span style="color:var(--text-muted);">—</span>') + '</td>';
+    html += '<td style="padding:6px 8px;font-family:\'DM Mono\',monospace;text-align:center;">' + (r.timeMin > 0 ? fmtTravelTime(r.timeMin) : '—') + '</td>';
+    html += '<td style="padding:6px 8px;text-align:center;">' + (r.pelle ? '<span style="color:#D97706;font-weight:700;">✓</span>' : '') + '</td>';
+    html += '<td style="padding:6px 8px;text-align:center;">' + (r.labo ? '<span style="color:#7C3AED;font-weight:700;">✓</span>' : '') + '</td>';
+    html += '<td style="padding:6px 8px;text-align:center;font-weight:600;">' + (r.totalSondages > 0 ? r.totalSondages : '—') + '</td>';
+    html += '<td style="padding:6px 8px;font-family:\'DM Mono\',monospace;font-size:0.65rem;">' + (r.cmdRef || '<span style="color:var(--text-muted);">—</span>') + '</td>';
+    html += '<td style="padding:6px 8px;"><a href="https://geosolia.vercel.app/?project=' + r.id + '" target="_blank" rel="noopener" style="color:var(--gph-yellow);font-weight:700;font-size:0.68rem;text-decoration:none;">Ouvrir ↗</a></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 function onGeosoliaSelect() {
