@@ -3703,19 +3703,18 @@ function renderSplitSummary(int) {
   html += '<div><div style="font-size:0.85rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + f(remaining) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Reste</div></div>';
   html += '</div>';
   if (siblings.length > 1) {
-  html += '<div style="font-size:0.65rem;border-top:1px solid var(--gph-yellow);padding-top:6px;">';
+  html += '<div style="border-top:1px solid var(--gph-yellow);padding-top:6px;margin-top:2px;">';
   siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
   siblings.forEach(function(s, idx) {
     var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
     var isCurrent = s.id === int.id;
-    var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
-    html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;' + (isCurrent ? 'font-weight:700;' : '') + '">';
+    var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '?';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(245,197,24,0.25);' + (isCurrent ? 'font-weight:700;background:rgba(245,197,24,0.12);margin:0 -10px;padding:4px 10px;' : '') + '">';
     html += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
-    html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
-    html += '<span>' + (t ? t.name : '?') + '</span>';
-    html += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
-    html += '<span style="font-family:\'DM Mono\',monospace;">' + f(s.duration || 0) + '</span>';
-    if (isCurrent) html += '<span style="color:var(--gph-yellow);font-weight:700;">◄</span>';
+    html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
+    html += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
+    html += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;color:var(--text-primary);background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + f(s.duration || 0) + '</span>';
+    if (isCurrent) html += '<span style="color:var(--gph-yellow);font-weight:700;font-size:0.7rem;">◄</span>';
     html += '</div>';
   });
   html += '</div>';
@@ -4296,16 +4295,15 @@ function planifierSupplementaire(id) {
   bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
   bannerHtml += '</div>';
   if (siblings.length > 0) {
-    bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);font-size:0.6rem;">';
+    bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);">';
     siblings.forEach(function(s, idx) {
       var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
-      var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
-      bannerHtml += '<div style="display:flex;align-items:center;gap:5px;padding:2px 0;">';
+      var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '?';
+      bannerHtml += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(245,197,24,0.25);">';
       bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
-      bannerHtml += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
-      bannerHtml += '<span>' + (t ? t.name : '?') + '</span>';
-      bannerHtml += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
-      bannerHtml += '<span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(s.duration || 0) + '</span>';
+      bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
+      bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
+      bannerHtml += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + fmtTravelTime(s.duration || 0) + '</span>';
       bannerHtml += '</div>';
     });
     bannerHtml += '</div>';
@@ -4363,19 +4361,18 @@ function editIntervention(id){
     bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
     bannerHtml += '</div>';
     if (siblings.length > 1) {
-      bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);font-size:0.6rem;">';
+      bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);">';
       siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
       siblings.forEach(function(s, idx) {
         var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
         var isCurrent = s.id === i.id;
-        var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
-        bannerHtml += '<div style="display:flex;align-items:center;gap:5px;padding:2px 0;' + (isCurrent ? 'font-weight:700;' : '') + '">';
+        var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '?';
+        bannerHtml += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(245,197,24,0.25);' + (isCurrent ? 'font-weight:700;background:rgba(245,197,24,0.12);margin:0 -12px;padding:4px 12px;' : '') + '">';
         bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
-        bannerHtml += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
-        bannerHtml += '<span>' + (t ? t.name : '?') + '</span>';
-        bannerHtml += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
-        bannerHtml += '<span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(s.duration || 0) + '</span>';
-        if (isCurrent) bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;">◄</span>';
+        bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
+        bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
+        bannerHtml += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + fmtTravelTime(s.duration || 0) + '</span>';
+        if (isCurrent) bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;font-size:0.7rem;">◄</span>';
         bannerHtml += '</div>';
       });
       bannerHtml += '</div>';
