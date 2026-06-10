@@ -4119,11 +4119,27 @@ function saveIntervention(){
   if (!editingId && data.commandeId && !isSuppMode) {
     var existingSiblings = getSiblingInterventions(data.commandeId);
     if (existingSiblings.length > 0) {
+      var _cmd = commandesData.find(function(c) { return c.id === data.commandeId; });
+      var _estimated = _cmd ? (computeGeoDuration(_cmd) || 0) : 0;
+      var _totalPlanned = existingSiblings.reduce(function(s, x) { return s + (x.duration || 0); }, 0);
+      var _newDur = data.duration || 0;
+      var _afterTotal = _totalPlanned + _newDur;
+      var _remaining = Math.max(0, _estimated - _afterTotal);
       var sibLabels = existingSiblings.map(function(s) {
         var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
-        return '  - ' + (t ? t.name : '?') + ' le ' + (s.date || '?') + ' (' + fmtTravelTime(s.duration || 0) + ')';
+        var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '?';
+        return '  → ' + (t ? t.name : '?') + ' · ' + dateLabel + ' · ' + fmtTravelTime(s.duration || 0);
       }).join('\n');
-      if (!confirm('Cette commande a déjà ' + existingSiblings.length + ' intervention(s) :\n' + sibLabels + '\n\nAjouter une intervention supplémentaire ?')) return;
+      var msg = '📋 Cette commande a déjà ' + existingSiblings.length + ' intervention(s) :\n\n';
+      msg += sibLabels + '\n\n';
+      msg += '━━━ Répartition des temps ━━━\n';
+      msg += '  Temps estimé total : ' + fmtTravelTime(_estimated) + '\n';
+      msg += '  Déjà planifié : ' + fmtTravelTime(_totalPlanned) + '\n';
+      msg += '  Cette intervention : + ' + fmtTravelTime(_newDur) + '\n';
+      msg += '  Après ajout : ' + fmtTravelTime(_afterTotal) + (_afterTotal > _estimated ? ' ⚠ DÉPASSEMENT' : '') + '\n';
+      msg += '  Reste à planifier : ' + fmtTravelTime(_remaining) + '\n\n';
+      msg += 'Ajouter cette intervention supplémentaire ?';
+      if (!confirm(msg)) return;
     }
   }
 
