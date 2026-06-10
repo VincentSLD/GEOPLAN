@@ -546,8 +546,8 @@ body::before {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  width: 560px;
-  max-height: 88vh;
+  width: 720px;
+  max-height: 95vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   position: relative;
@@ -561,7 +561,7 @@ body::before {
   border-radius: var(--radius) var(--radius) 0 0;
 }
 .modal-header {
-  padding: 10px 20px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
 }
@@ -583,8 +583,8 @@ body::before {
   transition: all var(--transition);
 }
 .modal-close:hover { background: rgba(220,38,38,0.08); color: #DC2626; border-color: rgba(220,38,38,0.3); }
-.modal-body { padding: 12px 20px; }
-.form-group { margin-bottom: 5px; }
+.modal-body { padding: 8px 16px; }
+.form-group { margin-bottom: 3px; }
 .form-label {
   display: block;
   font-size: 0.58rem;
@@ -596,7 +596,7 @@ body::before {
 }
 .form-input, .form-select, .form-textarea {
   width: 100%;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
@@ -612,10 +612,10 @@ body::before {
 }
 .form-textarea { resize: vertical; min-height: 40px; font-family: inherit; }
 .form-select { font-family: inherit; }
-.form-row { display: flex; gap: 8px; }
+.form-row { display: flex; gap: 6px; }
 .form-row .form-group { flex: 1; }
 .modal-footer {
-  padding: 8px 20px;
+  padding: 6px 16px;
   border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 8px;
 }
@@ -1055,10 +1055,10 @@ body::before {
   .detail-body { padding: 16px; }
 
   /* Modal mobile */
-  .modal { width: 95vw; max-height: 92vh; border-radius: var(--radius); }
-  .modal-header { padding: 16px 18px; }
-  .modal-body { padding: 16px 18px; }
-  .modal-footer { padding: 12px 18px; }
+  .modal { width: 95vw; max-height: 95vh; border-radius: var(--radius); }
+  .modal-header { padding: 8px 14px; }
+  .modal-body { padding: 10px 14px; }
+  .modal-footer { padding: 8px 14px; }
   .form-row { flex-direction: column; gap: 0; }
 }
 
@@ -2041,29 +2041,29 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
-      <div id="intSuppBanner" style="display:none;margin-bottom:10px;padding:10px 12px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
+      <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
         <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
       </div>
       <div class="form-row">
-        <div class="form-group" style="flex:2;"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
+        <div class="form-group" style="flex:3;"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
         <div class="form-group" style="flex:1;"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues"></div>
       </div>
-      <div class="form-group"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
+      <div class="form-row">
+        <div class="form-group" style="flex:3;"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
+        <div class="form-group" id="intTypeGroup" style="flex:1;"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
+      </div>
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
-        <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
-        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
+        <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
+        <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
+        <div class="form-group" style="flex:0 0 70px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
-      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
-      <div class="form-row" style="align-items:flex-end;">
-        <div class="form-group" id="intTypeGroup"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
-      </div>
+      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px;"></div>
       <select class="form-select" id="intStatus" style="display:none;"></select>
-      <div id="intRecurrenceBlock" style="margin:6px 0;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+      <div id="intRecurrenceBlock" style="margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
         <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">
           <input type="checkbox" id="intRecurrenceEnabled" onchange="toggleRecurrenceUI()"> Récurrence
         </label>
@@ -2080,10 +2080,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <div id="intRecurrencePreview" style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;"></div>
         </div>
       </div>
-      <div id="intGeosoliaInfo" style="display:none;margin:2px 0 4px;padding:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
+      <div id="intGeosoliaInfo" style="display:none;margin:2px 0 3px;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
-      <div class="form-group"><label class="form-label">Commentaires sur la commande <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:36px;max-height:80px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+      <div class="form-group"><label class="form-label">Commentaires sur la commande <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
       <div id="habitudesAccordion" style="display:none;margin:8px 0;">
         <details style="margin-bottom:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
