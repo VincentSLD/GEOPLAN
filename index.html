@@ -7144,7 +7144,13 @@ function computeGeoDuration(cmd) {
       if (minExtra > 0) return Math.max(15, Math.ceil(minExtra / 15) * 15);
     }
   }
-  // 5) Fallback
+  // 5) Temps estimé Géosolia (terrain uniquement, hors rapport)
+  var geoId = commandeGeosoliaLinks[cmd.id];
+  if (geoId) {
+    var prog = getGeosoliaProgram(geoId);
+    if (prog && prog.timeEstimateMin > 0) return prog.timeEstimateMin;
+  }
+  // 6) Fallback
   return 240;
 }
 
