@@ -6326,7 +6326,7 @@ function populateFlagsCheckboxes(selectedFlags) {
   var sel = selectedFlags || [];
   c.innerHTML = settingsFlags.map(function(f) {
     var checked = sel.indexOf(f.id) >= 0;
-    return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:0.62rem;cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid ' + (checked ? f.color : f.color + '30') + ';background:' + (checked ? f.color + '20' : 'transparent') + ';color:' + (checked ? 'var(--text-primary)' : 'var(--text-secondary)') + ';opacity:' + (checked ? '1' : '0.55') + ';white-space:nowrap;transition:all 0.15s;">' +
+    return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:0.62rem;cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid ' + (checked ? f.color : f.color + '30') + ';background:' + (checked ? f.color + '20' : 'transparent') + ';color:' + (checked ? 'var(--text-primary)' : '#333') + ';opacity:' + (checked ? '1' : '0.7') + ';white-space:nowrap;transition:all 0.15s;">' +
       '<input type="checkbox" class="flag-check" value="' + f.id + '" ' + (checked ? 'checked' : '') + ' style="display:none;">' +
       '<span style="width:7px;height:7px;border-radius:50%;background:' + f.color + ';flex-shrink:0;opacity:' + (checked ? '1' : '0.4') + ';"></span>' + f.label + '</label>';
   }).join('');
@@ -6339,8 +6339,8 @@ function populateFlagsCheckboxes(selectedFlags) {
         if (f) {
           lbl.style.borderColor = cb.checked ? f.color : f.color + '30';
           lbl.style.background = cb.checked ? f.color + '20' : 'transparent';
-          lbl.style.color = cb.checked ? 'var(--text-primary)' : 'var(--text-secondary)';
-          lbl.style.opacity = cb.checked ? '1' : '0.55';
+          lbl.style.color = cb.checked ? 'var(--text-primary)' : '#333';
+          lbl.style.opacity = cb.checked ? '1' : '0.7';
           lbl.querySelector('span').style.opacity = cb.checked ? '1' : '0.4';
         }
       }, 10);
