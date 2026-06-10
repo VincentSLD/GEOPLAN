@@ -521,6 +521,8 @@ body::before {
 .int-urgent { background: var(--type-urgent-bg); border-color: var(--type-urgent); }
 .int-urgent .int-time { color: var(--type-urgent); }
 
+.split-badge { display:inline-flex;align-items:center;justify-content:center;background:var(--gph-yellow);color:#111;font-size:0.48rem;font-weight:800;border-radius:6px;padding:1px 4px;margin-left:3px;line-height:1;letter-spacing:0.02em;vertical-align:middle; }
+
 .status-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .status-planned { background: var(--type-sondage); }
 .status-inprogress { background: var(--gph-yellow); animation: pulse 2s infinite; }
@@ -3658,6 +3660,56 @@ function jourFerieBadgeHTML(dateStr) {
   return '<div style="background:#fef3c7;color:#92400e;border:1px solid #fbbf2420;border-radius:6px;padding:3px 8px;font-size:0.6rem;font-weight:700;text-align:center;margin-bottom:3px;">🎌 ' + label + '</div>';
 }
 
+// ===== SPLIT COMMANDE HELPERS =====
+function getSiblingInterventions(commandeId) {
+  if (!commandeId) return [];
+  return interventions.filter(function(i) { return i.commandeId === commandeId && !i.isRapport; });
+}
+
+function getSplitBadge(int) {
+  if (!int.commandeId || int.isRapport) return '';
+  var siblings = getSiblingInterventions(int.commandeId);
+  if (siblings.length <= 1) return '';
+  siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
+  var idx = siblings.findIndex(function(s) { return s.id === int.id; });
+  return '<span class="split-badge" title="Intervention ' + (idx + 1) + '/' + siblings.length + ' pour cette commande">' + (idx + 1) + '/' + siblings.length + '</span>';
+}
+
+function renderSplitSummary(int) {
+  if (!int.commandeId || int.isRapport) return '';
+  var siblings = getSiblingInterventions(int.commandeId);
+  if (siblings.length <= 1) return '';
+  var cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
+  var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
+  var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+  var remaining = Math.max(0, estimated - totalPlanned);
+  var f = function(m) { return m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '') : m + 'min'; };
+  var html = '<div style="margin-bottom:10px;padding:10px;background:#fef9e7;border:1px solid var(--gph-yellow);border-radius:8px;">';
+  html += '<div style="font-size:0.72rem;font-weight:700;margin-bottom:6px;">Répartition commande (' + siblings.length + ' interventions)</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;text-align:center;">';
+  html += '<div><div style="font-size:0.85rem;font-weight:700;">' + f(estimated) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Estimé</div></div>';
+  html += '<div><div style="font-size:0.85rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + f(totalPlanned) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Planifié</div></div>';
+  html += '<div><div style="font-size:0.85rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + f(remaining) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Reste</div></div>';
+  html += '</div>';
+  html += '<div style="font-size:0.65rem;border-top:1px solid var(--gph-yellow);padding-top:6px;">';
+  siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
+  siblings.forEach(function(s, idx) {
+    var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
+    var isCurrent = s.id === int.id;
+    var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;' + (isCurrent ? 'font-weight:700;' : '') + '">';
+    html += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
+    html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
+    html += '<span>' + (t ? t.name : '?') + '</span>';
+    html += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
+    html += '<span style="font-family:\'DM Mono\',monospace;">' + f(s.duration || 0) + '</span>';
+    if (isCurrent) html += '<span style="color:var(--gph-yellow);font-weight:700;">◄</span>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
 // ===== WEEK =====
 function renderWeek() {
   const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
@@ -3725,7 +3777,7 @@ function renderWeek() {
         var durLabel = intDur >= 60 ? Math.floor(intDur/60) + 'h' + (intDur%60 ? String(intDur%60).padStart(2,'0') : '') : intDur + 'min';
         var typeColor = int.type ? (TYPE_RAW[int.type] || '') : '';
         var intBorder = typeColor ? 'border:2px solid '+typeColor+';border-left:4px solid '+typeColor+';' : 'border:1px solid '+statusColor+'60;border-left:4px solid '+statusColor+';';
-        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel} ${renderFlagDots(int.flags)} ${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${!int.commandeId && !int.isRapport && int.title && type.label && int.title !== type.label ? '<div style="font-size:0.58rem;color:var(--text-secondary);font-style:italic;margin-top:1px;">'+int.title+'</div>' : ''}${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-secondary);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.affaireId&&affairesMap[int.affaireId]?' — '+affairesMap[int.affaireId].nom.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">${di.length>1&&idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;" title="Monter">▲</button>':''}${di.length>1&&idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;" title="Descendre">▼</button>':''}<button onclick="event.stopPropagation();unplanIntervention(${int.id})" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;color:var(--text-muted);" title="Remettre dans À planifier">↩</button>${!int.commandeId&&!int.isRapport?'<button onclick="event.stopPropagation();deleteRecurrenceGroup('+int.id+')" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:7px;cursor:pointer;padding:0;line-height:1;color:#DC2626;" title="Supprimer les récurrences">✕</button>':''}</div></div>`;
+        html+=`<div class="intervention" draggable="true" ondragstart="handleDrag(event,${int.id})" style="background:${statusColor}73;${intBorder}position:relative;cursor:grab;" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="int-time" style="color:var(--text-primary);font-weight:600;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:4px;"></span>${durLabel}${getSplitBadge(int)} ${renderFlagDots(int.flags)} ${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div><div class="int-title" style="color:var(--text-primary);">${int.isRapport ? '📝 ' + (int.client || int.title) : (int.commandeId ? (int.client || int.title) : (type.label || int.title))}</div>${!int.commandeId && !int.isRapport && int.title && type.label && int.title !== type.label ? '<div style="font-size:0.58rem;color:var(--text-secondary);font-style:italic;margin-top:1px;">'+int.title+'</div>' : ''}${int.affaireRef ? '<div style="font-size:0.55rem;color:var(--text-secondary);font-family:\'DM Mono\',monospace;">'+int.affaireRef+(int.affaireId&&affairesMap[int.affaireId]?' — '+affairesMap[int.affaireId].nom.substring(0,25):'')+'</div>' : ''}${int.isRapport ? '' : '<div class="int-location" style="color:var(--text-secondary);">📍 '+(function(loc){if(!loc)return'';var p=loc.match(/(\d{5})\s*(.+?)$/);return p?p[1]+' '+p[2]:loc.split(',').pop().trim();})(int.location)+'</div>'}${compAlert?'<div style="font-size:0.52rem;color:#DC2626;font-weight:700;margin-top:2px;">⚠ '+compAlert.mission+'</div>':''}<div style="position:absolute;top:2px;right:2px;display:flex;flex-direction:column;gap:1px;">${di.length>1&&idx>0?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;" title="Monter">▲</button>':''}${di.length>1&&idx<di.length-1?'<button onclick="event.stopPropagation();swapIntervention('+int.id+',1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;" title="Descendre">▼</button>':''}<button onclick="event.stopPropagation();unplanIntervention(${int.id})" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:8px;cursor:pointer;padding:0;line-height:1;color:var(--text-muted);" title="Remettre dans À planifier">↩</button>${!int.commandeId&&!int.isRapport?'<button onclick="event.stopPropagation();deleteRecurrenceGroup('+int.id+')" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;width:16px;height:14px;font-size:7px;cursor:pointer;padding:0;line-height:1;color:#DC2626;" title="Supprimer les récurrences">✕</button>':''}</div></div>`;
         var isLastTerrain = !int.isRapport && !di.slice(idx+1).some(function(x){return !x.isRapport;});
         if(showTravel && int.commandeId && !int.isRapport && isLastTerrain) html+=renderTravelRetour(int,tech);
         html+=`</div>`
@@ -3820,7 +3872,7 @@ function renderDay() {
       var typeColor = TYPE_RAW[int.type] || color;
 
       html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeColor + '12;border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" ondblclick="event.stopPropagation();editIntervention(' + int.id + ')" onmouseenter="_tlShowBarTooltip(' + int.id + ',event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()">';
-      html += '<div style="font-size:0.65rem;font-weight:700;color:' + typeColor + ';">' + int.startTime + ' – ' + int.endTime;
+      html += '<div style="font-size:0.65rem;font-weight:700;color:' + typeColor + ';">' + int.startTime + ' – ' + int.endTime + getSplitBadge(int);
       html += (!int.isRapport ? ' <span data-weather-int="' + int.id + '" data-weather-size="sm">' + weatherBadgeHTML(getWeatherForInt(int)) + '</span>' : '') + '</div>';
       html += '<div style="font-size:0.72rem;font-weight:600;margin-top:2px;">' + int.title + '</div>';
       if (iH > 50) html += '<div style="font-size:0.62rem;color:var(--text-muted);margin-top:1px;">📍 ' + (int.location || '').split(',')[0] + '</div>';
@@ -3877,7 +3929,7 @@ function renderList() {
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
       const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), _cs=getIntStatusFromCmd(int);
-      html+=`<div class="list-item" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="list-item-time">${int.startTime} – ${int.endTime}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
+      html+=`<div class="list-item" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="list-item-time">${int.startTime} – ${int.endTime}${getSplitBadge(int)}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
     });
     html+=`</div>`;
   }
@@ -3913,12 +3965,13 @@ function dropToAPlanifier(e) {
   var int = interventions.find(function(i){return i.id===draggedId;});
   draggedId = null;
   if (!int) return;
-  var linkedRapport = int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  var remainingTerrain = int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== int.id; }).length : 0;
+  var linkedRapport = (remainingTerrain === 0 && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
   interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
   (async function(){
     await deleteInterventionFromSupabase(int.id);
     if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    if (int.commandeId) {
+    if (int.commandeId && remainingTerrain === 0) {
       await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
       var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
       if (cmd) cmd.planification = 'A planifier';
@@ -4044,10 +4097,16 @@ function saveIntervention(){
   // Vérifier champs obligatoires
   if (!data.date) { alert('La date est obligatoire'); return; }
   if (!data.techId) { alert('Le géotechnicien est obligatoire'); return; }
-  // Vérifier doublon
+  // Vérifier si commande déjà planifiée → confirmation pour scinder
   if (!editingId && data.commandeId) {
-    var dup = interventions.find(function(i) { return i.commandeId === data.commandeId && !i.isRapport; });
-    if (dup) { alert('Cette commande est déjà planifiée.'); return; }
+    var existingSiblings = getSiblingInterventions(data.commandeId);
+    if (existingSiblings.length > 0) {
+      var sibLabels = existingSiblings.map(function(s) {
+        var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
+        return '  - ' + (t ? t.name : '?') + ' le ' + (s.date || '?') + ' (' + fmtTravelTime(s.duration || 0) + ')';
+      }).join('\n');
+      if (!confirm('Cette commande a déjà ' + existingSiblings.length + ' intervention(s) :\n' + sibLabels + '\n\nAjouter une intervention supplémentaire ?')) return;
+    }
   }
 
   // Vérifier compétence avant sauvegarde
@@ -4159,13 +4218,42 @@ function openDetail(id){
       <div>${int.client ? '🏢 '+int.client : ''} ${showWeather && !int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}</div>
     </div>
     ${int.commandeRef || int.affaireRef || int.marcheRef ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.72rem;font-family:\'DM Mono\',monospace;">'+(int.commandeRef?'<span>📋 '+int.commandeRef+'</span>':'')+(int.affaireRef?'<span>📂 '+int.affaireRef+'</span>':'')+(int.marcheRef?'<span>📑 '+int.marcheRef+'</span>':'')+(!mobileMyTechId && int.affaireRef?'<button onclick="openDossierAffaire(\''+int.affaireRef+'\')" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.65rem;cursor:pointer;font-family:inherit;font-weight:600;">📁 Ouvrir dossier</button>':'')+'</div>' : ''}
+    ${renderSplitSummary(int)}
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderCmdCustomDataHTML(cmd) : ''; })()}
     ${int.geosoliaId ? '<div style="margin-bottom:8px;"><div style="font-size:0.78rem;margin-bottom:4px;">🌍 <strong>'+(int.geosoliaRef||'')+' — '+(int.geosoliaName||'')+'</strong></div>'+(function(){ var p=getGeosoliaProgram(int.geosoliaId); return p ? '<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:8px;">'+renderGeosoliaEnquete(p)+'</div>' : ''; })()+'</div>' : ''}
     ${(function(){ if(!int.commandeId) return ''; var cmd=commandesData.find(function(c){return c.id===int.commandeId;}); return cmd ? renderHabitudesDetailHTML(cmd) : ''; })()}
-    ${!mobileMyTechId || window.innerWidth > 768 ? '<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-dark" onclick="editIntervention('+int.id+')" style="flex:1;padding:6px;">✏️ Modifier</button><button class="btn btn-ghost" onclick="deleteIntervention('+int.id+')" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button></div>' : ''}`;
+    ${!mobileMyTechId || window.innerWidth > 768 ? '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'+(int.commandeId && !int.isRapport ? '<button class="btn btn-ghost" onclick="planifierSupplementaire('+int.id+')" style="flex:1;padding:6px;font-size:0.68rem;border-color:var(--gph-yellow);color:var(--gph-yellow);">➕ Planifier interv. supp.</button>' : '')+'<button class="btn btn-dark" onclick="editIntervention('+int.id+')" style="flex:1;padding:6px;">✏️ Modifier</button><button class="btn btn-ghost" onclick="deleteIntervention('+int.id+')" style="color:#DC2626;border-color:rgba(220,38,38,0.3);padding:6px;">🗑 Suppr.</button></div>' : ''}`;
   document.getElementById('detailPanel').classList.add('open');
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
+function planifierSupplementaire(id) {
+  var src = interventions.find(function(i) { return i.id === id; });
+  if (!src || !src.commandeId) return;
+  closeDetail();
+  editingId = null;
+  populateCommandeSelect();
+  populateGeosoliaSelect();
+  document.getElementById('modalTitle').textContent = 'Intervention supplémentaire';
+  openModal();
+  document.getElementById('intCommande').value = src.commandeId;
+  onCommandeSelect();
+  if (src.geosoliaId) {
+    document.getElementById('intGeosolia').value = src.geosoliaId;
+    onGeosoliaSelect();
+  }
+  document.getElementById('intAddress').value = src.location || '';
+  document.getElementById('intClient').value = src.client || '';
+  document.getElementById('intType').value = src.type || '';
+  var cmd = commandesData.find(function(c) { return c.id === src.commandeId; });
+  var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
+  var siblings = getSiblingInterventions(src.commandeId);
+  var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+  var remaining = Math.max(0, estimated - totalPlanned);
+  if (remaining > 0) {
+    document.getElementById('intDuration').value = (remaining / 60);
+    updateEndFromDuration();
+  }
+}
 function editIntervention(id){
   const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();populateCommandeSelect();populateGeosoliaSelect();
   document.getElementById('modalTitle').textContent='Modifier l\'intervention';
@@ -4190,17 +4278,15 @@ function editIntervention(id){
 function deleteIntervention(id){
   if(!confirm('Supprimer cette intervention ?')) return;
   var int = interventions.find(function(i){return i.id===id;});
-  // Find linked rapport if this is a terrain intervention
-  var linkedRapport = int && int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
-  var deleteRapport = linkedRapport ? confirm('Un rapport est lié à cette intervention.\nSupprimer aussi le rapport ?') : false;
+  var remainingTerrain = int && int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== id; }).length : 0;
+  var linkedRapport = (remainingTerrain === 0 && int && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  var deleteRapport = linkedRapport ? confirm('C\'est la dernière intervention terrain pour cette commande.\nSupprimer aussi le rapport ?') : false;
   showLoader('Suppression...');
-  // Remove intervention(s) from memory
   interventions = interventions.filter(function(i){return i.id!==id && (!deleteRapport || !linkedRapport || i.id!==linkedRapport.id);});
   (async function(){
     await deleteInterventionFromSupabase(id);
     if (deleteRapport && linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    // Update commande planification status back to 'A planifier'
-    if (int && int.commandeId) {
+    if (int && int.commandeId && remainingTerrain === 0) {
       await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
       var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
       if (cmd) cmd.planification = 'A planifier';
@@ -4213,12 +4299,13 @@ function unplanIntervention(id) {
   if (!confirm('Remettre cette intervention dans « À planifier » ?')) return;
   var int = interventions.find(function(i){return i.id===id;});
   if (!int) return;
-  var linkedRapport = int.commandeId && !int.isRapport ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
+  var remainingTerrain = int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== id; }).length : 0;
+  var linkedRapport = (remainingTerrain === 0 && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
   interventions = interventions.filter(function(i){return i.id!==id && (!linkedRapport || i.id!==linkedRapport.id);});
   (async function(){
     await deleteInterventionFromSupabase(id);
     if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    if (int.commandeId) {
+    if (int.commandeId && remainingTerrain === 0) {
       await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
       var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
       if (cmd) cmd.planification = 'A planifier';
@@ -4803,10 +4890,13 @@ function toggleAPlanSoc(soc) {
 }
 
 function getUnplannedCommandes() {
-  var plannedCmdIds = {};
-  interventions.forEach(function(i) { if (i.commandeId && !i.isRapport) plannedCmdIds[i.commandeId] = true; });
+  var plannedDurByCmdId = {};
+  interventions.forEach(function(i) { if (i.commandeId && !i.isRapport) plannedDurByCmdId[i.commandeId] = (plannedDurByCmdId[i.commandeId] || 0) + (i.duration || 0); });
   return commandesData.filter(function(c) {
-    if (plannedCmdIds[c.id]) return false;
+    var planned = plannedDurByCmdId[c.id] || 0;
+    var estimated = computeGeoDuration(c) || 0;
+    if (planned > 0 && estimated > 0 && planned >= estimated) return false;
+    if (planned > 0 && estimated === 0) return false;
     if (aPlanifierSocFilter.length > 0 && aPlanifierSocFilter.indexOf(c.societe) < 0) return false;
     return true;
   }).sort(function(a, b) {
@@ -4956,6 +5046,15 @@ function renderAPlanifier() {
     if (geoName) html += '<span style="color:#16A34A;">🌍 ' + geoName.project_name + '</span>';
     else html += '<span style="color:#DC2626;font-weight:700;">⚠ Géosolia non lié</span>';
     html += '</div>';
+    var existingInts = getSiblingInterventions(cmd.id);
+    if (existingInts.length > 0) {
+      var estimated = computeGeoDuration(cmd) || 0;
+      var totalPlanned = existingInts.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+      var remaining = estimated > 0 ? Math.max(0, estimated - totalPlanned) : 0;
+      var pct = estimated > 0 ? Math.min(100, Math.round(100 * totalPlanned / estimated)) : 100;
+      html += '<div style="margin-top:3px;font-size:0.58rem;color:#D97706;font-weight:600;">⚠ Partiellement planifié (' + existingInts.length + ' int. · reste ' + fmtTravelTime(remaining) + ')</div>';
+      html += '<div style="margin-top:2px;height:3px;background:#e5e7eb;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--gph-yellow);border-radius:2px;"></div></div>';
+    }
     html += '</div>';
   });
   list.innerHTML = html;
@@ -4976,9 +5075,15 @@ function dropAPlanifier(e, techId, dateStr) {
   // Check jour férié / absence
   if (!confirmIfFerie(dateStr)) { draggedCmdId = null; return; }
   if (!confirmIfAbsence(techId, dateStr)) { draggedCmdId = null; return; }
-  // Check if already planned
-  var existing = interventions.find(function(i) { return i.commandeId === cmd.id && !i.isRapport; });
-  if (existing) { alert('Cette commande est déjà planifiée.'); draggedCmdId = null; return; }
+  // Check if already planned → confirmation pour scinder
+  var existingSiblings = getSiblingInterventions(cmd.id);
+  if (existingSiblings.length > 0) {
+    var sibLabels = existingSiblings.map(function(s) {
+      var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
+      return '  - ' + (t ? t.name : '?') + ' le ' + (s.date || '?');
+    }).join('\n');
+    if (!confirm('Cette commande a déjà ' + existingSiblings.length + ' intervention(s) :\n' + sibLabels + '\n\nAjouter une intervention supplémentaire ?')) { draggedCmdId = null; return; }
+  }
 
   // Create intervention from commande
   var geoId = commandeGeosoliaLinks[cmd.id] || null;
@@ -5863,15 +5968,14 @@ function populateHabitudes(cmd) {
 function populateCommandeSelect() {
   var sel = document.getElementById('intCommande');
   if (!sel) return;
-  var plannedCmdIds = {};
-  interventions.forEach(function(i) { if (i.commandeId && !i.isRapport) plannedCmdIds[i.commandeId] = true; });
-  // Keep the currently edited commande in the list
-  var currentCmdId = editingId ? (interventions.find(function(i){return i.id===editingId;})||{}).commandeId : null;
+  var plannedCountByCmdId = {};
+  interventions.forEach(function(i) { if (i.commandeId && !i.isRapport) plannedCountByCmdId[i.commandeId] = (plannedCountByCmdId[i.commandeId] || 0) + 1; });
   sel.innerHTML = '<option value="">— Aucune commande —</option>';
   commandesData.forEach(function(c) {
-    if (plannedCmdIds[c.id] && c.id !== currentCmdId) return;
     var aff = c._affaire ? c._affaire.ref + ' — ' + (c._affaire.nom || '').substring(0, 40) : (c.ref || '?') + ' — ' + (c.nom || c.client_name || '').substring(0, 40);
-    sel.innerHTML += '<option value="' + c.id + '">' + aff + '</option>';
+    var cnt = plannedCountByCmdId[c.id] || 0;
+    var suffix = cnt > 0 ? ' [' + cnt + ' int.]' : '';
+    sel.innerHTML += '<option value="' + c.id + '">' + aff + suffix + '</option>';
   });
 }
 
@@ -8365,7 +8469,7 @@ function buildMobileCard(int, compact) {
   var durMin = int.duration || (timeToMin(int.endTime) - timeToMin(int.startTime)) || 0;
   var durLabel = durMin >= 60 ? Math.floor(durMin / 60) + 'h' + (durMin % 60 ? String(durMin % 60).padStart(2, '0') : '') : durMin + 'min';
   var html = '<div class="mob-card" style="border-left-color:' + typeColor + ';" onclick="openDetail(' + int.id + ')">';
-  html += '<div class="mob-card-time"><span>' + int.startTime + ' — ' + int.endTime + '</span><span class="mob-card-duration">' + durLabel + '</span></div>';
+  html += '<div class="mob-card-time"><span>' + int.startTime + ' — ' + int.endTime + '</span><span class="mob-card-duration">' + durLabel + getSplitBadge(int) + '</span></div>';
   html += '<div class="mob-card-title">' + (int.title || type.label) + '</div>';
   html += '<div class="mob-card-type" style="background:' + typeColor + '12;color:' + typeColor + ';">' + type.label + '</div>';
   if (int.location) html += '<div class="mob-card-location">📍 ' + int.location.split(',')[0] + '</div>';
