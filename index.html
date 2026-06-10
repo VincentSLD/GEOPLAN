@@ -2038,6 +2038,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
+      <div id="intSuppBanner" style="display:none;margin-bottom:10px;padding:10px 12px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
         <div class="form-group"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
@@ -4001,7 +4002,8 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function openModal(){editingId=null;document.getElementById('btnPlanifierSupp').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4074,6 +4076,8 @@ function resetRecurrenceUI() {
 function openModalForSlot(tid,ds){openModal();document.getElementById('intTech').value=tid;document.getElementById('intDate').value=ds;}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active');}
 function saveIntervention(){
+  document.getElementById('intCommande').disabled = false;
+  document.getElementById('intGeosolia').disabled = false;
   var cmdId = document.getElementById('intCommande').value || null;
   var cmd = cmdId ? commandesData.find(function(c){return c.id===cmdId;}) : null;
   const data={
@@ -4109,8 +4113,9 @@ function saveIntervention(){
   // Vérifier champs obligatoires
   if (!data.date) { alert('La date est obligatoire'); return; }
   if (!data.techId) { alert('Le géotechnicien est obligatoire'); return; }
-  // Vérifier si commande déjà planifiée → confirmation pour scinder
-  if (!editingId && data.commandeId) {
+  // Vérifier si commande déjà planifiée → confirmation pour scinder (sauf si mode supplémentaire)
+  var isSuppMode = document.getElementById('intSuppBanner').style.display !== 'none';
+  if (!editingId && data.commandeId && !isSuppMode) {
     var existingSiblings = getSiblingInterventions(data.commandeId);
     if (existingSiblings.length > 0) {
       var sibLabels = existingSiblings.map(function(s) {
@@ -4264,6 +4269,48 @@ function planifierSupplementaire(id) {
     document.getElementById('intGeosolia').value = geoId;
     onGeosoliaSelect();
   }
+  // Verrouiller commande et géosolia
+  document.getElementById('intCommande').disabled = true;
+  document.getElementById('intGeosolia').disabled = true;
+  // Bandeau récapitulatif
+  var cmd = commandesData.find(function(c) { return c.id === src.commandeId; });
+  var siblings = getSiblingInterventions(src.commandeId);
+  var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
+  var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
+  var remaining = Math.max(0, estimated - totalPlanned);
+  var geoLabel = '';
+  if (geoId) {
+    var gp = geosoliaProjects.find(function(p) { return p.id === geoId; });
+    geoLabel = gp ? gp.project_ref + ' — ' + gp.project_name : geoId;
+  }
+  var bannerHtml = '<div style="font-weight:700;margin-bottom:4px;">🔗 Intervention liée à la même commande</div>';
+  bannerHtml += '<div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:0.65rem;color:var(--text-secondary);">';
+  bannerHtml += '<span>📋 <strong>' + (cmd ? cmd.ref : src.commandeRef || '?') + '</strong></span>';
+  if (geoLabel) bannerHtml += '<span>🌍 <strong>' + geoLabel + '</strong></span>';
+  bannerHtml += '</div>';
+  bannerHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;text-align:center;">';
+  bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;">' + fmtTravelTime(estimated) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Estimé</div></div>';
+  bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Déjà planifié (' + siblings.length + ' int.)</div></div>';
+  bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
+  bannerHtml += '</div>';
+  if (siblings.length > 0) {
+    bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);font-size:0.6rem;">';
+    siblings.forEach(function(s, idx) {
+      var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
+      var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
+      bannerHtml += '<div style="display:flex;align-items:center;gap:5px;padding:2px 0;">';
+      bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
+      bannerHtml += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
+      bannerHtml += '<span>' + (t ? t.name : '?') + '</span>';
+      bannerHtml += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
+      bannerHtml += '<span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(s.duration || 0) + '</span>';
+      bannerHtml += '</div>';
+    });
+    bannerHtml += '</div>';
+  }
+  var banner = document.getElementById('intSuppBanner');
+  banner.innerHTML = bannerHtml;
+  banner.style.display = 'block';
   // Reprendre toutes les infos de l'intervention source
   document.getElementById('intAddress').value = src.location || '';
   document.getElementById('intClient').value = src.client || '';
@@ -4273,19 +4320,14 @@ function planifierSupplementaire(id) {
   document.getElementById('intStatus').value = src.status || '';
   populateFlagsCheckboxes(src.flags || []);
   document.getElementById('intRecurrenceBlock').style.display = 'none';
-  // Calculer temps restant
-  var cmd = commandesData.find(function(c) { return c.id === src.commandeId; });
-  var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
-  var siblings = getSiblingInterventions(src.commandeId);
-  var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
-  var remaining = Math.max(0, estimated - totalPlanned);
+  // Pré-remplir durée restante
   if (remaining > 0) {
     document.getElementById('intDuration').value = fmtDurInput(remaining);
     updateEndFromDuration();
   }
 }
 function editIntervention(id){
-  const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();populateCommandeSelect();populateGeosoliaSelect();
+  const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();resetSuppMode();populateCommandeSelect();populateGeosoliaSelect();
   document.getElementById('modalTitle').textContent='Modifier l\'intervention';
   document.getElementById('intType').value=i.type;document.getElementById('intStatus').value=i.status;
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
