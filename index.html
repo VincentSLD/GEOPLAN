@@ -2043,7 +2043,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="form-row">
         <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
         <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
-        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="number" min="0.25" step="0.25" onchange="updateEndFromDuration()" placeholder="h"></div>
+        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration()" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
@@ -2889,6 +2889,8 @@ async function computeAllTravel() {
 
 // ===== RENDER HELPERS =====
 function fmtTravelTime(m) { return m >= 60 ? Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'') : m+'min'; }
+function fmtDurInput(min) { if (!min || min <= 0) return ''; var h = Math.floor(min / 60); var m = Math.round(min % 60); return h > 0 ? (m > 0 ? h + 'h' + String(m).padStart(2, '0') : h + 'h') : m + 'min'; }
+function parseDurInput(val) { if (!val) return 0; val = String(val).trim().toLowerCase().replace(',', '.'); var mh = val.match(/^(\d+)\s*h\s*(\d+)?$/); if (mh) return parseInt(mh[1]) * 60 + (parseInt(mh[2]) || 0); var mc = val.match(/^(\d+):(\d+)$/); if (mc) return parseInt(mc[1]) * 60 + parseInt(mc[2]); var mm = val.match(/^(\d+)\s*min$/); if (mm) return parseInt(mm[1]); var n = parseFloat(val); return isNaN(n) ? 0 : Math.round(n * 60); }
 function renderTravelAller(int, tech) {
   const km = int.travelToKm ? ` · ${int.travelToKm} km` : '';
   return `<div class="travel-block travel-aller" style="cursor:pointer;" onclick="event.stopPropagation();editTravelLieu(${int.id},'depart')" title="Modifier le lieu de départ"><span>🚗</span><div class="travel-info"><div class="travel-time">${fmtTravelTime(int.travelTo)}${km}</div><div class="travel-label">Trajet aller ✏️</div></div></div>`;
@@ -3471,7 +3473,7 @@ function onTypeChange() {
   if (t && t.dureeDefaut) {
     var durField = document.getElementById('intDuration');
     if (!durField.value || durField.value === '0') {
-      durField.value = (t.dureeDefaut / 60);
+      durField.value = fmtDurInput(t.dureeDefaut);
       updateEndFromDuration();
     }
   }
@@ -3985,8 +3987,7 @@ function dropToAPlanifier(e) {
 let _intAddrInitialized = false;
 function updateEndFromDuration(){
   var start=document.getElementById('intStart').value||'08:00';
-  var durH=parseFloat(document.getElementById('intDuration').value)||4;
-  var durMin=Math.round(durH*60);
+  var durMin=parseDurInput(document.getElementById('intDuration').value)||240;
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
@@ -4072,7 +4073,7 @@ function saveIntervention(){
     date:document.getElementById('intDate').value,
     startTime:document.getElementById('intStart').value,
     endTime:document.getElementById('intEnd').value,
-    duration:Math.round((parseFloat(document.getElementById('intDuration').value)||0)*60),
+    duration:parseDurInput(document.getElementById('intDuration').value),
     techId:parseInt(document.getElementById('intTech').value),
     location:document.getElementById('intAddress').value||'',
     client:document.getElementById('intClient').value||'-',
@@ -4269,7 +4270,7 @@ function planifierSupplementaire(id) {
   var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
   var remaining = Math.max(0, estimated - totalPlanned);
   if (remaining > 0) {
-    document.getElementById('intDuration').value = (remaining / 60);
+    document.getElementById('intDuration').value = fmtDurInput(remaining);
     updateEndFromDuration();
   }
 }
@@ -4280,7 +4281,7 @@ function editIntervention(id){
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
   document.getElementById('intDate').value=i.date;document.getElementById('intStart').value=i.startTime;
   document.getElementById('intEnd').value=i.endTime;
-  document.getElementById('intDuration').value=((i.duration || (timeToMin(i.endTime)-timeToMin(i.startTime)) || 240) / 60);
+  document.getElementById('intDuration').value=fmtDurInput(i.duration || (timeToMin(i.endTime)-timeToMin(i.startTime)) || 240);
   document.getElementById('intTech').value=i.techId;
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
@@ -5723,7 +5724,7 @@ function onCommandeSelect() {
   var durInput = document.getElementById('intDuration');
   if (durInput && !durInput.value) {
     var computed = (typeof computeGeoDurationOrNull === 'function') ? computeGeoDurationOrNull(cmd) : null;
-    if (computed) { durInput.value = (computed / 60); if (typeof updateEndFromDuration === 'function') updateEndFromDuration(); }
+    if (computed) { durInput.value = fmtDurInput(computed); if (typeof updateEndFromDuration === 'function') updateEndFromDuration(); }
   }
 }
 
@@ -6479,7 +6480,7 @@ function onGeosoliaSelect() {
   var editingInt = editingId ? interventions.find(function(i){return i.id===editingId;}) : null;
   var geosoliaTime = (editingInt && editingInt.isRapport && prog.estimatedReportMin) ? prog.estimatedReportMin : prog.timeEstimateMin;
   if (geosoliaTime) {
-    document.getElementById('intDuration').value = (geosoliaTime / 60);
+    document.getElementById('intDuration').value = fmtDurInput(geosoliaTime);
     updateEndFromDuration();
   }
 
@@ -9748,7 +9749,7 @@ function buildPlanningContext() {
         const aff = cmd._affaire ? `Affaire: ${cmd._affaire.ref || ''} — ${cmd._affaire.nom || ''}` : '';
         const addr = cmd._affaire ? [cmd._affaire.adresse, cmd._affaire.ville, cmd._affaire.code_postal].filter(Boolean).join(', ') : '';
         const durMin = (typeof computeGeoDuration === 'function') ? computeGeoDuration(cmd) : 0;
-        const durH = durMin ? Math.round(durMin / 60 * 10) / 10 : '?';
+        const durH = durMin ? fmtTravelTime(durMin) : '?';
         // Geosolia
         let geoInfo = '';
         const geoId = (typeof commandeGeosoliaLinks !== 'undefined') ? commandeGeosoliaLinks[cmd.id] : null;
@@ -9759,7 +9760,7 @@ function buildPlanningContext() {
             geoInfo = ` | Geosolia: mission=${prog.mission || '-'}, adresse=${prog.address || '-'}, sondages=[${sondages}], temps terrain=${prog.timeEstimateMin}min${prog.timeIsReal ? ' (réel)' : ' (estimé)'}${prog.pelleNecessaire ? ', PELLE NÉCESSAIRE' : ''}${prog.laboratoire ? ', LABO' : ''}${prog.infoGeotechnicien ? ', Info: '+prog.infoGeotechnicien : ''}`;
           }
         }
-        return `- [cmdId:${cmd.id}] Réf: ${cmd.ref || '-'} | Client: ${cmd.client_name || '-'} | ${aff} | Société: ${cmd.societe || '-'} | Catégorie: ${categorie || '-'} | Mission: ${missionType || '-'} | Statut: ${statut || '-'} | DLR: ${dlr || '-'} | DLC: ${dlc || '-'} | Durée estimée: ${durH}h | Montant: ${cmd.montant || '-'}€ | Adresse: ${addr || '-'}${codeGO ? ' | Code GO: '+codeGO : ''}${grosOeuvre ? ' | GO: '+grosOeuvre : ''}${options ? ' | Options: '+options : ''}${longrines ? ' | Longrines: '+longrines : ''}${apporteur ? ' | Apporteur: '+apporteur : ''}${geoInfo}`;
+        return `- [cmdId:${cmd.id}] Réf: ${cmd.ref || '-'} | Client: ${cmd.client_name || '-'} | ${aff} | Société: ${cmd.societe || '-'} | Catégorie: ${categorie || '-'} | Mission: ${missionType || '-'} | Statut: ${statut || '-'} | DLR: ${dlr || '-'} | DLC: ${dlc || '-'} | Durée estimée: ${durH} | Montant: ${cmd.montant || '-'}€ | Adresse: ${addr || '-'}${codeGO ? ' | Code GO: '+codeGO : ''}${grosOeuvre ? ' | GO: '+grosOeuvre : ''}${options ? ' | Options: '+options : ''}${longrines ? ' | Longrines: '+longrines : ''}${apporteur ? ' | Apporteur: '+apporteur : ''}${geoInfo}`;
       }).join('\n');
     }
   }
@@ -9825,7 +9826,7 @@ ${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine
   if (unplannedRapports.length > 0) {
     var rapLines = unplannedRapports.map(function(r) {
       var tech = TECHNICIANS.find(function(t) { return t.id === r.techId; });
-      var durLabel = r.duration ? Math.round(r.duration / 60 * 10) / 10 + 'h' : '?';
+      var durLabel = r.duration ? fmtTravelTime(r.duration) : '?';
       return `- [ID:${r.id}] 📝 ${r.title || 'Rapport'} | Tech: ${tech ? tech.name : '?'} (techId:${r.techId}) | Durée: ${durLabel} | Client: ${r.client || '-'}${r.commandeRef ? ' | Réf: '+r.commandeRef : ''}`;
     });
     ctx += `\n\nRAPPORTS À PLANIFIER (${rapLines.length} rapports sans date):
