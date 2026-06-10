@@ -6052,7 +6052,7 @@ function getGeosoliaProgram(projectId) {
     lng: d.projectLng || null,
     address: [d.projectAddr, d.projectCp, d.projectVille].filter(Boolean).join(', '),
     ville: d.projectVille || '',
-    mission: d.projectMission || '',
+    mission: resolveMissionAlias(d.projectMission) || '',
     sondageCounts: sondageCounts,
     sondageLabels: sondageLabels,
     sondageDetails: sondageDetails,
@@ -7932,6 +7932,10 @@ var MISSION_TYPE_LABELS = {
   G2_AVP: 'G2 AVP', G2_AVP_PRO: 'G2 AVP + PRO',
   G3: 'G3', G4: 'G4', G5: 'G5'
 };
+var MISSION_ALIASES = {
+  G1_ES: 'G1_REGAR'
+};
+function resolveMissionAlias(m) { return m ? (MISSION_ALIASES[m] || m) : m; }
 
 var TYPOLOGIE_LABELS = {
   MAISON_INDIVIDUELLE: 'Maison individuelle',
@@ -7950,12 +7954,12 @@ var TYPOLOGIE_LABELS = {
 };
 function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.replace(/_/g,' ').toLowerCase().replace(/^./, function(c){return c.toUpperCase();}); }
 // Ne retourne un label que si la mission est dans la liste des missions valides
-function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
+function labelMission(v) { if (!v) return ''; var r = resolveMissionAlias(v); return MISSION_TYPE_LABELS[r] || r.replace(/_/g, ' '); }
 
 function getAllMissionTypes() {
   var types = MISSION_TYPES_DEFAULT.slice();
   Object.keys(geosoliaDataMap).forEach(function(id) {
-    var m = geosoliaDataMap[id].projectMission;
+    var m = resolveMissionAlias(geosoliaDataMap[id].projectMission);
     if (m && types.indexOf(m) < 0) types.push(m);
   });
   return types.sort();
@@ -7982,8 +7986,8 @@ function checkCompetenceAlert(int) {
   if (!tech) return null;
   var competences = tech.competences || [];
   if (competences.length === 0) return null;
-  var missionNorm = normalizeMission(prog.mission);
-  var hasCompetence = competences.some(function(c) { return normalizeMission(c) === missionNorm; });
+  var missionNorm = normalizeMission(resolveMissionAlias(prog.mission));
+  var hasCompetence = competences.some(function(c) { return normalizeMission(resolveMissionAlias(c)) === missionNorm; });
   if (hasCompetence) return null;
   var label = labelMission(prog.mission);
   return { mission: label, techName: tech.prenom + ' ' + tech.nom };
