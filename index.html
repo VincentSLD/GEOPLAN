@@ -5174,11 +5174,15 @@ function renderAPlanifier() {
     var dlrFmt = cdDlr ? new Date(cdDlr).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit'}) : '';
     var dlrWarn = cdDlr && new Date(cdDlr) < new Date(Date.now() + 7*86400000);
     var geoName = commandeGeosoliaLinks[cmd.id] ? geosoliaProjects.find(function(p){return p.id===commandeGeosoliaLinks[cmd.id];}) : null;
+    var cdStatutVal = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || '';
+    var statutEntry = cdStatutVal ? settingsStatuts.find(function(s) { return s.label === cdStatutVal; }) : null;
+    var statutColor = statutEntry ? statutEntry.color : '#7C3AED';
 
-    html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span>';
+    html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')" style="border-left:3px solid ' + statutColor + ';background:' + statutColor + '08;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span><div style="display:flex;align-items:center;gap:4px;">';
+    if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
-    html += '</div>';
+    html += '</div></div>';
     html += '<div class="aplan-card-info">';
     if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
     html += '🏢 ' + (cmd.client_name || '—') + ' · <span style="font-size:0.58rem;color:var(--text-muted);">' + (cmd.societe || '') + '</span>';
@@ -5268,6 +5272,12 @@ function dropAPlanifier(e, techId, dateStr) {
       interventions.push(data);
       // Auto-create rapport if Geosolia has report time
       await createRapportIntervention(data);
+      // Passer le statut de la commande à "A faire"
+      var newCd = Object.assign({}, cmd.custom_data || {});
+      if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+      newCd['1-alpha17'].value = 'A faire';
+      await sbAuth.from('commandes').update({ custom_data: newCd }).eq('id', cmd.id);
+      cmd.custom_data = newCd;
       renderAPlanifier();
       renderCurrentView();
       computeAllTravel();
