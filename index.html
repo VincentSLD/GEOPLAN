@@ -1946,6 +1946,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <button class="pc-gran-btn" data-gran="week" onclick="pcSetGranularity('week')">Semaine</button>
           <button class="pc-gran-btn" data-gran="month" onclick="pcSetGranularity('month')">Mois</button>
         </div>
+        <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Groupe :</label>
+        <select id="pcGroupFilter" onchange="onPcGroupChange()" style="height:28px;font-size:0.72rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;min-width:140px;"></select>
         <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Collaborateur :</label>
         <select id="pcCollabFilter" onchange="renderPlanCharge()" style="height:28px;font-size:0.72rem;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-family:inherit;min-width:160px;"></select>
         <label style="font-size:0.7rem;font-weight:600;margin-left:8px;">Horizon :</label>
@@ -7216,28 +7218,57 @@ async function initPlanCharge() {
   }
   if (!commandesLoaded) await loadCommandesFromSupabase();
   if (luccaCollabs.length === 0) await loadLuccaCollabs();
-  var collabSel = document.getElementById('pcCollabFilter');
-  if (collabSel && collabSel.options.length === 0) {
-    var sortedTechs = TECHNICIANS.slice().sort(function(a, b) {
-      var na = (a.nom || a.name || '').toLocaleLowerCase('fr-FR');
-      var nb = (b.nom || b.name || '').toLocaleLowerCase('fr-FR');
-      return na.localeCompare(nb, 'fr');
-    });
-    var copts = ['<option value="">Tous</option>'].concat(sortedTechs.map(function(t){
-      var label = t.name || ((t.nom || '') + ' ' + (t.prenom || '')).trim() || ('#' + t.id);
-      return '<option value="' + t.id + '">' + label.replace(/"/g,'&quot;') + '</option>';
+  var grpSel = document.getElementById('pcGroupFilter');
+  if (grpSel && grpSel.options.length === 0) {
+    var gopts = ['<option value="">Tous les groupes</option>'].concat(settingsGroups.map(function(g) {
+      return '<option value="' + g.id + '">' + (g.nom || '').replace(/"/g,'&quot;') + '</option>';
     }));
-    collabSel.innerHTML = copts.join('');
+    grpSel.innerHTML = gopts.join('');
   }
+  pcPopulateCollabFilter();
+  renderPlanCharge();
+}
+
+function pcPopulateCollabFilter() {
+  var collabSel = document.getElementById('pcCollabFilter');
+  if (!collabSel) return;
+  var prev = collabSel.value || '';
+  var groupId = document.getElementById('pcGroupFilter').value || '';
+  var techs = TECHNICIANS.slice();
+  if (groupId) {
+    var gid = parseInt(groupId);
+    var memberIds = settingsTeam.filter(function(t) { return t.groupeId === gid; }).map(function(t) { return t.id; });
+    techs = techs.filter(function(t) { return memberIds.indexOf(t.id) >= 0; });
+  }
+  techs.sort(function(a, b) {
+    var na = (a.nom || a.name || '').toLocaleLowerCase('fr-FR');
+    var nb = (b.nom || b.name || '').toLocaleLowerCase('fr-FR');
+    return na.localeCompare(nb, 'fr');
+  });
+  var copts = ['<option value="">Tous</option>'].concat(techs.map(function(t) {
+    var label = t.name || ((t.nom || '') + ' ' + (t.prenom || '')).trim() || ('#' + t.id);
+    return '<option value="' + t.id + '"' + (String(t.id) === prev ? ' selected' : '') + '>' + label.replace(/"/g,'&quot;') + '</option>';
+  }));
+  collabSel.innerHTML = copts.join('');
+}
+
+function onPcGroupChange() {
+  pcPopulateCollabFilter();
   renderPlanCharge();
 }
 
 function renderPlanCharge() {
   if (typeof Chart === 'undefined') return;
   var horizon = parseInt(document.getElementById('pcHorizonFilter').value || '4');
+  var groupId = document.getElementById('pcGroupFilter').value || '';
   var collabId = document.getElementById('pcCollabFilter').value || '';
 
   var filteredTechs = TECHNICIANS.slice();
+  if (groupId) {
+    var gid = parseInt(groupId);
+    var memberIds = settingsTeam.filter(function(t) { return t.groupeId === gid; }).map(function(t) { return t.id; });
+    filteredTechs = filteredTechs.filter(function(t) { return memberIds.indexOf(t.id) >= 0; });
+  }
   if (collabId) filteredTechs = filteredTechs.filter(function(t){ return String(t.id) === String(collabId); });
   var techIds = filteredTechs.map(function(t){ return t.id; });
 
