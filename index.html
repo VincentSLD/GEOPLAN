@@ -528,6 +528,9 @@ body::before {
 .status-inprogress { background: var(--gph-yellow); animation: pulse 2s infinite; }
 .status-done { background: var(--type-essai); }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes highlightBlink { 0%,100% { box-shadow: 0 0 0 2px var(--gph-yellow); } 50% { box-shadow: 0 0 8px 3px var(--gph-yellow); } }
+.supp-highlight { animation: highlightBlink 1s ease-in-out infinite; border-color: var(--gph-yellow) !important; }
+.supp-locked { opacity: 0.55; pointer-events: none; background: var(--bg-primary) !important; }
 
 /* ========== MODAL ========== */
 .modal-overlay {
@@ -4003,7 +4006,7 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
-function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
+function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
 function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
@@ -4079,6 +4082,7 @@ function closeModal(){document.getElementById('modalOverlay').classList.remove('
 function saveIntervention(){
   document.getElementById('intCommande').disabled = false;
   document.getElementById('intGeosolia').disabled = false;
+  document.querySelectorAll('[data-supp-locked]').forEach(function(el) { el.classList.remove('supp-locked'); });
   var cmdId = document.getElementById('intCommande').value || null;
   var cmd = cmdId ? commandesData.find(function(c){return c.id===cmdId;}) : null;
   const data={
@@ -4287,9 +4291,16 @@ function planifierSupplementaire(id) {
     document.getElementById('intGeosolia').value = geoId;
     onGeosoliaSelect();
   }
-  // Verrouiller commande et géosolia
-  document.getElementById('intCommande').disabled = true;
-  document.getElementById('intGeosolia').disabled = true;
+  // Verrouiller commande, géosolia, intitulé, client, adresse
+  ['intCommande', 'intGeosolia', 'intTitle', 'intClient', 'intAddress'].forEach(function(fid) {
+    var el = document.getElementById(fid);
+    if (el) { el.classList.add('supp-locked'); el.setAttribute('data-supp-locked', '1'); }
+  });
+  // Surbrillance clignotante sur Tech et Durée
+  ['intTech', 'intDuration'].forEach(function(fid) {
+    var el = document.getElementById(fid);
+    if (el) el.classList.add('supp-highlight');
+  });
   // Bandeau récapitulatif
   var cmd = commandesData.find(function(c) { return c.id === src.commandeId; });
   var siblings = getSiblingInterventions(src.commandeId);
