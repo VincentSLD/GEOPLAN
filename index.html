@@ -5047,7 +5047,15 @@ function renderAPlanifier() {
     blocTypeKeys.forEach(function(tid, tidx) {
       var d = blocsByType[tid];
       var subId = 'aPlanBlocSub' + tidx;
-      html += '<div style="padding:5px 10px;font-size:0.68rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);cursor:pointer;" onclick="var b=document.getElementById(\'' + subId + '\');var a=this.querySelector(\'.ap-sub-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}">';
+      var byWeekType = {};
+      d.items.forEach(function(b) {
+        var w = 'S' + pcGetISOWeek(new Date(b.date));
+        if (!byWeekType[w]) byWeekType[w] = { count: 0, totalMin: 0 };
+        byWeekType[w].count++;
+        byWeekType[w].totalMin += (b.duration || 0);
+      });
+      var typeTooltip = Object.keys(byWeekType).sort().map(function(w) { return w + ' → ' + byWeekType[w].count + ' · ' + fmtDur(byWeekType[w].totalMin); }).join('\n');
+      html += '<div style="padding:5px 10px;font-size:0.68rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);cursor:pointer;" title="' + typeTooltip.replace(/"/g, '&quot;') + '" onclick="var b=document.getElementById(\'' + subId + '\');var a=this.querySelector(\'.ap-sub-arrow\');if(b.style.display===\'none\'){b.style.display=\'block\';a.textContent=\'▼\';}else{b.style.display=\'none\';a.textContent=\'▶\';}">';
       html += '<span style="font-weight:600;"><span class="ap-sub-arrow" style="font-size:0.5rem;margin-right:4px;">▶</span>' + typeLabel(tid) + '</span>';
       html += '<span style="font-size:0.62rem;font-weight:700;color:var(--gph-primary);background:var(--bg-primary);padding:2px 8px;border-radius:8px;border:1px solid var(--border);">' + d.count + ' · ' + fmtDur(d.totalMin) + '</span>';
       html += '</div>';
