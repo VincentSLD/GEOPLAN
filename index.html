@@ -2055,7 +2055,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="form-row">
         <div class="form-group"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
         <div class="form-group"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
-        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration()" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
+        <div class="form-group" style="flex:0 0 80px;"><label class="form-label">Durée (h)</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
@@ -4024,6 +4024,18 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
+function updateSiblingDurTotals(){
+  var estEl=document.querySelector('[data-sibling-estimated]');
+  if(!estEl)return;
+  var estimated=parseInt(estEl.getAttribute('data-sibling-estimated'))||0;
+  var total=parseDurInput(document.getElementById('intDuration').value);
+  document.querySelectorAll('[data-sibling-id]').forEach(function(inp){total+=parseDurInput(inp.value);});
+  var remaining=Math.max(0,estimated-total);
+  var elP=document.getElementById('sibPlanned');
+  var elR=document.getElementById('sibRemaining');
+  if(elP){elP.textContent=fmtTravelTime(total);elP.style.color=total>estimated?'#DC2626':'#16A34A';}
+  if(elR){elR.textContent=fmtTravelTime(remaining);elR.style.color=remaining>0?'#D97706':'#16A34A';}
+}
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
 function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
@@ -4180,6 +4192,14 @@ function saveIntervention(){
   } else {
     delete data.id; // let Supabase auto-generate
   }
+  // Collecter les durées modifiées des siblings avant de fermer le modal
+  var siblingChanges = [];
+  document.querySelectorAll('[data-sibling-id]').forEach(function(inp) {
+    var sibId = parseInt(inp.getAttribute('data-sibling-id'));
+    var origDur = parseInt(inp.getAttribute('data-sibling-orig')) || 0;
+    var newDur = parseDurInput(inp.value);
+    if (newDur !== origDur && newDur > 0) siblingChanges.push({ id: sibId, duration: newDur });
+  });
   // Save to Supabase then refresh
   closeModal();
   showLoader('Enregistrement...');
@@ -4218,6 +4238,16 @@ function saveIntervention(){
         if (recResult.data) {
           recResult.data.forEach(function(r) { interventions.push(rowToInt(r)); });
         }
+      }
+    }
+    // Sauvegarder les durées modifiées des interventions siblings
+    for (var sc = 0; sc < siblingChanges.length; sc++) {
+      var sibIdx = interventions.findIndex(function(x) { return x.id === siblingChanges[sc].id; });
+      if (sibIdx >= 0) {
+        interventions[sibIdx].duration = siblingChanges[sc].duration;
+        var sibStart = timeToMin(interventions[sibIdx].startTime || '08:00');
+        interventions[sibIdx].endTime = minToTime(sibStart + siblingChanges[sc].duration);
+        await saveInterventionToSupabase(interventions[sibIdx]);
       }
     }
     // Auto-create rapport if new intervention with Geosolia
@@ -4335,10 +4365,10 @@ function planifierSupplementaire(id) {
   bannerHtml += '<span>📋 <strong>' + (cmd ? cmd.ref : src.commandeRef || '?') + '</strong></span>';
   if (geoLabel) bannerHtml += '<span>🌍 <strong>' + geoLabel + '</strong></span>';
   bannerHtml += '</div>';
-  bannerHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;text-align:center;">';
+  bannerHtml += '<div data-sibling-estimated="' + estimated + '" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;text-align:center;">';
   bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;">' + fmtTravelTime(estimated) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Estimé</div></div>';
-  bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Déjà planifié (' + siblings.length + ' int.)</div></div>';
-  bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
+  bannerHtml += '<div><div id="sibPlanned" style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Déjà planifié (' + siblings.length + ' int.)</div></div>';
+  bannerHtml += '<div><div id="sibRemaining" style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
   bannerHtml += '</div>';
   if (siblings.length > 0) {
     bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);">';
@@ -4349,7 +4379,7 @@ function planifierSupplementaire(id) {
       bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
       bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
       bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
-      bannerHtml += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + fmtTravelTime(s.duration || 0) + '</span>';
+      bannerHtml += '<input data-sibling-id="' + s.id + '" data-sibling-orig="' + (s.duration || 0) + '" value="' + fmtDurInput(s.duration || 0) + '" oninput="updateSiblingDurTotals()" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#fff;padding:2px 4px;border-radius:4px;border:1px solid var(--border);width:56px;text-align:center;" placeholder="2h30">';
       bannerHtml += '</div>';
     });
     bannerHtml += '</div>';
@@ -4401,10 +4431,10 @@ function editIntervention(id){
     var totalPlanned = siblings.reduce(function(s, x) { return s + (x.duration || 0); }, 0);
     var remaining = Math.max(0, estimated - totalPlanned);
     var bannerHtml = '<div style="font-weight:700;margin-bottom:4px;">📋 Suivi commande' + (siblings.length > 1 ? ' (' + siblings.length + ' interventions)' : '') + '</div>';
-    bannerHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">';
+    bannerHtml += '<div data-sibling-estimated="' + estimated + '" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">';
     bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;">' + fmtTravelTime(estimated) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Estimé</div></div>';
-    bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Planifié</div></div>';
-    bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
+    bannerHtml += '<div><div id="sibPlanned" style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Planifié</div></div>';
+    bannerHtml += '<div><div id="sibRemaining" style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
     bannerHtml += '</div>';
     if (siblings.length > 1) {
       bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);">';
@@ -4417,8 +4447,12 @@ function editIntervention(id){
         bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
         bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
         bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
-        bannerHtml += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + fmtTravelTime(s.duration || 0) + '</span>';
-        if (isCurrent) bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;font-size:0.7rem;">◄</span>';
+        if (isCurrent) {
+          bannerHtml += '<span style="font-family:\'DM Mono\',monospace;font-size:0.75rem;font-weight:800;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid var(--border);">' + fmtTravelTime(s.duration || 0) + '</span>';
+          bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;font-size:0.7rem;">◄</span>';
+        } else {
+          bannerHtml += '<input data-sibling-id="' + s.id + '" data-sibling-orig="' + (s.duration || 0) + '" value="' + fmtDurInput(s.duration || 0) + '" oninput="updateSiblingDurTotals()" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#fff;padding:2px 4px;border-radius:4px;border:1px solid var(--border);width:56px;text-align:center;" placeholder="2h30">';
+        }
         bannerHtml += '</div>';
       });
       bannerHtml += '</div>';
