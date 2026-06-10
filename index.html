@@ -4531,6 +4531,18 @@ function deleteIntervention(id){
       var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
       if (cmd) cmd.planification = 'A planifier';
     }
+    // S'il ne reste qu'une seule intervention terrain, remettre le temps estimé total dessus
+    if (int && int.commandeId && !int.isRapport && remainingTerrain === 1) {
+      var lastSibling = interventions.find(function(i) { return i.commandeId === int.commandeId && !i.isRapport; });
+      var _cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
+      var estTotal = _cmd ? (computeGeoDuration(_cmd) || 0) : 0;
+      if (lastSibling && estTotal > 0) {
+        lastSibling.duration = estTotal;
+        var _startMin = timeToMin(lastSibling.startTime || '08:00');
+        lastSibling.endTime = minToTime(_startMin + estTotal);
+        await saveInterventionToSupabase(lastSibling);
+      }
+    }
     closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
     hideLoader();
   })();
