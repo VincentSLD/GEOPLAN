@@ -4238,7 +4238,6 @@ function planifierSupplementaire(id) {
   var src = interventions.find(function(i) { return i.id === id; });
   if (!src || !src.commandeId) return;
   closeDetail();
-  closeDetail();
   editingId = null;
   populateCommandeSelect();
   populateGeosoliaSelect();
@@ -4249,8 +4248,9 @@ function planifierSupplementaire(id) {
   // Pré-remplir commande et liaison
   document.getElementById('intCommande').value = src.commandeId;
   onCommandeSelect();
-  if (src.geosoliaId) {
-    document.getElementById('intGeosolia').value = src.geosoliaId;
+  var geoId = src.geosoliaId || commandeGeosoliaLinks[src.commandeId] || '';
+  if (geoId) {
+    document.getElementById('intGeosolia').value = geoId;
     onGeosoliaSelect();
   }
   // Reprendre toutes les infos de l'intervention source
