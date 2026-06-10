@@ -7922,8 +7922,12 @@ function labelTypologie(v) { if (!v) return ''; return TYPOLOGIE_LABELS[v] || v.
 function labelMission(v) { if (!v) return ''; return MISSION_TYPE_LABELS[v] || v.replace(/_/g, ' '); }
 
 function getAllMissionTypes() {
-  // Seules les missions valides définies dans MISSION_TYPES_DEFAULT sont affichées
-  return MISSION_TYPES_DEFAULT.slice().sort();
+  var types = MISSION_TYPES_DEFAULT.slice();
+  Object.keys(geosoliaDataMap).forEach(function(id) {
+    var m = geosoliaDataMap[id].projectMission;
+    if (m && types.indexOf(m) < 0) types.push(m);
+  });
+  return types.sort();
 }
 
 function getCompetencesChecks(teamMember) {
@@ -7950,7 +7954,7 @@ function checkCompetenceAlert(int) {
   var missionNorm = normalizeMission(prog.mission);
   var hasCompetence = competences.some(function(c) { return normalizeMission(c) === missionNorm; });
   if (hasCompetence) return null;
-  var label = MISSION_TYPE_LABELS[prog.mission] || prog.mission;
+  var label = labelMission(prog.mission);
   return { mission: label, techName: tech.prenom + ' ' + tech.nom };
 }
 
