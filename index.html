@@ -3690,19 +3690,19 @@ function getSplitBadge(int) {
 function renderSplitSummary(int) {
   if (!int.commandeId || int.isRapport) return '';
   var siblings = getSiblingInterventions(int.commandeId);
-  if (siblings.length <= 1) return '';
   var cmd = commandesData.find(function(c) { return c.id === int.commandeId; });
   var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
   var totalPlanned = siblings.reduce(function(s, i) { return s + (i.duration || 0); }, 0);
   var remaining = Math.max(0, estimated - totalPlanned);
   var f = function(m) { return m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '') : m + 'min'; };
   var html = '<div style="margin-bottom:10px;padding:10px;background:#fef9e7;border:1px solid var(--gph-yellow);border-radius:8px;">';
-  html += '<div style="font-size:0.72rem;font-weight:700;margin-bottom:6px;">Répartition commande (' + siblings.length + ' interventions)</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;text-align:center;">';
+  html += '<div style="font-size:0.72rem;font-weight:700;margin-bottom:6px;">Suivi commande' + (siblings.length > 1 ? ' (' + siblings.length + ' interventions)' : '') + '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:' + (siblings.length > 1 ? '8' : '0') + 'px;text-align:center;">';
   html += '<div><div style="font-size:0.85rem;font-weight:700;">' + f(estimated) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Estimé</div></div>';
   html += '<div><div style="font-size:0.85rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + f(totalPlanned) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Planifié</div></div>';
   html += '<div><div style="font-size:0.85rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + f(remaining) + '</div><div style="font-size:0.6rem;color:var(--text-muted);">Reste</div></div>';
   html += '</div>';
+  if (siblings.length > 1) {
   html += '<div style="font-size:0.65rem;border-top:1px solid var(--gph-yellow);padding-top:6px;">';
   siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
   siblings.forEach(function(s, idx) {
@@ -3718,7 +3718,9 @@ function renderSplitSummary(int) {
     if (isCurrent) html += '<span style="color:var(--gph-yellow);font-weight:700;">◄</span>';
     html += '</div>';
   });
-  html += '</div></div>';
+  html += '</div>';
+  }
+  html += '</div>';
   return html;
 }
 
@@ -4346,6 +4348,41 @@ function editIntervention(id){
   resetRecurrenceUI();
   document.getElementById('intRecurrenceBlock').style.display = i.commandeId ? 'none' : '';
   document.getElementById('btnPlanifierSupp').style.display = (i.commandeId && !i.isRapport) ? '' : 'none';
+  // Bandeau suivi commande dans le modal d'édition
+  if (i.commandeId && !i.isRapport) {
+    var banner = document.getElementById('intSuppBanner');
+    var siblings = getSiblingInterventions(i.commandeId);
+    var cmd = commandesData.find(function(c) { return c.id === i.commandeId; });
+    var estimated = cmd ? (computeGeoDuration(cmd) || 0) : 0;
+    var totalPlanned = siblings.reduce(function(s, x) { return s + (x.duration || 0); }, 0);
+    var remaining = Math.max(0, estimated - totalPlanned);
+    var bannerHtml = '<div style="font-weight:700;margin-bottom:4px;">📋 Suivi commande' + (siblings.length > 1 ? ' (' + siblings.length + ' interventions)' : '') + '</div>';
+    bannerHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">';
+    bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;">' + fmtTravelTime(estimated) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Estimé</div></div>';
+    bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (totalPlanned > estimated ? '#DC2626' : '#16A34A') + ';">' + fmtTravelTime(totalPlanned) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Planifié</div></div>';
+    bannerHtml += '<div><div style="font-size:0.8rem;font-weight:700;color:' + (remaining > 0 ? '#D97706' : '#16A34A') + ';">' + fmtTravelTime(remaining) + '</div><div style="font-size:0.55rem;color:var(--text-muted);">Reste</div></div>';
+    bannerHtml += '</div>';
+    if (siblings.length > 1) {
+      bannerHtml += '<div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--gph-yellow);font-size:0.6rem;">';
+      siblings.sort(function(a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
+      siblings.forEach(function(s, idx) {
+        var t = TECHNICIANS.find(function(tt) { return tt.id === s.techId; });
+        var isCurrent = s.id === i.id;
+        var dateLabel = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?';
+        bannerHtml += '<div style="display:flex;align-items:center;gap:5px;padding:2px 0;' + (isCurrent ? 'font-weight:700;' : '') + '">';
+        bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + siblings.length + '</span>';
+        bannerHtml += '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + (t ? t.color : '#888') + ';"></span>';
+        bannerHtml += '<span>' + (t ? t.name : '?') + '</span>';
+        bannerHtml += '<span style="color:var(--text-muted);">' + dateLabel + '</span>';
+        bannerHtml += '<span style="font-family:\'DM Mono\',monospace;">' + fmtTravelTime(s.duration || 0) + '</span>';
+        if (isCurrent) bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;">◄</span>';
+        bannerHtml += '</div>';
+      });
+      bannerHtml += '</div>';
+    }
+    banner.innerHTML = bannerHtml;
+    banner.style.display = 'block';
+  }
   document.getElementById('modalOverlay').classList.add('active');
 }
 function deleteIntervention(id){
