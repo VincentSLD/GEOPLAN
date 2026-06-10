@@ -3977,6 +3977,13 @@ async function handleDrop(e,tid,ds){
     draggedId=null;
   }
 }
+function askUnplanStatut(cmdId, callback) {
+  if (!cmdId) { callback(null); return; }
+  var choice = prompt('Quel statut pour la commande ?\n\n1 — A planifier\n2 — En attente\n\nTapez 1 ou 2 :', '1');
+  if (choice === null) { callback(false); return; }
+  var statut = choice.trim() === '2' ? 'En attente' : 'A planifier';
+  callback(statut);
+}
 function dropToAPlanifier(e) {
   e.preventDefault();
   if (!draggedId) return;
@@ -3985,17 +3992,28 @@ function dropToAPlanifier(e) {
   if (!int) return;
   var remainingTerrain = int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== int.id; }).length : 0;
   var linkedRapport = (remainingTerrain === 0 && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
-  interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
-  (async function(){
-    await deleteInterventionFromSupabase(int.id);
-    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    if (int.commandeId && remainingTerrain === 0) {
-      await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
-      var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
-      if (cmd) cmd.planification = 'A planifier';
-    }
-    renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
-  })();
+  var needStatut = int.commandeId && remainingTerrain === 0;
+  askUnplanStatut(needStatut ? int.commandeId : null, function(statut) {
+    if (statut === false) return;
+    interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
+    (async function(){
+      await deleteInterventionFromSupabase(int.id);
+      if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+      if (needStatut && statut) {
+        await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
+        var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
+        if (cmd) {
+          cmd.planification = 'A planifier';
+          var newCd = Object.assign({}, cmd.custom_data || {});
+          if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+          newCd['1-alpha17'].value = statut;
+          await sbAuth.from('commandes').update({ custom_data: newCd }).eq('id', cmd.id);
+          cmd.custom_data = newCd;
+        }
+      }
+      renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    })();
+  });
 }
 
 // ===== MODAL =====
@@ -4436,17 +4454,28 @@ function unplanIntervention(id) {
   if (!int) return;
   var remainingTerrain = int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== id; }).length : 0;
   var linkedRapport = (remainingTerrain === 0 && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
-  interventions = interventions.filter(function(i){return i.id!==id && (!linkedRapport || i.id!==linkedRapport.id);});
-  (async function(){
-    await deleteInterventionFromSupabase(id);
-    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    if (int.commandeId && remainingTerrain === 0) {
-      await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
-      var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
-      if (cmd) cmd.planification = 'A planifier';
-    }
-    closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
-  })();
+  var needStatut = int.commandeId && remainingTerrain === 0;
+  askUnplanStatut(needStatut ? int.commandeId : null, function(statut) {
+    if (statut === false) return;
+    interventions = interventions.filter(function(i){return i.id!==id && (!linkedRapport || i.id!==linkedRapport.id);});
+    (async function(){
+      await deleteInterventionFromSupabase(id);
+      if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+      if (needStatut && statut) {
+        await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
+        var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
+        if (cmd) {
+          cmd.planification = 'A planifier';
+          var newCd = Object.assign({}, cmd.custom_data || {});
+          if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+          newCd['1-alpha17'].value = statut;
+          await sbAuth.from('commandes').update({ custom_data: newCd }).eq('id', cmd.id);
+          cmd.custom_data = newCd;
+        }
+      }
+      closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    })();
+  });
 }
 function deleteRecurrenceGroup(id) {
   var int = interventions.find(function(i){return i.id===id;});
@@ -5189,7 +5218,7 @@ function renderAPlanifier() {
     var statutEntry = cdStatutVal ? settingsStatuts.find(function(s) { return s.label === cdStatutVal; }) : null;
     var statutColor = statutEntry ? statutEntry.color : '#7C3AED';
 
-    html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')" style="border-left:3px solid ' + statutColor + ';background:' + statutColor + '08;">';
+    html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')" ondblclick="planifierCommande(\'' + cmd.id.replace(/'/g,"\\'") + '\')" style="border-left:3px solid ' + statutColor + ';background:' + statutColor + '08;cursor:grab;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span><div style="display:flex;align-items:center;gap:4px;">';
     if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
