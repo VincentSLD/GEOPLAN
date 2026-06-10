@@ -2045,7 +2045,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="form-row">
         <div class="form-group" style="flex:1;"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
         <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
-        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;"><button type="button" id="btnOpenServer" onclick="openServerLinkFromModal()" style="display:none;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Ouvrir le dossier affaire sur le serveur">📁 Serveur</button></div>
+        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;display:flex;gap:3px;" id="btnServerGroup">
+          <button type="button" id="btnOpenServer" onclick="openServerLinkFromModal()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Ouvrir le dossier affaire sur le serveur">📁 Ouvrir</button>
+          <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📋 Copier chemin</button>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:3;"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
@@ -3132,18 +3135,39 @@ async function _dossierEnsurePermission(handle) {
   return perm === 'granted';
 }
 
-function openServerLinkFromModal() {
+function _getModalAffaireRef() {
   var cmdId = document.getElementById('intCommande').value;
   var cmd = cmdId ? commandesData.find(function(c) { return c.id === cmdId; }) : null;
-  var affRef = cmd && cmd._affaire ? cmd._affaire.ref : null;
-  if (!affRef) {
-    if (editingId) {
-      var int = interventions.find(function(i) { return i.id === editingId; });
-      affRef = int ? int.affaireRef : null;
-    }
+  if (cmd && cmd._affaire && cmd._affaire.ref) return cmd._affaire.ref;
+  if (editingId) {
+    var int = interventions.find(function(i) { return i.id === editingId; });
+    if (int && int.affaireRef) return int.affaireRef;
   }
+  return null;
+}
+function openServerLinkFromModal() {
+  var affRef = _getModalAffaireRef();
   if (!affRef) { alert('Aucune affaire liée à cette intervention.'); return; }
   openDossierAffaire(affRef);
+}
+function copyServerPath() {
+  var affRef = _getModalAffaireRef();
+  if (!affRef) { alert('Aucune affaire liée.'); return; }
+  var index = _dossierGetIndex();
+  var entry = index[affRef];
+  if (entry) {
+    var basePath = entry.pathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
+    var fullPath = basePath + '\\' + entry.relPath.replace(/\//g, '\\');
+    navigator.clipboard.writeText(fullPath);
+    var btn = document.getElementById('btnCopyServer');
+    if (btn) { btn.textContent = '✅ Copié !'; setTimeout(function() { btn.textContent = '📋 Copier chemin'; }, 1500); }
+    return;
+  }
+  var basePath1 = settingsGeneral.dossierPath1;
+  if (!basePath1) { alert('Chemin 1 non configuré. Lancez une indexation dans les paramètres.'); return; }
+  navigator.clipboard.writeText(basePath1 + '\\' + affRef);
+  var btn = document.getElementById('btnCopyServer');
+  if (btn) { btn.textContent = '✅ Copié !'; setTimeout(function() { btn.textContent = '📋 Copier chemin'; }, 1500); }
 }
 
 // Configuration : faire autoriser un chemin (appelé depuis Paramètres)
@@ -4052,7 +4076,7 @@ function updateSiblingDurTotals(){
   if(elR){elR.textContent=fmtTravelTime(remaining);elR.style.color=remaining>0?'#D97706':'#16A34A';}
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnOpenServer').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnOpenServer').style.display='none';document.getElementById('btnCopyServer').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4429,7 +4453,7 @@ function editIntervention(id){
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
-  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnOpenServer').style.display='none';}
+  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnOpenServer').style.display='none';document.getElementById('btnCopyServer').style.display='none';}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
@@ -5959,6 +5983,7 @@ function onCommandeSelect() {
     document.getElementById('intAffaire').value = '';
     document.getElementById('intMarche').value = '';
     document.getElementById('btnOpenServer').style.display = 'none';
+    document.getElementById('btnCopyServer').style.display = 'none';
     if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
     if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
     if (typeGroup) typeGroup.style.display = '';
@@ -5974,7 +5999,9 @@ function onCommandeSelect() {
   if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
   document.getElementById('intAffaire').value = cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom || '').substring(0, 40)) : '';
   document.getElementById('intMarche').value = cmd._marche ? (cmd._marche.ref + ' — ' + (cmd._marche.nom || '').substring(0, 40)) : '';
-  document.getElementById('btnOpenServer').style.display = (cmd._affaire && cmd._affaire.ref) ? '' : 'none';
+  var _showServer = (cmd._affaire && cmd._affaire.ref) ? '' : 'none';
+  document.getElementById('btnOpenServer').style.display = _showServer;
+  document.getElementById('btnCopyServer').style.display = _showServer;
   // Bloc données personnalisées
   if (cdBox) {
     var html = renderCmdCustomDataHTML(cmd);
