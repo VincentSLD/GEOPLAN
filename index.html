@@ -5015,13 +5015,23 @@ function renderAPlanifier() {
       var byTitle = {};
       d.items.forEach(function(b) {
         var t = b.title || '(sans intitulé)';
-        if (!byTitle[t]) byTitle[t] = { count: 0, totalMin: 0 };
+        if (!byTitle[t]) byTitle[t] = { count: 0, totalMin: 0, items: [] };
         byTitle[t].count++;
         byTitle[t].totalMin += (b.duration || 0);
+        byTitle[t].items.push(b);
       });
       Object.keys(byTitle).sort().forEach(function(title) {
         var info = byTitle[title];
-        html += '<div style="padding:3px 10px 3px 24px;font-size:0.62rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);color:var(--text-secondary);">';
+        var byWeek = {};
+        info.items.forEach(function(b) {
+          var w = 'S' + pcGetISOWeek(new Date(b.date));
+          if (!byWeek[w]) byWeek[w] = { count: 0, totalMin: 0 };
+          byWeek[w].count++;
+          byWeek[w].totalMin += (b.duration || 0);
+        });
+        var weekKeys = Object.keys(byWeek).sort();
+        var tooltip = weekKeys.map(function(w) { return w + ' → ' + byWeek[w].count + ' · ' + fmtDur(byWeek[w].totalMin); }).join('\n');
+        html += '<div style="padding:3px 10px 3px 24px;font-size:0.62rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);color:var(--text-secondary);cursor:default;" title="' + tooltip.replace(/"/g, '&quot;') + '">';
         html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + title + '</span>';
         html += '<span style="font-size:0.58rem;font-weight:600;color:var(--text-muted);white-space:nowrap;margin-left:6px;">' + info.count + ' · ' + fmtDur(info.totalMin) + '</span>';
         html += '</div>';
