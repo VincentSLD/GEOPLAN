@@ -1853,6 +1853,12 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="flex:1;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;">
         </div>
       </div>
+      <div style="padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div id="quickBlockReservation" draggable="true" ondragstart="dragQuickBlock(event,'reservation_app')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--gph-yellow-light);border:1.5px dashed var(--gph-yellow);border-radius:8px;cursor:grab;font-size:0.68rem;font-weight:700;color:var(--gph-dark);user-select:none;" title="Glisser-déposer sur le planning">
+          <span style="font-size:14px;">📌</span> Réservation A++
+          <span style="margin-left:auto;font-size:0.55rem;font-weight:500;color:var(--text-muted);">glisser →</span>
+        </div>
+      </div>
       <div style="flex:1;overflow-y:auto;" id="aPlanifierList2" ondragover="event.preventDefault();this.style.background='rgba(245,197,24,0.08)';" ondragleave="this.style.background='';" ondrop="this.style.background='';dropToAPlanifier(event)"></div>
     </div>
     <div class="planning-container"><div class="planning-grid" id="weekGrid"></div></div>
@@ -3944,6 +3950,8 @@ let draggedId=null;
 function handleDrag(e,id){draggedId=id;e.dataTransfer.effectAllowed='move';}
 async function handleDrop(e,tid,ds){
   e.preventDefault();
+  // Drop quick block (Réservation A++)
+  if (draggedQuickBlock) { dropQuickBlock(e, tid, ds); return; }
   // Drop from A planifier (commande)
   if (draggedCmdId) { dropAPlanifier(e, tid, ds); return; }
   // Drop existing intervention
@@ -4864,6 +4872,7 @@ function syncCommandeGeosoliaFromInterventions() {
 // ═══ VUE A PLANIFIER ═══
 var aPlanifierSocFilter = [];
 var draggedCmdId = null;
+var draggedQuickBlock = null;
 
 var aPlanifierOpen = false;
 
@@ -5154,6 +5163,45 @@ function dropAPlanifier(e, techId, dateStr) {
   })();
 
   draggedCmdId = null;
+}
+
+function dragQuickBlock(e, blockType) {
+  draggedQuickBlock = blockType;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', blockType);
+}
+
+function dropQuickBlock(e, techId, dateStr) {
+  e.preventDefault();
+  if (!draggedQuickBlock) return;
+  if (!confirmIfFerie(dateStr)) { draggedQuickBlock = null; return; }
+  if (!confirmIfAbsence(techId, dateStr)) { draggedQuickBlock = null; return; }
+  var resaType = settingsIntTypes.find(function(t) { return t.label.toLowerCase().indexOf('réservation') >= 0 || t.label.toLowerCase().indexOf('reservation') >= 0; });
+  var typeId = resaType ? resaType.id : '';
+  var data = {
+    title: 'Réservation A++', type: typeId, status: 'pre-planned', date: dateStr,
+    startTime: '', endTime: '', duration: resaType && resaType.dureeDefaut ? resaType.dureeDefaut : 240,
+    techId: techId, location: '', client: '',
+    travelTo: 0, travelFrom: 0,
+    commandeId: null, commandeRef: null,
+    affaireId: null, affaireRef: null,
+    marcheId: null, marcheRef: null,
+    flags: [], notes: '',
+  };
+  showLoader('Création...');
+  (async function() {
+    var row = intToRow(data);
+    row.created_by = currentAuthUser ? currentAuthUser.email : null;
+    delete row.id;
+    var result = await sbAuth.from('geoplan_interventions').insert(row).select();
+    if (result.data && result.data[0]) {
+      data.id = result.data[0].id;
+      interventions.push(data);
+      renderCurrentView();
+    }
+    hideLoader();
+  })();
+  draggedQuickBlock = null;
 }
 
 
