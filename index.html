@@ -7025,15 +7025,29 @@ function renderMapTournees() {
           html: '<div style="background:' + color + ';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);">' + num + '</div>',
           iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
         })
-      }).addTo(fleetMap).bindPopup(
-        '<div style="font-family:inherit;min-width:180px;">' +
-        '<strong style="font-size:0.82rem;">' + int.title + '</strong>' +
-        '<br><span style="font-size:0.72rem;color:#666;">👤 ' + tech.name + '</span>' +
-        '<br><span style="font-size:0.72rem;">⏱ ' + int.startTime + ' – ' + int.endTime + '</span>' +
-        '<br><span style="font-size:0.7rem;color:#888;">📍 ' + int.location + '</span>' +
-        (int.travelTo ? '<br><span style="font-size:0.65rem;color:#aaa;">🚗 Trajet: ' + fmtTravelTime(int.travelTo) + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</span>' : '') +
-        '</div>'
-      );
+      }).addTo(fleetMap).bindPopup((function() {
+        var siblings = int.commandeId ? dayInts.filter(function(s) { return s.commandeId === int.commandeId && s.id !== int.id; }) : [];
+        var popHtml = '<div style="font-family:inherit;min-width:200px;">';
+        popHtml += '<strong style="font-size:0.82rem;">' + int.title + '</strong>';
+        popHtml += '<br><span style="font-size:0.7rem;color:#888;">📍 ' + int.location + '</span>';
+        popHtml += '<div style="margin-top:5px;padding:4px 6px;background:#f8f9fa;border-radius:4px;border-left:3px solid ' + color + ';">';
+        popHtml += '<span style="font-size:0.72rem;font-weight:700;color:' + color + ';">👤 ' + tech.name + '</span>';
+        popHtml += '<br><span style="font-size:0.72rem;">⏱ ' + int.startTime + ' – ' + int.endTime + ' · ' + fmtDurInput(int.duration || 0) + '</span>';
+        if (int.travelTo) popHtml += '<br><span style="font-size:0.65rem;color:#aaa;">🚗 ' + fmtTravelTime(int.travelTo) + (int.travelToKm ? ' · ' + int.travelToKm + ' km' : '') + '</span>';
+        popHtml += '</div>';
+        siblings.forEach(function(sib) {
+          var sibTech = TECHNICIANS.find(function(t) { return t.id === sib.techId; });
+          var sibColor = sibTech ? sibTech.color : '#888';
+          popHtml += '<div style="margin-top:4px;padding:4px 6px;background:#f8f9fa;border-radius:4px;border-left:3px solid ' + sibColor + ';">';
+          popHtml += '<span style="font-size:0.72rem;font-weight:700;color:' + sibColor + ';">👤 ' + (sibTech ? sibTech.name : '?') + '</span>';
+          popHtml += '<br><span style="font-size:0.72rem;">⏱ ' + sib.startTime + ' – ' + sib.endTime + ' · ' + fmtDurInput(sib.duration || 0) + '</span>';
+          if (sib.travelTo) popHtml += '<br><span style="font-size:0.65rem;color:#aaa;">🚗 ' + fmtTravelTime(sib.travelTo) + (sib.travelToKm ? ' · ' + sib.travelToKm + ' km' : '') + '</span>';
+          popHtml += '</div>';
+        });
+        if (siblings.length > 0) popHtml += '<div style="margin-top:4px;font-size:0.6rem;color:#999;text-align:center;">' + (siblings.length + 1) + ' interventions sur cette commande</div>';
+        popHtml += '</div>';
+        return popHtml;
+      })());
       mapTourneeMarkers.push(marker);
       routePoints.push([coords.lat, coords.lon]);
       allBounds.push([coords.lat, coords.lon]);
