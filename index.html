@@ -2513,23 +2513,26 @@ async function loadWeatherForInterventions(ints) {
   const unique = {};
   toFetch.forEach(f => { unique[`${f.lat},${f.lon},${f.date}`] = f; });
   const items = Object.values(unique);
-  // Sequential fetch with small delay to avoid 429 rate limiting
+  // Fetch unique locations (bulk fetch loads all 16 days per coord)
+  const fetchedCoords = {};
   for (let i = 0; i < items.length; i++) {
-    await fetchWeatherForDate(items[i].lat, items[i].lon, items[i].date);
-    if (i < items.length - 1) await new Promise(r => setTimeout(r, 150));
+    const coordKey = `${items[i].lat},${items[i].lon}`;
+    if (!fetchedCoords[coordKey]) {
+      await fetchWeatherForDate(items[i].lat, items[i].lon, items[i].date);
+      fetchedCoords[coordKey] = true;
+      if (i < items.length - 1) await new Promise(r => setTimeout(r, 150));
+    }
   }
-  if (items.length > 0) {
-    // Update all weather badges in DOM
-    document.querySelectorAll('[data-weather-int]').forEach(el => {
-      const id = parseInt(el.dataset.weatherInt);
-      const int = interventions.find(i => i.id === id);
-      if (!int) return;
-      const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
-      if (!coords) return;
-      const w = weatherCache[`${coords.lat},${coords.lon},${int.date}`];
-      if (w) el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm');
-    });
-  }
+  // Always update all weather badges in DOM
+  document.querySelectorAll('[data-weather-int]').forEach(el => {
+    const id = parseInt(el.dataset.weatherInt);
+    const int = interventions.find(i => i.id === id);
+    if (!int) return;
+    const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
+    if (!coords) return;
+    const w = weatherCache[`${coords.lat},${coords.lon},${int.date}`];
+    if (w) el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm');
+  });
 }
 
 function getWeatherForInt(int) {
