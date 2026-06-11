@@ -5901,7 +5901,7 @@ function planifierCommande(cmdId) {
       });
       if (matchGeo) { linkedGeo = matchGeo.id; commandeGeosoliaLinks[cmd.id] = matchGeo.id; saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks); }
     }
-    if (linkedGeo) { document.getElementById('intGeosolia').value = linkedGeo; onGeosoliaSelect(); }
+    if (linkedGeo) { _suppGeosoliaId = linkedGeo; populateGeosoliaSelect(); document.getElementById('intGeosolia').value = linkedGeo; onGeosoliaSelect(); }
     // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
     if (etudeSelect && cmd.projet) {
