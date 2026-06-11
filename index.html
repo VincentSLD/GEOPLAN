@@ -3150,44 +3150,46 @@ function _getModalAffaireInfo() {
 function copyServerPath() {
   var info = _getModalAffaireInfo();
   if (!info) { alert('Aucune affaire liée.'); return; }
-  // 1. Index : chemin exact connu
+  copyServerPathFor(info.ref, info.nom, 'btnCopyServer');
+}
+function copyServerPathFor(ref, nom, btnId) {
+  if (!ref) { alert('Aucune affaire liée.'); return; }
+  var origLabel = '📁 Copier chemin serveur';
   var index = _dossierGetIndex();
-  var entry = index[info.ref];
+  var entry = index[ref];
   if (entry) {
     var basePath = entry.pathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
     var fullPath = basePath + '\\' + entry.relPath.replace(/\//g, '\\');
     navigator.clipboard.writeText(fullPath);
-    _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
+    if (btnId) _flashCopyBtn(btnId, '✅ Copié !', origLabel);
     return;
   }
-  // 2. Recherche live si handles disponibles
   (async function() {
     var h1 = await _dossierLoadHandle('path-1');
     var h2 = await _dossierLoadHandle('path-2');
     if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
     if (h2 && !(await _dossierEnsurePermission(h2))) h2 = null;
     if (h1 || h2) {
-      showLoader('Recherche du dossier ' + info.ref + '...');
+      showLoader('Recherche du dossier ' + ref + '...');
       var found = null, foundPathKey = null;
-      if (h1) { found = await _dossierSearchLive(h1, info.ref, '', 0); if (found) foundPathKey = 'path-1'; }
-      if (!found && h2) { found = await _dossierSearchLive(h2, info.ref, '', 0); if (found) foundPathKey = 'path-2'; }
+      if (h1) { found = await _dossierSearchLive(h1, ref, '', 0); if (found) foundPathKey = 'path-1'; }
+      if (!found && h2) { found = await _dossierSearchLive(h2, ref, '', 0); if (found) foundPathKey = 'path-2'; }
       hideLoader();
       if (found) {
-        index[info.ref] = { pathKey: foundPathKey, relPath: found.relPath };
+        index[ref] = { pathKey: foundPathKey, relPath: found.relPath };
         _dossierSetIndex(index);
         var bp = foundPathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
         var fp = bp + '\\' + found.relPath.replace(/\//g, '\\');
         navigator.clipboard.writeText(fp);
-        _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
+        if (btnId) _flashCopyBtn(btnId, '✅ Copié !', origLabel);
         return;
       }
     }
-    // 3. Fallback : construire chemin1\ref_nom
     var basePath1 = settingsGeneral.dossierPath1;
     if (!basePath1) { alert('Chemin 1 non configuré dans les paramètres.'); return; }
-    var folderName = info.ref + (info.nom ? '_' + info.nom : '');
+    var folderName = ref + (nom ? '_' + nom : '');
     navigator.clipboard.writeText(basePath1 + '\\' + folderName);
-    _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
+    if (btnId) _flashCopyBtn(btnId, '✅ Copié !', origLabel);
   })();
 }
 
@@ -5779,8 +5781,9 @@ function getCmdSortValue(cmd, col) {
     case 'type': return (cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '').toLowerCase();
     case 'dlr': return cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || 'zzzz';
     case 'apporteur': return (cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || cmd.apporteur_affaire || '').toLowerCase();
+    case 'commercial': var _ch = findClientHabits(cmd.client_name); return (_ch && _ch.salesman_name || '').toLowerCase();
     case 'montant': return cmd.montant || 0;
-    case 'statut': return (cmd.statut || '').toLowerCase();
+    case 'statut': var _cs = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || ''; return _cs.toLowerCase();
     case 'affaire': return (cmd._affaire ? cmd._affaire.ref : '').toLowerCase();
     default: return '';
   }
@@ -5811,7 +5814,8 @@ function filterCommandesByColumn() {
     if (filters.societe && (c.societe || '').toLowerCase().indexOf(filters.societe) < 0) return false;
     if (filters.type) { var t = c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || ''; if (t.toLowerCase().indexOf(filters.type) < 0) return false; }
     if (filters.apporteur) { var a = c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || ''; if (a.toLowerCase().indexOf(filters.apporteur) < 0) return false; }
-    if (filters.statut && (c.statut || '').toLowerCase().indexOf(filters.statut) < 0) return false;
+    if (filters.commercial) { var _fch = findClientHabits(c.client_name); var _fcn = _fch && _fch.salesman_name || ''; if (_fcn.toLowerCase().indexOf(filters.commercial) < 0) return false; }
+    if (filters.statut) { var _fst = c.custom_data && c.custom_data['1-alpha17'] && c.custom_data['1-alpha17'].value || ''; if (_fst.toLowerCase().indexOf(filters.statut) < 0) return false; }
     if (filters.affaire) { var af = c._affaire ? c._affaire.ref : ''; if (af.toLowerCase().indexOf(filters.affaire) < 0) return false; }
     return true;
   });
@@ -5834,7 +5838,8 @@ function filterCommandes() {
         (c._affaire && c._affaire.nom || '').toLowerCase().indexOf(q) >= 0 ||
         (c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || '').toLowerCase().indexOf(q) >= 0 ||
         (c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || '').toLowerCase().indexOf(q) >= 0 ||
-        (c._responsable || '').toLowerCase().indexOf(q) >= 0;
+        (c._responsable || '').toLowerCase().indexOf(q) >= 0 ||
+        (function(){ var _h = findClientHabits(c.client_name); return (_h && _h.salesman_name || '').toLowerCase().indexOf(q) >= 0; })();
     });
   }
   renderCommandesList();
@@ -5865,19 +5870,28 @@ function renderCommandesList() {
   var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
   var sortArrow = cmdSortCol ? (cmdSortAsc ? ' ▲' : ' ▼') : '';
   var thSort = function(col, label) { var active = cmdSortCol === col; return '<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + fInput(col) + '</th>'; };
-  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Dossier</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
+  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+thSort('commercial','Commercial GPH')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Dossier</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
   // Build index of planned commandes
   var plannedCmds = {};
   interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
 
   commandesFiltered.forEach(function(cmd) {
-    var sColor = statusColors[cmd.statut] || '#888';
-    var sLabel = statusLabels[cmd.statut] || cmd.statut || '—';
+    var cdStatutRaw = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || '';
+    var cdStatutMatch = (function() {
+      if (!cdStatutRaw) return { label: '—', color: '#888' };
+      var valNorm = cdStatutRaw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      var m = settingsStatuts.find(function(s) {
+        var lblNorm = (s.label || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        return lblNorm === valNorm || s.id === valNorm || s.label === cdStatutRaw;
+      });
+      return m ? { label: cdStatutRaw, color: m.color } : { label: cdStatutRaw, color: '#888' };
+    })();
+    var sColor = cdStatutMatch.color;
+    var sLabel = cdStatutMatch.label;
     var adresse = cmd._adresse || '';
     var affRef = cmd._affaire ? cmd._affaire.ref : '';
     var affNom = cmd._affaire ? cmd._affaire.nom : '';
     var planned = plannedCmds[cmd.id] || [];
-    var cdStatut = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value;
     var linkedGeo = commandeGeosoliaLinks[cmd.id] || '';
     html += '<tr>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
@@ -5895,13 +5909,16 @@ function renderCommandesList() {
     html += '<td style="font-size:0.7rem;">' + (cdTypeMission || '—') + '</td>';
     html += '<td style="font-size:0.7rem;' + dlrWarn + '">' + dlrFormatted + '</td>';
     html += '<td style="font-size:0.7rem;">' + (cdApporteur || '—') + '</td>';
+    var clientHab = findClientHabits(cmd.client_name);
+    var commercialGph = clientHab && clientHab.salesman_name || '';
+    html += '<td style="font-size:0.7rem;">' + (commercialGph || '—') + '</td>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
     html += '<td>';
     html += '<span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span>';
-    if (cdStatut) html += '<br><span style="font-size:0.6rem;color:var(--text-muted);">' + cdStatut + '</span>';
     html += '</td>';
     html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.7rem;font-weight:600;">' + (affRef ? affRef : '—') + '</td>';
-    html += '<td>' + (affRef ? '<button onclick="openDossierAffaire(\''+affRef+'\')" title="Ouvrir le dossier de l\'affaire" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.7rem;cursor:pointer;font-family:inherit;">📁</button>' : '—') + '</td>';
+    var _dossierBtnId = 'btnCopyCmd_' + (cmd.id || '').replace(/[^a-zA-Z0-9]/g, '');
+    html += '<td>' + (affRef ? '<button id="'+_dossierBtnId+'" onclick="copyServerPathFor(\''+affRef.replace(/'/g,"\\'")+'\',\''+(affNom||'').replace(/'/g,"\\'")+'\',\''+_dossierBtnId+'\')" title="Copier le chemin réseau du dossier" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.7rem;cursor:pointer;font-family:inherit;white-space:nowrap;">📁 Copier</button>' : '—') + '</td>';
     html += '<td>';
     html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
     html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
@@ -6220,7 +6237,7 @@ async function loadClientsHabits() {
     var data = [];
     var off = 0;
     while (true) {
-      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques').range(off, off + 999);
+      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, salesman_name').range(off, off + 999);
       if (r.error) { console.warn('[Clients] Erreur:', r.error.message); break; }
       if (!r.data || r.data.length === 0) break;
       data = data.concat(r.data);
