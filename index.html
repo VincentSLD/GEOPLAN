@@ -3135,26 +3135,29 @@ async function _dossierEnsurePermission(handle) {
   return perm === 'granted';
 }
 
-function _getModalAffaireRef() {
+function _getModalAffaireInfo() {
   var cmdId = document.getElementById('intCommande').value;
   var cmd = cmdId ? commandesData.find(function(c) { return c.id === cmdId; }) : null;
-  if (cmd && cmd._affaire && cmd._affaire.ref) return cmd._affaire.ref;
+  if (cmd && cmd._affaire && cmd._affaire.ref) return { ref: cmd._affaire.ref, nom: cmd._affaire.nom || '' };
   if (editingId) {
     var int = interventions.find(function(i) { return i.id === editingId; });
-    if (int && int.affaireRef) return int.affaireRef;
+    if (int && int.affaireRef) {
+      var cmd2 = int.commandeId ? commandesData.find(function(c) { return c.id === int.commandeId; }) : null;
+      return { ref: int.affaireRef, nom: (cmd2 && cmd2._affaire ? cmd2._affaire.nom : '') || '' };
+    }
   }
   return null;
 }
 function openServerLinkFromModal() {
-  var affRef = _getModalAffaireRef();
-  if (!affRef) { alert('Aucune affaire liée à cette intervention.'); return; }
-  openDossierAffaire(affRef);
+  var info = _getModalAffaireInfo();
+  if (!info) { alert('Aucune affaire liée à cette intervention.'); return; }
+  openDossierAffaire(info.ref);
 }
 function copyServerPath() {
-  var affRef = _getModalAffaireRef();
-  if (!affRef) { alert('Aucune affaire liée.'); return; }
+  var info = _getModalAffaireInfo();
+  if (!info) { alert('Aucune affaire liée.'); return; }
   var index = _dossierGetIndex();
-  var entry = index[affRef];
+  var entry = index[info.ref];
   if (entry) {
     var basePath = entry.pathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
     var fullPath = basePath + '\\' + entry.relPath.replace(/\//g, '\\');
@@ -3165,7 +3168,8 @@ function copyServerPath() {
   }
   var basePath1 = settingsGeneral.dossierPath1;
   if (!basePath1) { alert('Chemin 1 non configuré. Lancez une indexation dans les paramètres.'); return; }
-  navigator.clipboard.writeText(basePath1 + '\\' + affRef);
+  var folderName = info.ref + (info.nom ? '_' + info.nom : '');
+  navigator.clipboard.writeText(basePath1 + '\\' + folderName);
   var btn = document.getElementById('btnCopyServer');
   if (btn) { btn.textContent = '✅ Copié !'; setTimeout(function() { btn.textContent = '📋 Copier chemin'; }, 1500); }
 }
