@@ -3058,8 +3058,8 @@ async function _dossierCrawl(handle, pathKey, prefix, depth, index) {
   for (var i = 0; i < children.length; i++) {
     var c = children[i];
     if (/^\d/.test(c.name)) {
-      // Extraire la clé (premier token séparé par espace)
-      var key = c.name.split(/\s+/)[0];
+      // Extraire la clé (ref avant le premier espace ou underscore)
+      var key = c.name.split(/[_\s]/)[0];
       index[key] = { pathKey: pathKey, relPath: prefix + c.name };
       // Ne pas descendre dans les affaires elles-mêmes
     }
