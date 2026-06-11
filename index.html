@@ -2451,36 +2451,32 @@ async function fetchWeatherForDate(lat, lon, date) {
   const maxStr = maxDate.toISOString().split('T')[0];
   if (date > maxStr) return null;
 
-  var sd = today;
-  var ed = maxStr;
   if (!weatherBulkCache[bulkKey]) {
-    weatherBulkCache[bulkKey] = true;
-    try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${sd}&end_date=${ed}`;
-      console.log('[Météo] API call:', url);
-      const r = await fetch(url);
-      console.log('[Météo] API status:', r.status);
-      if (r.ok) {
-        const data = await r.json();
-        console.log('[Météo] API returned', data.daily ? data.daily.time.length : 0, 'days');
-        if (data.daily && data.daily.time) {
-          data.daily.time.forEach((d, i) => {
-            weatherCache[`${lat},${lon},${d}`] = {
-              code: data.daily.weather_code[i],
-              tempMax: Math.round(data.daily.temperature_2m_max[i]),
-              tempMin: Math.round(data.daily.temperature_2m_min[i]),
-              precipProb: data.daily.precipitation_probability_max[i],
-              windMax: Math.round(data.daily.wind_speed_10m_max[i]),
-            };
-          });
-          weatherCache[bulkKey] = data;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${today}&end_date=${maxStr}`;
+        const r = await fetch(url);
+        if (r.status === 429) { console.warn('[Météo] 429 rate-limit, retry', attempt + 1); continue; }
+        if (r.ok) {
+          const data = await r.json();
+          if (data.daily && data.daily.time) {
+            data.daily.time.forEach((d, i) => {
+              weatherCache[`${lat},${lon},${d}`] = {
+                code: data.daily.weather_code[i],
+                tempMax: Math.round(data.daily.temperature_2m_max[i]),
+                tempMin: Math.round(data.daily.temperature_2m_min[i]),
+                precipProb: data.daily.precipitation_probability_max[i],
+                windMax: Math.round(data.daily.wind_speed_10m_max[i]),
+              };
+            });
+            weatherCache[bulkKey] = data;
+          }
+          weatherBulkCache[bulkKey] = true;
+          break;
         }
-      } else {
-        console.warn('[Météo] API error response:', await r.text());
-      }
-    } catch(e) { console.warn('[Météo] Erreur bulk fetch:', e); }
-  } else {
-    console.log('[Météo] bulkCache hit for', bulkKey);
+      } catch(e) { console.warn('[Météo] Erreur fetch:', e); }
+    }
   }
   return weatherCache[cacheKey] || null;
 }
@@ -2507,36 +2503,27 @@ function weatherBadgeHTML(weather, size='sm') {
 
 // Batch-fetch weather for visible interventions and re-render badges
 async function loadWeatherForInterventions(ints) {
-  console.log('[Météo] loadWeatherForInterventions called with', ints.length, 'ints, showWeather=', showWeather);
   const toFetch = [];
   for (const int of ints) {
     const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
-    if (!coords) { console.log('[Météo] No coords for int', int.id, int.location); continue; }
+    if (!coords) continue;
     const cacheKey = `${coords.lat},${coords.lon},${int.date}`;
     if (!weatherCache[cacheKey]) {
       toFetch.push({lat: coords.lat, lon: coords.lon, date: int.date, id: int.id});
     }
   }
-  console.log('[Météo] toFetch:', toFetch.length, 'items');
-  // Deduplicate by cacheKey
   const unique = {};
   toFetch.forEach(f => { unique[`${f.lat},${f.lon},${f.date}`] = f; });
   const items = Object.values(unique);
-  // Fetch unique locations (bulk fetch loads all 16 days per coord)
   const fetchedCoords = {};
   for (let i = 0; i < items.length; i++) {
     const coordKey = `${items[i].lat},${items[i].lon}`;
     if (!fetchedCoords[coordKey]) {
-      console.log('[Météo] Fetching for', coordKey, items[i].date);
-      var result = await fetchWeatherForDate(items[i].lat, items[i].lon, items[i].date);
-      console.log('[Météo] Fetch result:', result);
+      await fetchWeatherForDate(items[i].lat, items[i].lon, items[i].date);
       fetchedCoords[coordKey] = true;
-      if (i < items.length - 1) await new Promise(r => setTimeout(r, 150));
+      if (i < items.length - 1) await new Promise(r => setTimeout(r, 500));
     }
   }
-  console.log('[Météo] weatherCache keys:', Object.keys(weatherCache).length);
-  // Always update all weather badges in DOM
-  var badgeCount = 0;
   document.querySelectorAll('[data-weather-int]').forEach(el => {
     const id = parseInt(el.dataset.weatherInt);
     const int = interventions.find(i => i.id === id);
@@ -2544,9 +2531,8 @@ async function loadWeatherForInterventions(ints) {
     const coords = getInterventionCoords(int) || getCoordsForLocation(int.location);
     if (!coords) return;
     const w = weatherCache[`${coords.lat},${coords.lon},${int.date}`];
-    if (w) { el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm'); badgeCount++; }
+    if (w) el.innerHTML = weatherBadgeHTML(w, el.dataset.weatherSize || 'sm');
   });
-  console.log('[Météo] Updated', badgeCount, 'badges in DOM');
 }
 
 function getWeatherForInt(int) {
