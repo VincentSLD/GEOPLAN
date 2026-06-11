@@ -1921,7 +1921,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <button class="nav-btn" onclick="navigateMapDate(1)" title="Jour suivant"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
           <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=new Date().toISOString().split('T')[0];renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;margin-left:8px;">
-            <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules Webfleet
+            <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules en live
           </label>
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;">
             <input type="checkbox" id="mapShowTournees" checked onchange="renderMapTournees()"> Tournées
