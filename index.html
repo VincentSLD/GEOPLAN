@@ -4317,6 +4317,16 @@ function saveIntervention(){
         await saveInterventionToSupabase(interventions[sibIdx]);
       }
     }
+    // Propager le commentaire sur toutes les interventions de la même commande
+    if (data.commandeId && data.infosAdv !== undefined) {
+      var sibsAll = interventions.filter(function(x) { return x.commandeId === data.commandeId && x.id !== data.id; });
+      for (var si = 0; si < sibsAll.length; si++) {
+        if (sibsAll[si].infosAdv !== data.infosAdv) {
+          sibsAll[si].infosAdv = data.infosAdv;
+          await saveInterventionToSupabase(sibsAll[si]);
+        }
+      }
+    }
     // Auto-create rapport if new intervention with Geosolia
     if (!editingId && data.geosoliaId && data.commandeId) await createRapportIntervention(data);
     syncCommandeGeosoliaFromInterventions();
