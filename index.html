@@ -2045,9 +2045,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="form-row">
         <div class="form-group" style="flex:1;"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
         <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
-        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;display:flex;gap:3px;" id="btnServerGroup">
-          <button type="button" id="btnOpenServer" onclick="openServerLinkFromModal()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Ouvrir le dossier affaire sur le serveur">📁 Ouvrir</button>
-          <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📋 Copier chemin</button>
+        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+          <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📁 Copier chemin serveur</button>
         </div>
       </div>
       <div class="form-row">
@@ -3148,30 +3147,48 @@ function _getModalAffaireInfo() {
   }
   return null;
 }
-function openServerLinkFromModal() {
-  var info = _getModalAffaireInfo();
-  if (!info) { alert('Aucune affaire liée à cette intervention.'); return; }
-  openDossierAffaire(info.ref);
-}
 function copyServerPath() {
   var info = _getModalAffaireInfo();
   if (!info) { alert('Aucune affaire liée.'); return; }
+  // 1. Index : chemin exact connu
   var index = _dossierGetIndex();
   var entry = index[info.ref];
   if (entry) {
     var basePath = entry.pathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
     var fullPath = basePath + '\\' + entry.relPath.replace(/\//g, '\\');
     navigator.clipboard.writeText(fullPath);
-    var btn = document.getElementById('btnCopyServer');
-    if (btn) { btn.textContent = '✅ Copié !'; setTimeout(function() { btn.textContent = '📋 Copier chemin'; }, 1500); }
+    _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
     return;
   }
-  var basePath1 = settingsGeneral.dossierPath1;
-  if (!basePath1) { alert('Chemin 1 non configuré. Lancez une indexation dans les paramètres.'); return; }
-  var folderName = info.ref + (info.nom ? '_' + info.nom : '');
-  navigator.clipboard.writeText(basePath1 + '\\' + folderName);
-  var btn = document.getElementById('btnCopyServer');
-  if (btn) { btn.textContent = '✅ Copié !'; setTimeout(function() { btn.textContent = '📋 Copier chemin'; }, 1500); }
+  // 2. Recherche live si handles disponibles
+  (async function() {
+    var h1 = await _dossierLoadHandle('path-1');
+    var h2 = await _dossierLoadHandle('path-2');
+    if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
+    if (h2 && !(await _dossierEnsurePermission(h2))) h2 = null;
+    if (h1 || h2) {
+      showLoader('Recherche du dossier ' + info.ref + '...');
+      var found = null, foundPathKey = null;
+      if (h1) { found = await _dossierSearchLive(h1, info.ref, '', 0); if (found) foundPathKey = 'path-1'; }
+      if (!found && h2) { found = await _dossierSearchLive(h2, info.ref, '', 0); if (found) foundPathKey = 'path-2'; }
+      hideLoader();
+      if (found) {
+        index[info.ref] = { pathKey: foundPathKey, relPath: found.relPath };
+        _dossierSetIndex(index);
+        var bp = foundPathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
+        var fp = bp + '\\' + found.relPath.replace(/\//g, '\\');
+        navigator.clipboard.writeText(fp);
+        _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
+        return;
+      }
+    }
+    // 3. Fallback : construire chemin1\ref_nom
+    var basePath1 = settingsGeneral.dossierPath1;
+    if (!basePath1) { alert('Chemin 1 non configuré dans les paramètres.'); return; }
+    var folderName = info.ref + (info.nom ? '_' + info.nom : '');
+    navigator.clipboard.writeText(basePath1 + '\\' + folderName);
+    _flashCopyBtn('btnCopyServer', '✅ Copié !', '📁 Copier chemin serveur');
+  })();
 }
 
 // Configuration : faire autoriser un chemin (appelé depuis Paramètres)
@@ -4087,7 +4104,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnOpenServer').style.display='none';document.getElementById('btnCopyServer').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4471,7 +4488,7 @@ function editIntervention(id){
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
-  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnOpenServer').style.display='none';document.getElementById('btnCopyServer').style.display='none';}
+  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnCopyServer').style.display='none';}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
@@ -6023,7 +6040,6 @@ function onCommandeSelect() {
   if (!cmdId) {
     document.getElementById('intAffaire').value = '';
     document.getElementById('intMarche').value = '';
-    document.getElementById('btnOpenServer').style.display = 'none';
     document.getElementById('btnCopyServer').style.display = 'none';
     if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
     if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
@@ -6041,7 +6057,6 @@ function onCommandeSelect() {
   document.getElementById('intAffaire').value = cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom || '').substring(0, 40)) : '';
   document.getElementById('intMarche').value = cmd._marche ? (cmd._marche.ref + ' — ' + (cmd._marche.nom || '').substring(0, 40)) : '';
   var _showServer = (cmd._affaire && cmd._affaire.ref) ? '' : 'none';
-  document.getElementById('btnOpenServer').style.display = _showServer;
   document.getElementById('btnCopyServer').style.display = _showServer;
   // Bloc données personnalisées
   if (cdBox) {
