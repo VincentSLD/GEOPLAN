@@ -3186,13 +3186,30 @@ async function configDossierPath(idx) {
   }
 }
 
+async function _dossierSearchLive(rootHandle, affaireRef, depth) {
+  if (!rootHandle || depth > 3) return null;
+  try {
+    for await (var entry of rootHandle.values()) {
+      if (entry.kind !== 'directory') continue;
+      var key = entry.name.split(/[_\s]/)[0];
+      if (key === affaireRef) return entry;
+    }
+    // Chercher dans les sous-dossiers non-affaires
+    for await (var entry of rootHandle.values()) {
+      if (entry.kind !== 'directory' || /^\d/.test(entry.name)) continue;
+      var found = await _dossierSearchLive(entry, affaireRef, depth + 1);
+      if (found) return found;
+    }
+  } catch(e) {}
+  return null;
+}
+
 async function openDossierAffaire(affaireRef) {
   if (!window.showDirectoryPicker) {
     alert('Votre navigateur ne supporte pas cette fonctionnalité. Utilisez Edge ou Chrome.');
     return;
   }
   try {
-    // Charger les 2 handles configurés
     var h1 = await _dossierLoadHandle('path-1');
     var h2 = await _dossierLoadHandle('path-2');
     if (h1 && !(await _dossierEnsurePermission(h1))) h1 = null;
@@ -3207,7 +3224,7 @@ async function openDossierAffaire(affaireRef) {
       await window.showDirectoryPicker({ mode: 'read', startIn: h1 || h2 });
       return;
     }
-    // 1. Tenter l'index
+    // 1. Tenter l'index (priorité chemin 1)
     var index = _dossierGetIndex();
     if (index[affaireRef]) {
       var entry = index[affaireRef];
@@ -3220,30 +3237,22 @@ async function openDossierAffaire(affaireRef) {
           await window.showDirectoryPicker({ mode: 'read', startIn: handle });
           return;
         } catch(e) {
-          // Le dossier indexé n'existe plus, on retombe sur la recherche live
-          console.warn('[Dossier] Index obsolète, relance recherche');
+          console.warn('[Dossier] Index obsolète, recherche live');
           hideLoader();
         }
       }
     }
-    // 2. Pas d'index : proposer d'indexer
-    if (Object.keys(index).length === 0) {
-      if (confirm('Aucun index de dossiers. Indexer maintenant ? (peut prendre 1-2 min la 1ère fois)\n\nAnnuler = recherche directe dans les dossiers configurés.')) {
-        await indexerDossiers();
-        // Relancer la recherche après indexation
-        index = _dossierGetIndex();
-        if (index[affaireRef]) {
-          var e2 = index[affaireRef];
-          var r2 = e2.pathKey === 'path-1' ? h1 : h2;
-          var h = await _dossierResolveRelPath(r2, e2.relPath);
-          await window.showDirectoryPicker({ mode: 'read', startIn: h });
-          return;
-        }
-        alert('Dossier "' + affaireRef + '" non trouvé dans l\'index.');
-        return;
-      }
+    // 2. Recherche live : chemin 1 d'abord, puis chemin 2
+    showLoader('Recherche du dossier ' + affaireRef + '...');
+    var found = null;
+    if (h1) found = await _dossierSearchLive(h1, affaireRef, 0);
+    if (!found && h2) found = await _dossierSearchLive(h2, affaireRef, 0);
+    hideLoader();
+    if (found) {
+      await window.showDirectoryPicker({ mode: 'read', startIn: found });
+      return;
     }
-    alert('Dossier "' + affaireRef + '" non trouvé dans l\'index.\nCliquez sur "Réindexer" dans les paramètres si de nouveaux dossiers ont été ajoutés.');
+    alert('Dossier "' + affaireRef + '" non trouvé.\nVérifiez que le dossier existe sur le serveur ou relancez l\'indexation.');
   } catch(e) {
     hideLoader();
     if (e.name !== 'AbortError') { console.warn('[Dossier]', e); alert('Erreur : ' + e.message); }
