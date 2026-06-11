@@ -4454,7 +4454,7 @@ function planifierSupplementaire(id) {
     bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + totalCount + '</span>';
     bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
     bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
-    bannerHtml += '<input data-sibling-id="' + s.id + '" data-sibling-orig="' + (s.duration || 0) + '" value="' + fmtDurInput(s.duration || 0) + '" oninput="updateSiblingDurTotals()" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#fff;padding:2px 4px;border-radius:4px;border:1px solid var(--border);width:56px;text-align:center;" placeholder="2h30">';
+    bannerHtml += '<input data-sibling-id="' + s.id + '" data-sibling-orig="' + (s.duration || 0) + '" value="' + fmtDurInput(s.duration || 0) + '" oninput="updateSiblingDurTotals()" class="supp-highlight" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#fff;padding:2px 4px;border-radius:4px;border:1px solid var(--gph-yellow);width:56px;text-align:center;box-shadow:0 0 0 1px var(--gph-yellow);" placeholder="2h30">';
     bannerHtml += '</div>';
   });
   // Ligne pour la nouvelle intervention
