@@ -2383,6 +2383,26 @@ const LOCATION_COORDS = {
 };
 
 const weatherCache = {};
+const weatherBulkCache = {};
+const weatherFetchLock = {};
+(function() {
+  try {
+    var stored = JSON.parse(localStorage.getItem('geoplan_weather') || '{}');
+    if (stored.ts && Date.now() - stored.ts < 3600000) {
+      Object.assign(weatherCache, stored.data || {});
+      Object.keys(stored.bulk || {}).forEach(function(k) { weatherBulkCache[k] = true; });
+      console.log('[Météo] Cache localStorage restauré:', Object.keys(stored.data || {}).length, 'entrées');
+    }
+  } catch(e) {}
+})();
+function _saveWeatherToStorage() {
+  try {
+    var data = {}; var bulk = {};
+    Object.keys(weatherCache).forEach(function(k) { if (k.split(',').length === 3) data[k] = weatherCache[k]; });
+    Object.keys(weatherBulkCache).forEach(function(k) { bulk[k] = true; });
+    localStorage.setItem('geoplan_weather', JSON.stringify({ ts: Date.now(), data: data, bulk: bulk }));
+  } catch(e) {}
+}
 
 const WMO_ICONS = {
   0: {icon:'☀️', label:'Ensoleillé'},
@@ -2439,9 +2459,6 @@ function getCoordsForLocation(location) {
   return null;
 }
 
-const weatherBulkCache = {};
-const weatherFetchLock = {};
-
 async function fetchWeatherForDate(lat, lon, date) {
   const cacheKey = `${lat},${lon},${date}`;
   if (weatherCache[cacheKey]) return weatherCache[cacheKey];
@@ -2460,7 +2477,7 @@ async function fetchWeatherForDate(lat, lon, date) {
   try {
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+        if (attempt > 0) await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${today}&end_date=${maxStr}`;
         const r = await fetch(url);
         if (r.status === 429) { console.warn('[Météo] 429, attente avant retry', attempt + 1); continue; }
@@ -2477,6 +2494,7 @@ async function fetchWeatherForDate(lat, lon, date) {
               };
             });
             weatherCache[bulkKey] = data;
+            _saveWeatherToStorage();
           }
           weatherBulkCache[bulkKey] = true;
           break;
