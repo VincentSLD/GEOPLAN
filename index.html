@@ -7054,7 +7054,8 @@ function renderMapTournees() {
     });
 
     // Arrival point
-    var arriveeCoords = getTechArriveeCoords(tech, int.date);
+    var lastInt = ints[ints.length - 1];
+    var arriveeCoords = getTechArriveeCoords(tech, lastInt ? lastInt.date : dateStr);
     if (arriveeCoords && ints.length > 0) {
       routePoints.push([arriveeCoords.lat, arriveeCoords.lon]);
       var arrMarker = L.circleMarker([arriveeCoords.lat, arriveeCoords.lon], {
@@ -7063,13 +7064,39 @@ function renderMapTournees() {
       mapTourneeMarkers.push(arrMarker);
     }
 
-    // Draw route line
-    if (routePoints.length >= 2) {
-      var line = L.polyline(routePoints, {
-        color: color, weight: 3, opacity: 0.7, dashArray: '8,6'
-      }).addTo(fleetMap);
-      mapTourneeLines.push(line);
+    // Draw route segments with travel labels
+    var segments = [];
+    if (departCoords && ints.length > 0) {
+      var firstCoords = getInterventionCoords(ints[0]);
+      if (firstCoords) segments.push({ from: [departCoords.lat, departCoords.lon], to: [firstCoords.lat, firstCoords.lon], minutes: ints[0].travelTo || 0, km: ints[0].travelToKm || 0, label: 'Départ' });
     }
+    for (var si = 0; si < ints.length - 1; si++) {
+      var cA = getInterventionCoords(ints[si]);
+      var cB = getInterventionCoords(ints[si + 1]);
+      if (cA && cB) segments.push({ from: [cA.lat, cA.lon], to: [cB.lat, cB.lon], minutes: ints[si + 1].travelTo || 0, km: ints[si + 1].travelToKm || 0, label: '' });
+    }
+    if (arriveeCoords && ints.length > 0) {
+      var lastCoords = getInterventionCoords(lastInt);
+      if (lastCoords) segments.push({ from: [lastCoords.lat, lastCoords.lon], to: [arriveeCoords.lat, arriveeCoords.lon], minutes: lastInt.travelFrom || 0, km: lastInt.travelFromKm || 0, label: 'Retour' });
+    }
+    segments.forEach(function(seg) {
+      var line = L.polyline([seg.from, seg.to], { color: color, weight: 3, opacity: 0.7, dashArray: '8,6' }).addTo(fleetMap);
+      mapTourneeLines.push(line);
+      if (seg.minutes > 0) {
+        var midLat = (seg.from[0] + seg.to[0]) / 2;
+        var midLng = (seg.from[1] + seg.to[1]) / 2;
+        var txt = fmtTravelTime(seg.minutes) + (seg.km ? ' · ' + seg.km + 'km' : '');
+        var lbl = L.marker([midLat, midLng], {
+          icon: L.divIcon({
+            className: 'map-travel-label',
+            html: '<div style="background:' + color + ';color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.25);font-family:\'DM Mono\',monospace;">🚗 ' + txt + '</div>',
+            iconSize: null, iconAnchor: [0, 10]
+          }),
+          interactive: false
+        }).addTo(fleetMap);
+        mapTourneeMarkers.push(lbl);
+      }
+    });
   });
 
   // Fit bounds
