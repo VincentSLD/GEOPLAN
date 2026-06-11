@@ -4087,6 +4087,15 @@ function updateEndFromDuration(){
   var endMin=timeToMin(start)+durMin;
   document.getElementById('intEnd').value=minToTime(endMin);
 }
+function adjustSiblingDur(btn,delta){
+  var inp=btn.parentElement.querySelector('input[data-sibling-id],input[data-sibling-new]');
+  if(!inp)return;
+  var cur=parseDurInput(inp.value)||0;
+  var nv=Math.max(0,cur+delta);
+  inp.value=fmtDurInput(nv);
+  if(inp.hasAttribute('data-sibling-new')){inp.style.color=nv>0?'#333':'#999';inp.style.background=nv>0?'#fff':'#f5f5f5';}
+  updateSiblingDurTotals();
+}
 function updateSiblingDurTotals(){
   var estEl=document.querySelector('[data-sibling-estimated]');
   if(!estEl)return;
@@ -4454,7 +4463,11 @@ function planifierSupplementaire(id) {
     bannerHtml += '<span class="split-badge">' + (idx + 1) + '/' + totalCount + '</span>';
     bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (t ? t.color : '#888') + ';flex-shrink:0;"></span>';
     bannerHtml += '<span style="flex:1;font-size:0.65rem;">' + (t ? t.name : '?') + '<span style="color:var(--text-muted);margin-left:4px;">' + dateLabel + '</span></span>';
+    bannerHtml += '<span style="display:inline-flex;align-items:center;gap:2px;">';
+    bannerHtml += '<button type="button" onclick="adjustSiblingDur(this,-15)" style="width:20px;height:20px;border:1px solid var(--gph-yellow);border-radius:3px;background:#fff;cursor:pointer;font-size:0.7rem;font-weight:700;line-height:1;padding:0;color:var(--gph-yellow);">−</button>';
     bannerHtml += '<input data-sibling-id="' + s.id + '" data-sibling-orig="' + (s.duration || 0) + '" value="' + fmtDurInput(s.duration || 0) + '" oninput="updateSiblingDurTotals()" class="supp-highlight" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#fff;padding:2px 4px;border-radius:4px;border:1px solid var(--gph-yellow);width:56px;text-align:center;box-shadow:0 0 0 1px var(--gph-yellow);" placeholder="2h30">';
+    bannerHtml += '<button type="button" onclick="adjustSiblingDur(this,15)" style="width:20px;height:20px;border:1px solid var(--gph-yellow);border-radius:3px;background:#fff;cursor:pointer;font-size:0.7rem;font-weight:700;line-height:1;padding:0;color:var(--gph-yellow);">+</button>';
+    bannerHtml += '</span>';
     bannerHtml += '</div>';
   });
   // Ligne pour la nouvelle intervention
@@ -4462,7 +4475,11 @@ function planifierSupplementaire(id) {
   bannerHtml += '<span class="split-badge">' + totalCount + '/' + totalCount + '</span>';
   bannerHtml += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;"></span>';
   bannerHtml += '<span style="flex:1;font-size:0.65rem;">📌 Nouvelle intervention</span>';
+  bannerHtml += '<span style="display:inline-flex;align-items:center;gap:2px;">';
+  bannerHtml += '<button type="button" onclick="adjustSiblingDur(this,-15)" style="width:20px;height:20px;border:1px solid var(--gph-yellow);border-radius:3px;background:#fff;cursor:pointer;font-size:0.7rem;font-weight:700;line-height:1;padding:0;color:var(--gph-yellow);">−</button>';
   bannerHtml += '<input data-sibling-new="1" value="0h00" oninput="updateSiblingDurTotals()" class="supp-highlight" style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:700;background:#f5f5f5;color:#999;padding:2px 4px;border-radius:4px;border:1px solid var(--gph-yellow);width:56px;text-align:center;box-shadow:0 0 0 1px var(--gph-yellow);" placeholder="2h30">';
+  bannerHtml += '<button type="button" onclick="adjustSiblingDur(this,15)" style="width:20px;height:20px;border:1px solid var(--gph-yellow);border-radius:3px;background:#fff;cursor:pointer;font-size:0.7rem;font-weight:700;line-height:1;padding:0;color:var(--gph-yellow);">+</button>';
+  bannerHtml += '</span>';
   bannerHtml += '<span style="color:var(--gph-yellow);font-weight:700;font-size:0.7rem;">◄</span>';
   bannerHtml += '</div>';
   bannerHtml += '</div>';
