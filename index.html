@@ -5893,6 +5893,14 @@ function planifierCommande(cmdId) {
     if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
     // Pré-sélectionner Géosolia si lié
     var linkedGeo = commandeGeosoliaLinks[cmd.id];
+    if (!linkedGeo && cmd._affaire && cmd._affaire.ref) {
+      var normRef = cmd._affaire.ref.replace(/[.\-\s]/g, '').toLowerCase();
+      var matchGeo = geosoliaProjects.find(function(p) {
+        var geoRef = (p.project_ref || '').replace(/[.\-\s]/g, '').toLowerCase();
+        return geoRef && (geoRef === normRef || normRef.indexOf(geoRef) >= 0 || geoRef.indexOf(normRef) >= 0);
+      });
+      if (matchGeo) { linkedGeo = matchGeo.id; commandeGeosoliaLinks[cmd.id] = matchGeo.id; saveSettings('geoplan_cmd_geosolia', commandeGeosoliaLinks); }
+    }
     if (linkedGeo) { document.getElementById('intGeosolia').value = linkedGeo; onGeosoliaSelect(); }
     // Sélectionner l'étude si disponible
     var etudeSelect = document.getElementById('intEtude');
