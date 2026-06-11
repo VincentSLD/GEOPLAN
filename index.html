@@ -2445,16 +2445,24 @@ async function fetchWeatherForDate(lat, lon, date) {
   const cacheKey = `${lat},${lon},${date}`;
   if (weatherCache[cacheKey]) return weatherCache[cacheKey];
 
-  // Bulk fetch: request 7 days at once for this location to avoid many requests
   const bulkKey = `${lat},${lon}`;
-  if (!weatherBulkCache[bulkKey]) {
-    weatherBulkCache[bulkKey] = true;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const maxForecast = new Date(today); maxForecast.setDate(maxForecast.getDate() + 15);
+  const dateObj = new Date(date + 'T12:00:00');
+  if (dateObj > maxForecast) return null;
+
+  const rangeKey = bulkKey + ',' + getMonday(currentDate);
+  if (!weatherBulkCache[rangeKey]) {
+    weatherBulkCache[rangeKey] = true;
     try {
       const mon = getMonday(currentDate);
       const startDate = new Date(mon); startDate.setDate(startDate.getDate() - 2);
       const endDate = new Date(mon); endDate.setDate(endDate.getDate() + 13);
+      if (endDate > maxForecast) endDate.setTime(maxForecast.getTime());
+      if (startDate < today) { startDate.setTime(today.getTime()); startDate.setDate(startDate.getDate() - 1); }
       const sd = startDate.toISOString().split('T')[0];
       const ed = endDate.toISOString().split('T')[0];
+      if (sd > ed) return null;
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${sd}&end_date=${ed}`;
       const r = await fetch(url);
       if (r.ok) {
@@ -2469,7 +2477,6 @@ async function fetchWeatherForDate(lat, lon, date) {
               windMax: Math.round(data.daily.wind_speed_10m_max[i]),
             };
           });
-          // Also store full data for AI context
           weatherCache[bulkKey] = data;
         }
       }
