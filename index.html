@@ -2439,7 +2439,8 @@ function getCoordsForLocation(location) {
   return null;
 }
 
-const weatherBulkCache = {}; // key: "lat,lon" → { fetched, dates: { date: result } }
+const weatherBulkCache = {};
+const weatherFetchLock = {};
 
 async function fetchWeatherForDate(lat, lon, date) {
   const cacheKey = `${lat},${lon},${date}`;
@@ -2451,13 +2452,18 @@ async function fetchWeatherForDate(lat, lon, date) {
   const maxStr = maxDate.toISOString().split('T')[0];
   if (date > maxStr) return null;
 
-  if (!weatherBulkCache[bulkKey]) {
+  if (weatherBulkCache[bulkKey]) return weatherCache[cacheKey] || null;
+  if (weatherFetchLock[bulkKey]) { await weatherFetchLock[bulkKey]; return weatherCache[cacheKey] || null; }
+
+  var resolve;
+  weatherFetchLock[bulkKey] = new Promise(function(r) { resolve = r; });
+  try {
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,precipitation_sum&timezone=Europe%2FParis&start_date=${today}&end_date=${maxStr}`;
         const r = await fetch(url);
-        if (r.status === 429) { console.warn('[Météo] 429 rate-limit, retry', attempt + 1); continue; }
+        if (r.status === 429) { console.warn('[Météo] 429, attente avant retry', attempt + 1); continue; }
         if (r.ok) {
           const data = await r.json();
           if (data.daily && data.daily.time) {
@@ -2477,7 +2483,7 @@ async function fetchWeatherForDate(lat, lon, date) {
         }
       } catch(e) { console.warn('[Météo] Erreur fetch:', e); }
     }
-  }
+  } finally { resolve(); delete weatherFetchLock[bulkKey]; }
   return weatherCache[cacheKey] || null;
 }
 
@@ -3687,14 +3693,18 @@ function renderCurrentView() {
   if (aPlanifierOpen) renderAPlanifier();
 }
 
+var _weatherDebounce = null;
 function loadVisibleWeather() {
-  const visibleInts = [];
-  document.querySelectorAll('[data-weather-int]').forEach(el => {
-    const id = parseInt(el.dataset.weatherInt);
-    const int = interventions.find(i => i.id === id);
-    if (int && !int.isRapport) visibleInts.push(int);
-  });
-  if (visibleInts.length > 0) loadWeatherForInterventions(visibleInts);
+  if (_weatherDebounce) clearTimeout(_weatherDebounce);
+  _weatherDebounce = setTimeout(function() {
+    const visibleInts = [];
+    document.querySelectorAll('[data-weather-int]').forEach(el => {
+      const id = parseInt(el.dataset.weatherInt);
+      const int = interventions.find(i => i.id === id);
+      if (int && !int.isRapport) visibleInts.push(int);
+    });
+    if (visibleInts.length > 0) loadWeatherForInterventions(visibleInts);
+  }, 800);
 }
 
 // ===== JOURS FÉRIÉS FRANÇAIS =====
