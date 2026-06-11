@@ -3186,18 +3186,17 @@ async function configDossierPath(idx) {
   }
 }
 
-async function _dossierSearchLive(rootHandle, affaireRef, depth) {
+async function _dossierSearchLive(rootHandle, affaireRef, prefix, depth) {
   if (!rootHandle || depth > 3) return null;
   try {
     for await (var entry of rootHandle.values()) {
       if (entry.kind !== 'directory') continue;
       var key = entry.name.split(/[_\s]/)[0];
-      if (key === affaireRef) return entry;
+      if (key === affaireRef) return { handle: entry, relPath: prefix + entry.name };
     }
-    // Chercher dans les sous-dossiers non-affaires
     for await (var entry of rootHandle.values()) {
       if (entry.kind !== 'directory' || /^\d/.test(entry.name)) continue;
-      var found = await _dossierSearchLive(entry, affaireRef, depth + 1);
+      var found = await _dossierSearchLive(entry, affaireRef, prefix + entry.name + '/', depth + 1);
       if (found) return found;
     }
   } catch(e) {}
@@ -3224,32 +3223,35 @@ async function openDossierAffaire(affaireRef) {
       await window.showDirectoryPicker({ mode: 'read', startIn: h1 || h2 });
       return;
     }
-    // 1. Tenter l'index (priorité chemin 1)
+    // 1. Tenter l'index → ouverture directe (dans le contexte du clic)
     var index = _dossierGetIndex();
     if (index[affaireRef]) {
       var entry = index[affaireRef];
       var root = entry.pathKey === 'path-1' ? h1 : h2;
       if (root) {
         try {
-          showLoader('Ouverture du dossier...');
           var handle = await _dossierResolveRelPath(root, entry.relPath);
-          hideLoader();
           await window.showDirectoryPicker({ mode: 'read', startIn: handle });
           return;
         } catch(e) {
           console.warn('[Dossier] Index obsolète, recherche live');
-          hideLoader();
         }
       }
     }
-    // 2. Recherche live : chemin 1 d'abord, puis chemin 2
+    // 2. Recherche live : chemin 1 puis chemin 2 → copie du chemin (gesture perdue)
     showLoader('Recherche du dossier ' + affaireRef + '...');
-    var found = null;
-    if (h1) found = await _dossierSearchLive(h1, affaireRef, 0);
-    if (!found && h2) found = await _dossierSearchLive(h2, affaireRef, 0);
+    var found = null, foundPathKey = null;
+    if (h1) { found = await _dossierSearchLive(h1, affaireRef, '', 0); if (found) foundPathKey = 'path-1'; }
+    if (!found && h2) { found = await _dossierSearchLive(h2, affaireRef, '', 0); if (found) foundPathKey = 'path-2'; }
     hideLoader();
     if (found) {
-      await window.showDirectoryPicker({ mode: 'read', startIn: found });
+      // Sauvegarder dans l'index pour ouverture directe la prochaine fois
+      index[affaireRef] = { pathKey: foundPathKey, relPath: found.relPath };
+      _dossierSetIndex(index);
+      var basePath = foundPathKey === 'path-1' ? settingsGeneral.dossierPath1 : settingsGeneral.dossierPath2;
+      var fullPath = basePath + '\\' + found.relPath.replace(/\//g, '\\');
+      navigator.clipboard.writeText(fullPath);
+      alert('Dossier trouvé !\nChemin copié dans le presse-papier :\n\n' + fullPath + '\n\nCollez-le dans l\'Explorateur Windows.\n(La prochaine ouverture sera directe.)');
       return;
     }
     alert('Dossier "' + affaireRef + '" non trouvé.\nVérifiez que le dossier existe sur le serveur ou relancez l\'indexation.');
