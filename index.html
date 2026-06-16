@@ -5371,9 +5371,19 @@ function renderAPlanifier() {
     unplannedRapports.forEach(function(rap) {
       var durLabel = rap.duration >= 60 ? Math.floor(rap.duration/60)+'h'+(rap.duration%60?String(rap.duration%60).padStart(2,'0'):'') : rap.duration+'min';
       var tech = TECHNICIANS.find(function(t){return t.id===rap.techId;});
+      var rapCmd = rap.commandeId ? commandesData.find(function(c){return c.id===rap.commandeId;}) : null;
+      var rapDlr = rapCmd && rapCmd.custom_data && rapCmd.custom_data['1-date01'] && rapCmd.custom_data['1-date01'].value || '';
+      var rapDlc = rapCmd && rapCmd.custom_data && rapCmd.custom_data['1-date02'] && rapCmd.custom_data['1-date02'].value || '';
+      var rapDlrFmt = rapDlr ? new Date(rapDlr).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
+      var rapDlcFmt = rapDlc ? new Date(rapDlc).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
+      var rapDlrWarn = rapDlr && new Date(rapDlr) < new Date(Date.now() + 7*86400000);
+      var rapDlcWarn = rapDlc && new Date(rapDlc) < new Date(Date.now() + 7*86400000);
       html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+rap.id+')" style="border-left:3px solid #7C3AED;">';
       var rapAffNom = rap.affaireId ? (affairesMap[rap.affaireId] ? affairesMap[rap.affaireId].nom : '') : '';
-      html += '<div style="display:flex;justify-content:space-between;"><span class="aplan-card-ref">📝 ' + (rap.affaireRef || '') + (rapAffNom ? ' — ' + rapAffNom.substring(0,25) : '') + '</span><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">📝 ' + (rap.affaireRef || '') + (rapAffNom ? ' — ' + rapAffNom.substring(0,25) : '') + '</span><div style="display:flex;align-items:center;gap:4px;"><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span>';
+      if (rapDlrFmt) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;' + (rapDlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + rapDlrFmt + '</span>';
+      if (rapDlcFmt) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;' + (rapDlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + rapDlcFmt + '</span>';
+      html += '</div></div>';
       html += '<div class="aplan-card-name">' + (rap.client || 'Rapport') + '</div>';
       html += '<div class="aplan-card-info">' + (tech ? '👤 ' + tech.name : '') + '</div>';
       html += '</div>';
@@ -5393,9 +5403,12 @@ function renderAPlanifier() {
     if (adresse) { var m = adresse.match(/(\d{5})\s*(.+?)$/); if (m) { cp = m[1]; ville = m[2]; } }
     var cdType = cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '';
     var cdDlr = cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || '';
+    var cdDlc = cmd.custom_data && cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value || '';
     var cdApporteur = cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || '';
     var dlrFmt = cdDlr ? new Date(cdDlr).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit'}) : '';
     var dlrWarn = cdDlr && new Date(cdDlr) < new Date(Date.now() + 7*86400000);
+    var dlcFmt = cdDlc ? new Date(cdDlc).toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit'}) : '';
+    var dlcWarn = cdDlc && new Date(cdDlc) < new Date(Date.now() + 7*86400000);
     var geoName = commandeGeosoliaLinks[cmd.id] ? geosoliaProjects.find(function(p){return p.id===commandeGeosoliaLinks[cmd.id];}) : null;
     var cdStatutVal = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || '';
     var statutEntry = cdStatutVal ? settingsStatuts.find(function(s) { return s.label === cdStatutVal; }) : null;
@@ -5405,6 +5418,7 @@ function renderAPlanifier() {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span><div style="display:flex;align-items:center;gap:4px;">';
     if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
+    if (dlcFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + dlcFmt + '</span>';
     html += '</div></div>';
     html += '<div class="aplan-card-info">';
     if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
