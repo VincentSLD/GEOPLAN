@@ -3289,30 +3289,28 @@ async function createDDCExeplan() {
   var dlr = document.getElementById('ddcDlrInput').value;
   var notes = document.getElementById('ddcNotesInput').value;
   var title = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
+  var techSel = document.getElementById('intTech').value;
+  var techObj = techSel ? TECHNICIANS.find(function(t) { return t.id === +techSel; }) : null;
+  var geoNom = techObj ? (techObj.prenom + ' ' + techObj.nom) : '';
   var row = {
     title: title,
     type: 'DDC',
     date: dlr || null,
-    start_time: '',
-    end_time: '',
-    duration: 0,
-    tech_id: null,
     location: cmd._adresse || '',
     client: cmd.client_name || '',
     status: 'planned',
     notes: notes || '',
-    commande_id: cmd.id,
+    commande_id: String(cmd.id),
     commande_ref: cmd.ref || null,
-    affaire_id: cmd._affaire ? cmd._affaire.id : null,
+    affaire_id: cmd._affaire ? String(cmd._affaire.id) : null,
     affaire_ref: cmd._affaire ? cmd._affaire.ref : null,
-    marche_id: cmd._marche ? cmd._marche.id : null,
+    marche_id: cmd._marche ? String(cmd._marche.id) : null,
     marche_ref: cmd._marche ? cmd._marche.ref : null,
     marche_adresse: cmd._adresse || null,
     flags: [],
     infos_adv: '',
+    geotechnicien: geoNom || null,
     created_by: currentAuthUser ? currentAuthUser.email : null,
-    updated_at: new Date().toISOString(),
-    updated_by: currentAuthUser ? currentAuthUser.email : null,
   };
   try {
     var { data, error } = await sbAuth.from('exeplan_interventions').insert(row).select();
