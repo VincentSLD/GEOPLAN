@@ -2047,6 +2047,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
         <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
           <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📁 Copier chemin serveur</button>
+          <button type="button" id="btnCreateDDC" onclick="showCreateDDCDialog()" style="display:none;padding:4px 8px;border:1px solid #0891B2;border-radius:var(--radius-xs);background:#f0fdfa;font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;color:#0891B2;" title="Créer une intervention DDC dans EXEPLAN">⚡ DDC EXEPLAN</button>
+          <span id="ddcExistsBadge" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">✓ DDC créée</span>
         </div>
       </div>
       <div class="form-row">
@@ -3220,6 +3222,113 @@ function copyServerPathFor(ref, nom, btnId) {
   })();
 }
 
+// ===== DDC EXEPLAN =====
+async function checkExistingDDC(commandeId) {
+  var badge = document.getElementById('ddcExistsBadge');
+  var btn = document.getElementById('btnCreateDDC');
+  badge.style.display = 'none';
+  badge.removeAttribute('data-ddc-id');
+  if (!commandeId) return;
+  try {
+    var { data } = await sbAuth.from('exeplan_interventions').select('id, date, status').eq('commande_id', commandeId).eq('type', 'DDC');
+    if (data && data.length > 0) {
+      var d = data[0];
+      badge.style.display = 'inline-block';
+      badge.setAttribute('data-ddc-id', d.id);
+      var lbl = '✓ DDC créée';
+      if (d.date) lbl += ' — DLR ' + new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'});
+      badge.textContent = lbl;
+      btn.style.display = 'none';
+    }
+  } catch(e) { console.warn('checkExistingDDC error', e); }
+}
+
+function showCreateDDCDialog() {
+  var cmdId = document.getElementById('intCommande').value;
+  if (!cmdId) { alert('Aucune commande sélectionnée.'); return; }
+  var cmd = commandesData.find(function(c) { return c.id === cmdId; });
+  if (!cmd) return;
+  var title = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
+  var affRef = cmd._affaire ? cmd._affaire.ref : '';
+  var dlrDefault = '';
+  if (cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value) {
+    dlrDefault = cmd.custom_data['1-date01'].value;
+  }
+  var overlay = document.createElement('div');
+  overlay.id = 'ddcDialogOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.2);">' +
+    '<h3 style="margin:0 0 16px;font-size:1rem;color:#0891B2;">⚡ Créer DDC EXEPLAN</h3>' +
+    '<div style="font-size:0.8rem;margin-bottom:12px;color:#555;">' +
+      '<div><b>Affaire :</b> ' + _esc(affRef) + ' — ' + _esc(title) + '</div>' +
+      '<div><b>Commande :</b> ' + _esc(cmd.ref || cmdId) + '</div>' +
+      '<div><b>Client :</b> ' + _esc(cmd.client_name || '') + '</div>' +
+      '<div><b>Adresse :</b> ' + _esc(cmd._adresse || '') + '</div>' +
+    '</div>' +
+    '<label style="font-size:0.75rem;font-weight:600;">Date DLR (date limite de réalisation)</label>' +
+    '<input type="date" id="ddcDlrInput" value="' + dlrDefault + '" style="width:100%;padding:6px 8px;margin:4px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+    '<label style="font-size:0.75rem;font-weight:600;">Notes (optionnel)</label>' +
+    '<textarea id="ddcNotesInput" rows="2" style="width:100%;padding:6px 8px;margin:4px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:0.8rem;resize:vertical;"></textarea>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button onclick="closeDDCDialog()" style="padding:6px 14px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:0.8rem;">Annuler</button>' +
+      '<button onclick="createDDCExeplan()" style="padding:6px 14px;border:none;border-radius:6px;background:#0891B2;color:#fff;cursor:pointer;font-weight:600;font-size:0.8rem;">Créer la DDC</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+}
+
+function closeDDCDialog() {
+  var o = document.getElementById('ddcDialogOverlay');
+  if (o) o.remove();
+}
+
+async function createDDCExeplan() {
+  var cmdId = document.getElementById('intCommande').value;
+  var cmd = commandesData.find(function(c) { return c.id === cmdId; });
+  if (!cmd) { alert('Commande introuvable.'); return; }
+  var dlr = document.getElementById('ddcDlrInput').value;
+  var notes = document.getElementById('ddcNotesInput').value;
+  var title = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
+  var row = {
+    title: title,
+    type: 'DDC',
+    date: dlr || null,
+    start_time: '',
+    end_time: '',
+    duration: 0,
+    tech_id: null,
+    location: cmd._adresse || '',
+    client: cmd.client_name || '',
+    status: 'planned',
+    notes: notes || '',
+    commande_id: cmd.id,
+    commande_ref: cmd.ref || null,
+    affaire_id: cmd._affaire ? cmd._affaire.id : null,
+    affaire_ref: cmd._affaire ? cmd._affaire.ref : null,
+    marche_id: cmd._marche ? cmd._marche.id : null,
+    marche_ref: cmd._marche ? cmd._marche.ref : null,
+    marche_adresse: cmd._adresse || null,
+    flags: [],
+    infos_adv: '',
+    created_by: currentAuthUser ? currentAuthUser.email : null,
+    updated_at: new Date().toISOString(),
+    updated_by: currentAuthUser ? currentAuthUser.email : null,
+  };
+  try {
+    var { data, error } = await sbAuth.from('exeplan_interventions').insert(row).select();
+    if (error) throw error;
+    closeDDCDialog();
+    _ddcCache[cmdId] = dlr || null;
+    checkExistingDDC(cmdId);
+    renderAPlanifier();
+    alert('DDC créée dans EXEPLAN !' + (dlr ? '\nDLR : ' + new Date(dlr + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : ''));
+  } catch(e) {
+    console.error('createDDCExeplan error', e);
+    alert('Erreur lors de la création : ' + (e.message || e));
+  }
+}
+function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
 // Configuration : faire autoriser un chemin (appelé depuis Paramètres)
 async function configDossierPath(idx) {
   if (!window.showDirectoryPicker) { alert('Edge ou Chrome requis'); return; }
@@ -3341,11 +3450,11 @@ async function init() {
     // Charger commandes/géosolia en tâche de fond pour le détail
     Promise.all([
       loadCommandesFromSupabase().then(function() { populateCommandeSelect(); }),
-      loadGeosoliaProjects().then(function() { fixRapportDurations(); })
+      loadGeosoliaProjects().then(function() { fixRapportDurations(); }),
+      loadDDCCache()
     ]).then(function() {
       syncCustomDataSilent();
       autoLinkGeosoliaSilent();
-      // Re-render avec données enrichies
       if (mobileMyTechId) renderMobileView();
     });
   } else {
@@ -3360,7 +3469,8 @@ async function init() {
     loadClientsHabits();
     Promise.all([
       loadCommandesFromSupabase().then(function() { populateCommandeSelect(); }),
-      loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); })
+      loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); }),
+      loadDDCCache()
     ]).then(function() {
       syncCustomDataSilent();
       autoLinkGeosoliaSilent();
@@ -4146,7 +4256,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4548,7 +4658,7 @@ function editIntervention(id){
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
-  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnCopyServer').style.display='none';}
+  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
@@ -5257,6 +5367,14 @@ function getUnplannedCommandes() {
   });
 }
 
+var _ddcCache = {};
+async function loadDDCCache() {
+  try {
+    var { data } = await sbAuth.from('exeplan_interventions').select('commande_id, date').eq('type', 'DDC');
+    _ddcCache = {};
+    if (data) data.forEach(function(d) { if (d.commande_id) _ddcCache[d.commande_id] = d.date; });
+  } catch(e) { console.warn('loadDDCCache', e); }
+}
 function renderAPlanifier() {
   var list = document.getElementById('aPlanifierList2');
   if (!list) return;
@@ -5383,6 +5501,7 @@ function renderAPlanifier() {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">📝 ' + (rap.affaireRef || '') + (rapAffNom ? ' — ' + rapAffNom.substring(0,25) : '') + '</span><div style="display:flex;align-items:center;gap:4px;"><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span>';
       if (rapDlrFmt) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;' + (rapDlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + rapDlrFmt + '</span>';
       if (rapDlcFmt) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;' + (rapDlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + rapDlcFmt + '</span>';
+      if (rap.commandeId && _ddcCache[rap.commandeId] !== undefined) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">⚡ DDC</span>';
       html += '</div></div>';
       html += '<div class="aplan-card-name">' + (rap.client || 'Rapport') + '</div>';
       html += '<div class="aplan-card-info">' + (tech ? '👤 ' + tech.name : '') + '</div>';
@@ -5419,6 +5538,7 @@ function renderAPlanifier() {
     if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
     if (dlcFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + dlcFmt + '</span>';
+    if (_ddcCache[cmd.id] !== undefined) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">⚡ DDC</span>';
     html += '</div></div>';
     html += '<div class="aplan-card-info">';
     if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
@@ -6135,6 +6255,8 @@ function onCommandeSelect() {
     document.getElementById('intAffaire').value = '';
     document.getElementById('intMarche').value = '';
     document.getElementById('btnCopyServer').style.display = 'none';
+    document.getElementById('btnCreateDDC').style.display = 'none';
+    document.getElementById('ddcExistsBadge').style.display = 'none';
     if (cdBox) { cdBox.innerHTML = ''; cdBox.style.display = 'none'; }
     if (infosAdvEl) { infosAdvEl.textContent = ''; infosAdvEl.removeAttribute('data-cmd-id'); }
     if (typeGroup) typeGroup.style.display = '';
@@ -6152,6 +6274,8 @@ function onCommandeSelect() {
   document.getElementById('intMarche').value = cmd._marche ? (cmd._marche.ref + ' — ' + (cmd._marche.nom || '').substring(0, 40)) : '';
   var _showServer = (cmd._affaire && cmd._affaire.ref) ? '' : 'none';
   document.getElementById('btnCopyServer').style.display = _showServer;
+  document.getElementById('btnCreateDDC').style.display = cmdId ? '' : 'none';
+  checkExistingDDC(cmdId);
   // Bloc données personnalisées
   if (cdBox) {
     var html = renderCmdCustomDataHTML(cmd);
