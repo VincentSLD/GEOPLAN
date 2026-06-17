@@ -4919,17 +4919,17 @@ async function pushCommandeToAkuiteo(opts) {
     if (statusEl) { statusEl.textContent = '⚠ Supabase OK, Akuiteo lecture echouee'; statusEl.style.color = '#D97706'; }
     return;
   }
-  // Construire le payload minimal avec uniquement les champs à modifier
-  var updateBody = { customData: {} };
-  var srcCd = fullOrder.customData || {};
-  updateBody.customData['1-alpha17'] = Object.assign({}, srcCd['1-alpha17'] || { name: 'Statut de la commande', type: 'ALPHANUMERIC' });
-  updateBody.customData['1-alpha17'].value = newStatut || null;
-  updateBody.customData['1-date01'] = Object.assign({}, srcCd['1-date01'] || { name: 'DLR', type: 'DATE' });
-  updateBody.customData['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
-  updateBody.customData['1-date02'] = Object.assign({}, srcCd['1-date02'] || { name: 'DLC', type: 'DATE' });
-  updateBody.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
+  // Construire le payload minimal — uniquement type + value par champ
+  var updateBody = {
+    id: fullOrder.id || akId,
+    customData: {
+      '1-alpha17': { type: 'ALPHANUMERIC', value: newStatut || null },
+      '1-date01':  { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null },
+      '1-date02':  { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null },
+    }
+  };
   if (newDesc !== (fullOrder.description || '')) updateBody.description = newDesc || null;
-  console.log('[Akuiteo push] Payload :', JSON.stringify(updateBody).substring(0, 500));
+  console.log('[Akuiteo push] Payload :', JSON.stringify(updateBody));
   if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
   var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
   try {
