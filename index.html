@@ -3254,6 +3254,10 @@ function showCreateDDCDialog() {
   if (cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value) {
     dlrDefault = cmd.custom_data['1-date01'].value;
   }
+  var dlcDefault = '';
+  if (cmd.custom_data && cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value) {
+    dlcDefault = cmd.custom_data['1-date02'].value;
+  }
   var overlay = document.createElement('div');
   overlay.id = 'ddcDialogOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
@@ -3267,6 +3271,8 @@ function showCreateDDCDialog() {
     '</div>' +
     '<label style="font-size:0.75rem;font-weight:600;">Date DLR (date limite de réalisation) <span style="color:#DC2626;">*</span></label>' +
     '<input type="date" id="ddcDlrInput" value="' + dlrDefault + '" required style="width:100%;padding:6px 8px;margin:4px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+    '<label style="font-size:0.75rem;font-weight:600;">Date DLC (date limite de commande — prioritaire)</label>' +
+    '<input type="date" id="ddcDlcInput" value="' + dlcDefault + '" style="width:100%;padding:6px 8px;margin:4px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
     '<label style="font-size:0.75rem;font-weight:600;">Notes (optionnel)</label>' +
     '<textarea id="ddcNotesInput" rows="2" style="width:100%;padding:6px 8px;margin:4px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:0.8rem;resize:vertical;"></textarea>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
@@ -3288,6 +3294,7 @@ async function createDDCExeplan() {
   if (!cmd) { alert('Commande introuvable.'); return; }
   var dlr = document.getElementById('ddcDlrInput').value;
   if (!dlr) { alert('La date DLR est obligatoire.'); document.getElementById('ddcDlrInput').focus(); return; }
+  var dlc = document.getElementById('ddcDlcInput').value;
   var notes = document.getElementById('ddcNotesInput').value;
   var title = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
   var techSel = document.getElementById('intTech').value;
@@ -3297,7 +3304,8 @@ async function createDDCExeplan() {
     title: title,
     type: 'DDC',
     dlr_date: dlr || null, // DLR d'origine (jamais réécrite par la planification EXEPLAN)
-    date: dlr || null,
+    dlc_date: dlc || null, // DLC (date limite de commande) — prioritaire sur la DLR à l'affichage EXEPLAN
+    date: dlc || dlr || null, // créneau initial : DLC si présente, sinon DLR
     location: cmd._adresse || '',
     client: cmd.client_name || '',
     status: 'planned',
