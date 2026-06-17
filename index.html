@@ -3292,10 +3292,11 @@ async function createDDCExeplan() {
   var title = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
   var techSel = document.getElementById('intTech').value;
   var techObj = techSel ? TECHNICIANS.find(function(t) { return t.id === +techSel; }) : null;
-  var geoNom = techObj ? (techObj.prenom + ' ' + techObj.nom) : '';
+  var geoNom = techObj ? techObj.name : ''; // TECHNICIANS expose `name` (= prénom + nom), pas prenom/nom
   var row = {
     title: title,
     type: 'DDC',
+    dlr_date: dlr || null, // DLR d'origine (jamais réécrite par la planification EXEPLAN)
     date: dlr || null,
     location: cmd._adresse || '',
     client: cmd.client_name || '',
