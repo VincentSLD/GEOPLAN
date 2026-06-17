@@ -4919,22 +4919,24 @@ async function pushCommandeToAkuiteo(opts) {
     if (statusEl) { statusEl.textContent = '⚠ Supabase OK, Akuiteo lecture echouee'; statusEl.style.color = '#D97706'; }
     return;
   }
-  // Patch des champs
-  if (!fullOrder.customData) fullOrder.customData = {};
-  if (!fullOrder.customData['1-alpha17']) fullOrder.customData['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
-  fullOrder.customData['1-alpha17'].value = newStatut || null;
-  if (!fullOrder.customData['1-date01']) fullOrder.customData['1-date01'] = { name: 'DLR', type: 'DATE' };
-  fullOrder.customData['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
-  if (!fullOrder.customData['1-date02']) fullOrder.customData['1-date02'] = { name: 'DLC', type: 'DATE' };
-  fullOrder.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
-  fullOrder.description = newDesc || null;
+  // Construire le payload minimal avec uniquement les champs à modifier
+  var updateBody = { customData: {} };
+  var srcCd = fullOrder.customData || {};
+  updateBody.customData['1-alpha17'] = Object.assign({}, srcCd['1-alpha17'] || { name: 'Statut de la commande', type: 'ALPHANUMERIC' });
+  updateBody.customData['1-alpha17'].value = newStatut || null;
+  updateBody.customData['1-date01'] = Object.assign({}, srcCd['1-date01'] || { name: 'DLR', type: 'DATE' });
+  updateBody.customData['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
+  updateBody.customData['1-date02'] = Object.assign({}, srcCd['1-date02'] || { name: 'DLC', type: 'DATE' });
+  updateBody.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
+  if (newDesc !== (fullOrder.description || '')) updateBody.description = newDesc || null;
+  console.log('[Akuiteo push] Payload :', JSON.stringify(updateBody).substring(0, 500));
   if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
   var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
   try {
     var rSave = await fetch(AKUITEO_PROXY + updatePath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(fullOrder),
+      body: JSON.stringify(updateBody),
     });
     var rTxt = await rSave.text();
     console.log('[Akuiteo push] POST ' + updatePath + ' → ' + rSave.status, rTxt.substring(0, 300));
