@@ -3305,6 +3305,7 @@ async function createDDCExeplan() {
     type: 'DDC',
     dlr_date: dlr || null, // DLR d'origine (jamais réécrite par la planification EXEPLAN)
     dlc_date: dlc || null, // DLC (date limite de commande) — prioritaire sur la DLR à l'affichage EXEPLAN
+    agence: cmd.agence || cmd.societe || null, // agence d'origine (GPH85 / GPH64) → code couleur DDC
     date: dlc || dlr || null, // créneau initial : DLC si présente, sinon DLR
     location: cmd._adresse || '',
     client: cmd.client_name || '',
