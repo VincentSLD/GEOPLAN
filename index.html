@@ -4929,27 +4929,42 @@ async function pushCommandeToAkuiteo(opts) {
     }
   };
   if (newDesc !== (fullOrder.description || '')) updateBody.description = newDesc || null;
-  console.log('[Akuiteo push] Payload :', JSON.stringify(updateBody));
-  if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
-  var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
-  try {
-    var rSave = await fetch(AKUITEO_PROXY + updatePath, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(updateBody),
-    });
-    var rTxt = await rSave.text();
-    console.log('[Akuiteo push] POST ' + updatePath + ' → ' + rSave.status, rTxt.substring(0, 300));
-    if (rSave.ok) {
-      if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
-      return;
+  // Variante avec customFields (nom officiel Swagger) au lieu de customData
+  var updateBodyFields = JSON.parse(JSON.stringify(updateBody));
+  updateBodyFields.customFields = updateBodyFields.customData;
+  delete updateBodyFields.customData;
+  if (statusEl) statusEl.textContent = '⏳ Akuiteo (diagnostic)...';
+  var akBase = '/sales/orders/' + encodeURIComponent(akId);
+  var attempts = [
+    { method: 'POST', path: akBase + '/update', body: updateBody,       label: 'POST /update + customData' },
+    { method: 'POST', path: akBase + '/update', body: updateBodyFields,  label: 'POST /update + customFields' },
+    { method: 'PUT',  path: akBase,             body: updateBody,        label: 'PUT + customData' },
+    { method: 'PUT',  path: akBase,             body: updateBodyFields,  label: 'PUT + customFields' },
+    { method: 'POST', path: akBase,             body: updateBody,        label: 'POST + customData' },
+    { method: 'POST', path: akBase,             body: updateBodyFields,  label: 'POST + customFields' },
+  ];
+  console.log('[Akuiteo diag] Lancement de ' + attempts.length + ' tentatives...');
+  for (var a = 0; a < attempts.length; a++) {
+    var att = attempts[a];
+    try {
+      var rSave = await fetch(AKUITEO_PROXY + att.path, {
+        method: att.method,
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(att.body),
+      });
+      var rTxt = await rSave.text();
+      console.log('[Akuiteo diag] ' + att.label + ' → ' + rSave.status + ' ' + rTxt.substring(0, 200));
+      if (rSave.ok) {
+        console.log('[Akuiteo diag] ✓ SUCCES avec : ' + att.label);
+        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+        return;
+      }
+    } catch(e) {
+      console.log('[Akuiteo diag] ' + att.label + ' → EXCEPTION : ' + e.message);
     }
-    if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
-    console.warn('[Akuiteo push] Echec ' + rSave.status + ' :', rTxt.substring(0, 500));
-  } catch(e) {
-    console.warn('[Akuiteo push] Exception :', e.message);
-    if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo erreur réseau'; statusEl.style.color = '#D97706'; }
   }
+  console.warn('[Akuiteo diag] Toutes les tentatives ont échoué.');
+  if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo : aucune méthode trouvée'; statusEl.style.color = '#D97706'; }
 }
 
 function etudesMsg(msg) {
