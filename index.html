@@ -4928,38 +4928,26 @@ async function pushCommandeToAkuiteo(opts) {
   if (!fullOrder.customData['1-date02']) fullOrder.customData['1-date02'] = { name: 'DLC', type: 'DATE' };
   fullOrder.customData['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
   fullOrder.description = newDesc || null;
-  // Tentative d'écriture vers Akuiteo (POST puis PATCH)
-  // Note : l'API Akuiteo /sales/orders est en lecture seule (doc v4.3 et v5.0).
-  // Le 403 "Feature not available" signifie que l'endpoint d'écriture n'existe pas.
   if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
-  var hdrs = { 'Content-Type': 'application/json', 'X-Forward-Accept': 'text/plain', 'Accept': 'text/plain' };
-  var attempts = [
-    { method: 'POST',  path: '/sales/orders/' + encodeURIComponent(akId), body: fullOrder },
-    { method: 'PATCH', path: '/sales/orders/' + encodeURIComponent(akId), body: fullOrder },
-  ];
-  var lastStatus = 0;
-  for (var a = 0; a < attempts.length; a++) {
-    var att = attempts[a];
-    try {
-      var rSave = await fetch(AKUITEO_PROXY + att.path, { method: att.method, headers: hdrs, body: JSON.stringify(att.body) });
-      var rTxt = await rSave.text();
-      console.log('[Akuiteo push] ' + att.method + ' ' + att.path + ' → ' + rSave.status);
-      lastStatus = rSave.status;
-      if (rSave.ok) {
-        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
-        return;
-      }
-      if (rSave.status === 403 || rSave.status === 404 || rSave.status === 405) continue;
-      break;
-    } catch(e) {
-      console.warn('[Akuiteo push] Exception :', e.message);
+  var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
+  try {
+    var rSave = await fetch(AKUITEO_PROXY + updatePath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(fullOrder),
+    });
+    var rTxt = await rSave.text();
+    console.log('[Akuiteo push] POST ' + updatePath + ' → ' + rSave.status, rTxt.substring(0, 300));
+    if (rSave.ok) {
+      if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+      return;
     }
+    if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
+    console.warn('[Akuiteo push] Echec ' + rSave.status + ' :', rTxt.substring(0, 500));
+  } catch(e) {
+    console.warn('[Akuiteo push] Exception :', e.message);
+    if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo erreur réseau'; statusEl.style.color = '#D97706'; }
   }
-  if (statusEl) {
-    statusEl.textContent = '✓ Sauvegardé localement · Akuiteo lecture seule';
-    statusEl.style.color = '#D97706';
-  }
-  if (lastStatus === 403) console.info('[Akuiteo] API /sales/orders en lecture seule — écriture non disponible. Contactez votre administrateur Akuiteo.');
 }
 
 function etudesMsg(msg) {
