@@ -4919,58 +4919,31 @@ async function pushCommandeToAkuiteo(opts) {
     if (statusEl) { statusEl.textContent = '⚠ Supabase OK, Akuiteo lecture echouee'; statusEl.style.color = '#D97706'; }
     return;
   }
-  // Construire le payload minimal — uniquement type + value par champ
-  var updateBody = {
-    id: fullOrder.id || akId,
-    customData: {
-      '1-alpha17': { type: 'ALPHANUMERIC', value: newStatut || null },
-      '1-date01':  { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null },
-      '1-date02':  { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null },
+  // Patcher le fullOrder lu depuis Akuiteo avec les nouvelles valeurs
+  fullOrder.customData = fullOrder.customData || {};
+  fullOrder.customData['1-alpha17'] = Object.assign({}, fullOrder.customData['1-alpha17'] || {}, { type: 'ALPHANUMERIC', value: newStatut || null });
+  fullOrder.customData['1-date01'] = Object.assign({}, fullOrder.customData['1-date01'] || {}, { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null });
+  fullOrder.customData['1-date02'] = Object.assign({}, fullOrder.customData['1-date02'] || {}, { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null });
+  if (newDesc) fullOrder.description = newDesc;
+  if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
+  var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
+  try {
+    var rSave = await fetch(AKUITEO_PROXY + updatePath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(fullOrder),
+    });
+    var rTxt = await rSave.text();
+    console.log('[Akuiteo push] POST ' + updatePath + ' → ' + rSave.status, rTxt.substring(0, 300));
+    if (rSave.ok) {
+      if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+      return;
     }
-  };
-  if (newDesc !== (fullOrder.description || '')) updateBody.description = newDesc || null;
-  // Variantes : payload minimal vs fullOrder complet, customData vs customFields
-  var fullOrderPatched = JSON.parse(JSON.stringify(fullOrder));
-  fullOrderPatched.customData = fullOrderPatched.customData || {};
-  fullOrderPatched.customData['1-alpha17'] = { type: 'ALPHANUMERIC', value: newStatut || null };
-  fullOrderPatched.customData['1-date01'] = { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null };
-  fullOrderPatched.customData['1-date02'] = { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null };
-  if (newDesc) fullOrderPatched.description = newDesc;
-  var fullOrderFields = JSON.parse(JSON.stringify(fullOrderPatched));
-  fullOrderFields.customFields = fullOrderFields.customData;
-  delete fullOrderFields.customData;
-  if (statusEl) statusEl.textContent = '⏳ Akuiteo (diagnostic)...';
-  var akBase = '/sales/orders/' + encodeURIComponent(akId);
-  var attempts = [
-    { method: 'POST', path: akBase + '/update', body: fullOrderPatched,  label: 'POST /update FULL + customData' },
-    { method: 'POST', path: akBase + '/update', body: fullOrderFields,   label: 'POST /update FULL + customFields' },
-    { method: 'PUT',  path: akBase + '/update', body: fullOrderPatched,  label: 'PUT /update FULL + customData' },
-    { method: 'PUT',  path: akBase,             body: fullOrderPatched,  label: 'PUT FULL + customData' },
-    { method: 'PUT',  path: akBase,             body: fullOrderFields,   label: 'PUT FULL + customFields' },
-    { method: 'POST', path: akBase,             body: fullOrderPatched,  label: 'POST FULL + customData' },
-  ];
-  console.log('[Akuiteo diag] Lancement de ' + attempts.length + ' tentatives...');
-  for (var a = 0; a < attempts.length; a++) {
-    var att = attempts[a];
-    try {
-      var rSave = await fetch(AKUITEO_PROXY + att.path, {
-        method: att.method,
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(att.body),
-      });
-      var rTxt = await rSave.text();
-      console.log('[Akuiteo diag] ' + att.label + ' → ' + rSave.status + ' ' + rTxt.substring(0, 200));
-      if (rSave.ok) {
-        console.log('[Akuiteo diag] ✓ SUCCES avec : ' + att.label);
-        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
-        return;
-      }
-    } catch(e) {
-      console.log('[Akuiteo diag] ' + att.label + ' → EXCEPTION : ' + e.message);
-    }
+    if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
+  } catch(e) {
+    console.warn('[Akuiteo push] Exception :', e.message);
+    if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo erreur'; statusEl.style.color = '#D97706'; }
   }
-  console.warn('[Akuiteo diag] Toutes les tentatives ont échoué.');
-  if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo : aucune méthode trouvée'; statusEl.style.color = '#D97706'; }
 }
 
 function etudesMsg(msg) {
