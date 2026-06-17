@@ -4929,19 +4929,25 @@ async function pushCommandeToAkuiteo(opts) {
     }
   };
   if (newDesc !== (fullOrder.description || '')) updateBody.description = newDesc || null;
-  // Variante avec customFields (nom officiel Swagger) au lieu de customData
-  var updateBodyFields = JSON.parse(JSON.stringify(updateBody));
-  updateBodyFields.customFields = updateBodyFields.customData;
-  delete updateBodyFields.customData;
+  // Variantes : payload minimal vs fullOrder complet, customData vs customFields
+  var fullOrderPatched = JSON.parse(JSON.stringify(fullOrder));
+  fullOrderPatched.customData = fullOrderPatched.customData || {};
+  fullOrderPatched.customData['1-alpha17'] = { type: 'ALPHANUMERIC', value: newStatut || null };
+  fullOrderPatched.customData['1-date01'] = { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null };
+  fullOrderPatched.customData['1-date02'] = { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null };
+  if (newDesc) fullOrderPatched.description = newDesc;
+  var fullOrderFields = JSON.parse(JSON.stringify(fullOrderPatched));
+  fullOrderFields.customFields = fullOrderFields.customData;
+  delete fullOrderFields.customData;
   if (statusEl) statusEl.textContent = '⏳ Akuiteo (diagnostic)...';
   var akBase = '/sales/orders/' + encodeURIComponent(akId);
   var attempts = [
-    { method: 'POST', path: akBase + '/update', body: updateBody,       label: 'POST /update + customData' },
-    { method: 'POST', path: akBase + '/update', body: updateBodyFields,  label: 'POST /update + customFields' },
-    { method: 'PUT',  path: akBase,             body: updateBody,        label: 'PUT + customData' },
-    { method: 'PUT',  path: akBase,             body: updateBodyFields,  label: 'PUT + customFields' },
-    { method: 'POST', path: akBase,             body: updateBody,        label: 'POST + customData' },
-    { method: 'POST', path: akBase,             body: updateBodyFields,  label: 'POST + customFields' },
+    { method: 'POST', path: akBase + '/update', body: fullOrderPatched,  label: 'POST /update FULL + customData' },
+    { method: 'POST', path: akBase + '/update', body: fullOrderFields,   label: 'POST /update FULL + customFields' },
+    { method: 'PUT',  path: akBase + '/update', body: fullOrderPatched,  label: 'PUT /update FULL + customData' },
+    { method: 'PUT',  path: akBase,             body: fullOrderPatched,  label: 'PUT FULL + customData' },
+    { method: 'PUT',  path: akBase,             body: fullOrderFields,   label: 'PUT FULL + customFields' },
+    { method: 'POST', path: akBase,             body: fullOrderPatched,  label: 'POST FULL + customData' },
   ];
   console.log('[Akuiteo diag] Lancement de ' + attempts.length + ' tentatives...');
   for (var a = 0; a < attempts.length; a++) {
