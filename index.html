@@ -4899,44 +4899,32 @@ async function pushCommandeToAkuiteo(opts) {
     if (statusEl) { statusEl.textContent = '✗ Echec Supabase : ' + (e.message || e); statusEl.style.color = '#DC2626'; }
     return;
   }
-  // 2) Push Akuiteo
+  // 2) Push custom data vers Akuiteo via batch-update
   var akId = cmd.ref || cmdId.replace('akc_', '').replace(/_/g, '-');
-  if (statusEl) statusEl.textContent = '⏳ Lecture commande Akuiteo...';
-  var fullOrder = null;
-  try {
-    var rRead = await fetch(AKUITEO_PROXY + '/sales/orders/' + encodeURIComponent(akId) + '/read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ options: ['CUSTOM_DATA'] }),
-    });
-    if (rRead.ok) {
-      var rReadTxt = await rRead.text();
-      fullOrder = JSON.parse(rReadTxt);
-      if (fullOrder && fullOrder.detail && !fullOrder.customData) fullOrder = fullOrder.detail;
+  var batchBody = {
+    ids: [akId],
+    customData: {
+      '1-alpha17': { type: 'ALPHANUMERIC', value: newStatut || null },
+      '1-date01':  { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null },
+      '1-date02':  { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null },
     }
-  } catch(e) { console.error('[Akuiteo push] Echec lecture :', e); }
-  if (!fullOrder) {
-    if (statusEl) { statusEl.textContent = '⚠ Supabase OK, Akuiteo lecture echouee'; statusEl.style.color = '#D97706'; }
-    return;
-  }
-  // Patcher le fullOrder lu depuis Akuiteo avec les nouvelles valeurs
-  fullOrder.customData = fullOrder.customData || {};
-  fullOrder.customData['1-alpha17'] = Object.assign({}, fullOrder.customData['1-alpha17'] || {}, { type: 'ALPHANUMERIC', value: newStatut || null });
-  fullOrder.customData['1-date01'] = Object.assign({}, fullOrder.customData['1-date01'] || {}, { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null });
-  fullOrder.customData['1-date02'] = Object.assign({}, fullOrder.customData['1-date02'] || {}, { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null });
-  if (newDesc) fullOrder.description = newDesc;
+  };
   if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
-  var updatePath = '/sales/orders/' + encodeURIComponent(akId) + '/update';
   try {
-    var rSave = await fetch(AKUITEO_PROXY + updatePath, {
+    var rSave = await fetch(AKUITEO_PROXY + '/sales/orders/custom-data/batch-update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(fullOrder),
+      body: JSON.stringify(batchBody),
     });
     var rTxt = await rSave.text();
-    console.log('[Akuiteo push] POST ' + updatePath + ' → ' + rSave.status, rTxt.substring(0, 300));
+    console.log('[Akuiteo push] batch-update → ' + rSave.status, rTxt.substring(0, 300));
     if (rSave.ok) {
-      if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+      var result = JSON.parse(rTxt);
+      if (result.idsOnError && result.idsOnError.length > 0) {
+        if (statusEl) { statusEl.textContent = '⚠ Supabase OK · Akuiteo erreur partielle'; statusEl.style.color = '#D97706'; }
+      } else {
+        if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
+      }
       return;
     }
     if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
