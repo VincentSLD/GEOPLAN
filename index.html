@@ -5736,6 +5736,13 @@ async function createRapportIntervention(terrainInt) {
   });
   if (existing) return null;
 
+  var rapportTechId = terrainInt.techId;
+  var techMember = settingsTeam.find(function(t) { return t.id === terrainInt.techId; });
+  if (techMember && techMember.binomeId) {
+    var binome = settingsTeam.find(function(t) { return t.id === techMember.binomeId && t.statut === 'actif'; });
+    if (binome) rapportTechId = binome.id;
+  }
+
   var data = {
     title: 'Rapport — ' + (terrainInt.client || terrainInt.title || ''),
     type: 'rapport',
@@ -5743,7 +5750,7 @@ async function createRapportIntervention(terrainInt) {
     date: '', // non planifié
     startTime: '', endTime: '',
     duration: geoProg.estimatedReportMin,
-    techId: terrainInt.techId,
+    techId: rapportTechId,
     location: '', // bureau
     client: terrainInt.client || '',
     travelTo: 0, travelFrom: 0,
@@ -8551,7 +8558,7 @@ function renderSettingsTeam() {
 
   // Section Équipe GéoPlan
   let html = `<div class="stg-toolbar"><h3>Équipe GéoPlan (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter manuellement</button></div>`;
-  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Véhicule</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Binôme</th><th>Véhicule</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
     // Statut auto Lucca: priorité sur le statut manuel si absent aujourd'hui
     let effectiveStatut = t.statut;
@@ -8573,10 +8580,12 @@ function renderSettingsTeam() {
       return `<span class="stg-hab${exp}" title="${h.nom}${h.expiration ? ' — exp. ' + h.expiration : ''}">${h.nom}</span>`;
     }).join('');
     const grp = t.groupeId ? settingsGroups.find(g => g.id === t.groupeId) : null;
+    const binome = t.binomeId ? settingsTeam.find(m => m.id === t.binomeId) : null;
     html += `<tr>
       <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
       <td><strong>${t.prenom} ${t.nom}</strong></td>
       <td>${grp ? `<span class="stg-group-tag" style="background:${grp.couleur}15;color:${grp.couleur};border:1px solid ${grp.couleur}30">${grp.nom}</span>` : '—'}</td>
+      <td>${binome ? binome.prenom + ' ' + binome.nom : '—'}</td>
       <td>${t.vehicule || '—'}</td>
       <td><div class="stg-habilitations">${habs || '—'}</div></td>
       <td><span class="stg-badge ${statusCls}">${statusLabel}</span></td>
@@ -8878,6 +8887,7 @@ function editTeamMember(id) {
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Téléphone</label><input id="stf-tel" value="${t.telephone || ''}" placeholder="06 XX XX XX XX"></div>
       <div class="stg-form-field"><label>Email</label><input id="stf-email" type="email" value="${t.email || ''}"></div>
+      <div class="stg-form-field"><label>Binôme rapport</label><select id="stf-binome"><option value="">Aucun</option>${settingsTeam.filter(m => m.id !== (id||0) && m.statut === 'actif').map(m => `<option value="${m.id}" ${t.binomeId==m.id?'selected':''}>${m.prenom} ${m.nom}</option>`).join('')}</select></div>
       <input type="hidden" id="stf-hdebut" value="${t.heureDebut || '07:00'}">
       <input type="hidden" id="stf-hfin" value="${t.heureFin || '18:00'}">
       <div class="stg-form-field span2"><label>Habilitations</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">${habsChecks}</div></div>
@@ -9000,6 +9010,7 @@ function saveTeamMember(id) {
       return pj;
     })(),
     competences: (function(){ var c=[]; document.querySelectorAll('.comp-check:checked').forEach(function(cb){c.push(cb.value);}); return c; })(),
+    binomeId: parseInt(document.getElementById('stf-binome').value) || null,
   };
 
   if (id) {
