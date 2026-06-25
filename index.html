@@ -2339,6 +2339,40 @@ async function deleteInterventionFromSupabase(id) {
   } catch(e) { console.warn('[Interventions] Erreur delete:', e); }
 }
 
+function subscribeRealtimeInterventions() {
+  sbAuth.channel('geoplan-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'geoplan_interventions' }, function(payload) {
+      var myEmail = currentAuthUser ? currentAuthUser.email : null;
+      if (payload.eventType === 'INSERT') {
+        if (payload.new.updated_by === myEmail) return;
+        var exists = interventions.find(function(i) { return i.id === payload.new.id; });
+        if (!exists) {
+          interventions.push(rowToInt(payload.new));
+          console.log('[Realtime] +1 intervention (par ' + (payload.new.updated_by || '?') + ')');
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        if (payload.new.updated_by === myEmail) return;
+        var idx = interventions.findIndex(function(i) { return i.id === payload.new.id; });
+        if (idx >= 0) {
+          interventions[idx] = rowToInt(payload.new);
+          console.log('[Realtime] MAJ intervention #' + payload.new.id + ' (par ' + (payload.new.updated_by || '?') + ')');
+        } else {
+          interventions.push(rowToInt(payload.new));
+        }
+      } else if (payload.eventType === 'DELETE') {
+        var delIdx = interventions.findIndex(function(i) { return i.id === payload.old.id; });
+        if (delIdx >= 0) {
+          interventions.splice(delIdx, 1);
+          console.log('[Realtime] Suppression intervention #' + payload.old.id);
+        }
+      }
+      renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
+    })
+    .subscribe(function(status) {
+      console.log('[Realtime] ' + status);
+    });
+}
+
 async function migrateInterventionsToSupabase() {
   // Migrate from old geoplan_settings JSONB format
   var old = loadSettings('geoplan_interventions', []);
@@ -3455,6 +3489,7 @@ async function init() {
     renderMobileHeader();
     renderMobileView();
     computeAllTravel();
+    subscribeRealtimeInterventions();
     hideLoader();
 
     // Charger commandes/géosolia en tâche de fond pour le détail
@@ -3474,6 +3509,7 @@ async function init() {
     syncCommandeGeosoliaFromInterventions();
     await loadLuccaCollabs();
     renderCurrentView(); updateTodayCount(); computeAllTravel();
+    subscribeRealtimeInterventions();
     hideLoader();
     initMobileMode();
     loadClientsHabits();
