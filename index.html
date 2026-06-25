@@ -1919,7 +1919,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <button class="nav-btn" onclick="navigateMapDate(-1)" title="Jour précédent"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
           <input type="date" id="mapDate" onchange="renderMapTournees()" style="height:28px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">
           <button class="nav-btn" onclick="navigateMapDate(1)" title="Jour suivant"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
-          <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=new Date().toISOString().split('T')[0];renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=localDateStr(new Date());renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;margin-left:8px;">
             <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules en live
           </label>
@@ -2255,6 +2255,7 @@ function dateToLocalStr(d) {
 
 const TODAY = new Date();
 const MONDAY = getMonday(new Date(TODAY));
+function localDateStr(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 // Time helpers
 function timeToMin(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
@@ -2466,9 +2467,9 @@ async function fetchWeatherForDate(lat, lon, date) {
   if (weatherCache[cacheKey]) return weatherCache[cacheKey];
 
   const bulkKey = `${lat},${lon}`;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 15);
-  const maxStr = maxDate.toISOString().split('T')[0];
+  const maxStr = localDateStr(maxDate);
   if (date > maxStr) return null;
 
   if (weatherBulkCache[bulkKey]) return weatherCache[cacheKey] || null;
@@ -3761,7 +3762,7 @@ function goToIntervention(id) {
   switchView('week', document.querySelectorAll('.view-tab')[0]);
   setTimeout(function() { openDetail(id); }, 300);
 }
-function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===TODAY.toISOString().split('T')[0]).length; }
+function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===localDateStr(TODAY)).length; }
 
 function navigate(dir) {
   if(currentView==='week'||currentView==='list') currentDate.setDate(currentDate.getDate()+dir*7);
@@ -3943,12 +3944,12 @@ function renderSplitSummary(int) {
 
 // ===== WEEK =====
 function renderWeek() {
-  const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=TODAY.toISOString().split('T')[0];
+  const grid=document.getElementById('weekGrid'), mon=getMonday(currentDate), todayStr=localDateStr(TODAY);
   let html=`<div class="grid-corner"><span style="font-size:1.24rem;font-weight:700;color:var(--text-muted);letter-spacing:0.03em;">S${pcGetISOWeek(mon)}</span><span>Techniciens</span></div>`;
   const days=[];
   for(let i=0;i<7;i++){
     const d=new Date(mon);d.setDate(mon.getDate()+i);
-    const ds=d.toISOString().split('T')[0], it=ds===todayStr, iw=d.getDay()===0||d.getDay()===6;
+    const ds=localDateStr(d), it=ds===todayStr, iw=d.getDay()===0||d.getDay()===6;
     days.push({date:d,dateStr:ds,isToday:it,isWeekend:iw});
     const dn=['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
     const jf = isJourFerie(ds);
@@ -4022,7 +4023,7 @@ function renderWeek() {
 
 // ===== DAY =====
 function renderDay() {
-  var c = document.getElementById('dayTimeline'), ds = currentDate.toISOString().split('T')[0];
+  var c = document.getElementById('dayTimeline'), ds = localDateStr(currentDate);
   var di = interventions.filter(function(i) { return i.date === ds && (!selectedTechId || i.techId === selectedTechId); }).sort(function(a, b) { return a.startTime.localeCompare(b.startTime); });
 
   var PX_PER_MIN = 1.8; // scale: 1 minute = 1.8px
@@ -4131,12 +4132,12 @@ function renderDay() {
 // ===== MONTH =====
 function renderMonth() {
   const g=document.getElementById('monthGrid'), y=currentDate.getFullYear(), m=currentDate.getMonth();
-  const fd=new Date(y,m,1), ts=TODAY.toISOString().split('T')[0];
+  const fd=new Date(y,m,1), ts=localDateStr(TODAY);
   let html=['LUN','MAR','MER','JEU','VEN','SAM','DIM'].map(d=>`<div class="month-header-cell">${d}</div>`).join('');
   let sd=new Date(fd); const dw=fd.getDay(), off=dw===0?6:dw-1; sd.setDate(sd.getDate()-off);
   for(let i=0;i<42;i++){
     const d=new Date(sd);d.setDate(sd.getDate()+i);
-    const ds=d.toISOString().split('T')[0], di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId));
+    const ds=localDateStr(d), di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId));
     var mJf = isJourFerie(ds);
     html+=`<div class="month-day ${d.getMonth()!==m?'other-month':''} ${ds===ts?'today':''}" onclick="currentDate=new Date('${ds}');switchView('day',document.querySelectorAll('.view-tab')[1])" ${mJf?'style="background:#fef9e7;"':''}><div class="month-day-num">${d.getDate()}</div>`;
     if (mJf) html += '<div style="font-size:0.45rem;color:#92400e;font-weight:600;margin-bottom:2px;">🎌 ' + mJf + '</div>';
@@ -4151,11 +4152,11 @@ function renderMonth() {
 
 // ===== LIST =====
 function renderList() {
-  const c=document.getElementById('listContainer'), mon=getMonday(currentDate), ts=TODAY.toISOString().split('T')[0];
+  const c=document.getElementById('listContainer'), mon=getMonday(currentDate), ts=localDateStr(TODAY);
   let html='';
   for(let i=0;i<7;i++){
     const d=new Date(mon);d.setDate(mon.getDate()+i);
-    const ds=d.toISOString().split('T')[0], di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId)).sort((a,b)=>a.startTime.localeCompare(b.startTime)), it=ds===ts;
+    const ds=localDateStr(d), di=interventions.filter(x=>x.date===ds&&(!selectedTechId||x.techId===selectedTechId)).sort((a,b)=>a.startTime.localeCompare(b.startTime)), it=ds===ts;
     html+=`<div class="list-date-group"><div class="list-date-header">${it?'<span style="color:var(--gph-yellow)">●</span> ':''}${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}<span class="list-date-count">${di.length} int.</span></div>`;
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
@@ -5420,7 +5421,7 @@ function renderAPlanifier() {
   }
 
   // Compteur blocs par type (sans commande, avec type, depuis aujourd'hui)
-  var todayStrBloc = TODAY.toISOString().split('T')[0];
+  var todayStrBloc = localDateStr(TODAY);
   var isReservationType = function(typeId) {
     if (!typeId) return false;
     var t = settingsIntTypes.find(function(x) { return x.id === typeId; });
@@ -6679,7 +6680,7 @@ function navigateToAddress(address, lat, lon) {
 }
 
 function launchDayTour() {
-  var ds = currentDate.toISOString().split('T')[0];
+  var ds = localDateStr(currentDate);
   var techId = selectedTechId || (TECHNICIANS.length > 0 ? TECHNICIANS[0].id : null);
   if (!techId) { alert('Sélectionnez un technicien'); return; }
 
@@ -7138,7 +7139,7 @@ var showFleetOnMap = true;
 function initFleetMap() {
   // Set date picker to current date
   var datePicker = document.getElementById('mapDate');
-  if (datePicker && !datePicker.value) datePicker.value = currentDate.toISOString().split('T')[0];
+  if (datePicker && !datePicker.value) datePicker.value = localDateStr(currentDate);
 
   if (fleetMap) {
     setTimeout(function() { fleetMap.invalidateSize(); renderMapTournees(); }, 200);
@@ -8414,8 +8415,8 @@ async function loadLuccaAbsences(filterTechId) {
   try {
     var from = new Date(); from.setMonth(from.getMonth() - 1);
     var to = new Date(); to.setMonth(to.getMonth() + 2);
-    var fromStr = from.toISOString().split('T')[0];
-    var toStr = to.toISOString().split('T')[0];
+    var fromStr = localDateStr(from);
+    var toStr = localDateStr(to);
 
     // En mode mobile, ne charger que les absences du tech connecté
     var filterLuccaId = null;
@@ -8471,7 +8472,7 @@ function getAbsenceForDate(luccaId, dateStr) {
 // Get today's status for team member display
 function getLuccaAbsenceStatus(luccaId) {
   if (!luccaId) return null;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   const abs = getAbsenceForDate(luccaId, today);
   if (!abs) return null;
   const hour = new Date().getHours();
@@ -9204,8 +9205,8 @@ function buildMobileCard(int, compact) {
 }
 
 function renderMobileDay() {
-  var ds = currentDate.toISOString().split('T')[0];
-  var todayStr = TODAY.toISOString().split('T')[0];
+  var ds = localDateStr(currentDate);
+  var todayStr = localDateStr(TODAY);
   var dateLabel = currentDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   dateLabel = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
   var jf = isJourFerie(ds);
@@ -9252,7 +9253,7 @@ function renderMobileDay() {
 
 function renderMobileWeek() {
   var mon = getMonday(currentDate);
-  var todayStr = TODAY.toISOString().split('T')[0];
+  var todayStr = localDateStr(TODAY);
   var weekNum = pcGetISOWeek(mon);
   var monLabel = mon.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   var fri = new Date(mon); fri.setDate(fri.getDate() + 4);
@@ -9272,7 +9273,7 @@ function renderMobileWeek() {
   var totalWeekInts = 0;
   for (var d = 0; d < 5; d++) {
     var day = new Date(mon); day.setDate(mon.getDate() + d);
-    var ds = day.toISOString().split('T')[0];
+    var ds = localDateStr(day);
     var jf = isJourFerie(ds);
     var abs = getAbsenceForTech(mobileMyTechId, ds);
     var dayInts = interventions.filter(function(i) {
@@ -10290,14 +10291,14 @@ function toggleAIMaximize() {
 })()
 
 function buildPlanningContext() {
-  const todayStr = TODAY.toISOString().split('T')[0];
+  const todayStr = localDateStr(TODAY);
   const mon = getMonday(currentDate);
 
   // Interventions de la semaine (avec ID pour actions)
   const weekInts = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(mon); d.setDate(mon.getDate() + i);
-    const ds = d.toISOString().split('T')[0];
+    const ds = localDateStr(d);
     const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => (a.startTime||'').localeCompare(b.startTime||''));
     dayInts.forEach(int => {
       const tech = TECHNICIANS.find(t => t.id === int.techId);
@@ -10340,7 +10341,7 @@ function buildPlanningContext() {
     var absLines = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(mon); d.setDate(mon.getDate() + i);
-      const ds = d.toISOString().split('T')[0];
+      const ds = localDateStr(d);
       const dayName = d.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
       settingsTeam.forEach(t => {
         if (!t.luccaId) return;
@@ -10434,7 +10435,7 @@ function buildPlanningContext() {
   var dnFr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   for (var di = 0; di < 7; di++) {
     var dd = new Date(mon); dd.setDate(mon.getDate() + di);
-    var dds = dd.toISOString().split('T')[0];
+    var dds = localDateStr(dd);
     var dow = dd.getDay();
     var jf = isJourFerie(dds);
     var label = dnFr[dow] + ' ' + dd.toLocaleDateString('fr-FR', {day:'numeric', month:'long'});
@@ -10448,7 +10449,7 @@ function buildPlanningContext() {
   }
 
   let ctx = `DATE ACTUELLE: ${todayStr}
-SEMAINE AFFICHÉE: ${mon.toISOString().split('T')[0]} → 7 jours
+SEMAINE AFFICHÉE: ${localDateStr(mon)} → 7 jours
 
 ⛔⛔⛔ JOURS INTERDITS CETTE SEMAINE (NE JAMAIS PROPOSER DE PLANIFIER DESSUS) :
 ${joursInterdits.length > 0 ? joursInterdits.join('\n') : 'Aucun jour interdit cette semaine.'}
