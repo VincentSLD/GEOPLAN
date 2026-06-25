@@ -3762,7 +3762,7 @@ function goToIntervention(id) {
   switchView('week', document.querySelectorAll('.view-tab')[0]);
   setTimeout(function() { openDetail(id); }, 300);
 }
-function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===localDateStr(TODAY)).length; }
+function updateTodayCount() { var ts=localDateStr(TODAY); document.getElementById('todayCount').textContent=interventions.filter(i=>i.date>=ts).length; }
 
 function navigate(dir) {
   if(currentView==='week'||currentView==='list') currentDate.setDate(currentDate.getDate()+dir*7);
