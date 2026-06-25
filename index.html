@@ -8271,10 +8271,36 @@ function openSettingsWithPassword() {
   if (settingsUnlocked) { showView('settings'); return; }
   var adminPwd = settingsGeneral.adminPassword || '';
   if (!adminPwd) { settingsUnlocked = true; showView('settings'); return; }
-  var input = prompt('Mot de passe paramétrage :');
-  if (input === null) return;
-  if (input === adminPwd) { settingsUnlocked = true; showView('settings'); }
-  else { alert('Mot de passe incorrect'); }
+  var overlay = document.createElement('div');
+  overlay.id = 'pwdDialogOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2);">' +
+    '<h3 style="margin:0 0 16px;font-size:1rem;">🔒 Paramétrage</h3>' +
+    '<label style="font-size:0.75rem;font-weight:600;">Mot de passe</label>' +
+    '<input type="password" id="pwdDialogInput" style="width:100%;padding:8px;margin:4px 0 6px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;" placeholder="••••••">' +
+    '<div id="pwdDialogError" style="display:none;color:#DC2626;font-size:0.72rem;margin-bottom:8px;">Mot de passe incorrect</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+      '<button onclick="document.getElementById(\'pwdDialogOverlay\').remove()" style="padding:6px 14px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:0.8rem;">Annuler</button>' +
+      '<button id="pwdDialogOk" style="padding:6px 14px;border:none;border-radius:6px;background:var(--gph-blue);color:#fff;cursor:pointer;font-weight:600;font-size:0.8rem;">Valider</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  var inp = document.getElementById('pwdDialogInput');
+  inp.focus();
+  function validate() {
+    if (inp.value === adminPwd) {
+      settingsUnlocked = true;
+      overlay.remove();
+      showView('settings');
+    } else {
+      document.getElementById('pwdDialogError').style.display = 'block';
+      inp.style.borderColor = '#DC2626';
+      inp.select();
+    }
+  }
+  document.getElementById('pwdDialogOk').onclick = validate;
+  inp.onkeydown = function(e) { if (e.key === 'Enter') validate(); if (e.key === 'Escape') overlay.remove(); };
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 }
 
 function openSettings() {
