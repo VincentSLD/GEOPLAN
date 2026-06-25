@@ -8781,9 +8781,7 @@ function checkCompetenceAlert(int) {
   var competences = tech.competences || [];
   if (competences.length === 0) return null;
   var missionNorm = normalizeMission(resolveMissionAlias(prog.mission));
-  var compNorms = competences.map(function(c) { return normalizeMission(resolveMissionAlias(c)); });
-  var hasCompetence = compNorms.indexOf(missionNorm) >= 0;
-  console.log('[Compétence] Mission Géosolia brute:', prog.mission, '→ normalisée:', missionNorm, '| Compétences tech:', competences, '→ normalisées:', compNorms, '| Match:', hasCompetence);
+  var hasCompetence = competences.some(function(c) { return normalizeMission(resolveMissionAlias(c)) === missionNorm; });
   if (hasCompetence) return null;
   var label = labelMission(prog.mission);
   return { mission: label, techName: tech.prenom + ' ' + tech.nom };
