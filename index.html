@@ -4182,6 +4182,9 @@ async function handleDrop(e,tid,ds){
     if(i){
       if (!confirmIfFerie(ds)) { draggedId=null; return; }
       if (!confirmIfAbsence(tid, ds)) { draggedId=null; return; }
+      var _dragData = Object.assign({}, i, { techId: tid });
+      var _dragCompWarn = checkCompetenceAlert(_dragData);
+      if (_dragCompWarn && !confirm('⚠ Alerte compétence :\n' + _dragCompWarn.techName + ' n\'a pas la compétence "' + _dragCompWarn.mission + '".\n\nContinuer quand même ?')) { draggedId=null; return; }
       var linkedRapport = i.commandeId && !i.isRapport ? interventions.find(function(r){return r.commandeId===i.commandeId && r.isRapport;}) : null;
       var moveRapport = linkedRapport && linkedRapport.techId !== tid ? confirm('Un rapport est lié à cette intervention.\nDéplacer aussi le rapport vers ' + (TECHNICIANS.find(function(t){return t.id===tid;}) || {}).name + ' ?') : false;
       i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
@@ -5602,6 +5605,12 @@ function dropAPlanifier(e, techId, dateStr) {
   // Check jour férié / absence
   if (!confirmIfFerie(dateStr)) { draggedCmdId = null; return; }
   if (!confirmIfAbsence(techId, dateStr)) { draggedCmdId = null; return; }
+  // Check compétence
+  var _dropGeoId = commandeGeosoliaLinks[cmd.id] || null;
+  if (_dropGeoId) {
+    var _dropCompWarn = checkCompetenceAlert({ geosoliaId: _dropGeoId, techId: techId });
+    if (_dropCompWarn && !confirm('⚠ Alerte compétence :\n' + _dropCompWarn.techName + ' n\'a pas la compétence "' + _dropCompWarn.mission + '".\n\nContinuer quand même ?')) { draggedCmdId = null; return; }
+  }
   // Check if already planned → confirmation pour scinder
   var existingSiblings = getSiblingInterventions(cmd.id);
   if (existingSiblings.length > 0) {
