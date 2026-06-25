@@ -5321,9 +5321,8 @@ function renderAPlanifierSocFilters() {
 }
 
 function toggleAPlanSoc(soc) {
-  var idx = aPlanifierSocFilter.indexOf(soc);
-  if (idx >= 0) aPlanifierSocFilter.splice(idx, 1);
-  else aPlanifierSocFilter.push(soc);
+  if (aPlanifierSocFilter.length === 1 && aPlanifierSocFilter[0] === soc) aPlanifierSocFilter = [];
+  else aPlanifierSocFilter = [soc];
   renderAPlanifier();
   renderAPlanifierSocFilters();
 }
