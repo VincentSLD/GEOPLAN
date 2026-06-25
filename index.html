@@ -5518,7 +5518,7 @@ function renderAPlanifier() {
       var rapDlcFmt = rapDlc ? new Date(rapDlc).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
       var rapDlrWarn = rapDlr && new Date(rapDlr) < new Date(Date.now() + 7*86400000);
       var rapDlcWarn = rapDlc && new Date(rapDlc) < new Date(Date.now() + 7*86400000);
-      html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+rap.id+')" style="border-left:3px solid #7C3AED;">';
+      html += '<div class="aplan-card" draggable="true" ondragstart="handleDrag(event,'+rap.id+')" ondblclick="openDetail('+rap.id+')" style="border-left:3px solid #7C3AED;cursor:pointer;">';
       var rapAffNom = rap.affaireId ? (affairesMap[rap.affaireId] ? affairesMap[rap.affaireId].nom : '') : '';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">📝 ' + (rap.affaireRef || '') + (rapAffNom ? ' — ' + rapAffNom.substring(0,25) : '') + '</span><div style="display:flex;align-items:center;gap:4px;"><span style="font-size:0.6rem;font-weight:600;color:#7C3AED;">' + durLabel + '</span>';
       if (rapDlrFmt) html += '<span style="padding:1px 5px;border-radius:8px;font-size:0.55rem;font-weight:700;' + (rapDlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + rapDlrFmt + '</span>';
