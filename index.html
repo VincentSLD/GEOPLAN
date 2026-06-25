@@ -4405,8 +4405,8 @@ function saveIntervention(){
     }
   }
 
-  // Vérifier technicien identique et durées en mode supplémentaire
-  if (isSuppMode && data.commandeId && data.techId) {
+  // Vérifier technicien identique et durées en mode supplémentaire (création uniquement)
+  if (isSuppMode && !editingId && data.commandeId && data.techId) {
     var _siblings = getSiblingInterventions(data.commandeId);
     var sameTech = _siblings.find(function(s) { return s.techId === data.techId; });
     if (sameTech) {
