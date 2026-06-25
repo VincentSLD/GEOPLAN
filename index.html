@@ -3762,7 +3762,7 @@ function goToIntervention(id) {
   switchView('week', document.querySelectorAll('.view-tab')[0]);
   setTimeout(function() { openDetail(id); }, 300);
 }
-function updateTodayCount() { var ts=localDateStr(TODAY); console.log('[TodayCount] today='+ts+', total='+interventions.length+', dates='+JSON.stringify(interventions.slice(0,5).map(function(i){return i.date;}))); document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===ts).length; }
+function updateTodayCount() { document.getElementById('todayCount').textContent=interventions.filter(i=>i.date===localDateStr(TODAY)).length; }
 
 function navigate(dir) {
   if(currentView==='week'||currentView==='list') currentDate.setDate(currentDate.getDate()+dir*7);
