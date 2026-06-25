@@ -4405,6 +4405,44 @@ function saveIntervention(){
     }
   }
 
+  // Vérifier technicien identique et durées en mode supplémentaire
+  if (isSuppMode && data.commandeId && data.techId) {
+    var _siblings = getSiblingInterventions(data.commandeId);
+    var sameTech = _siblings.find(function(s) { return s.techId === data.techId; });
+    if (sameTech) {
+      var _t = TECHNICIANS.find(function(t) { return t.id === data.techId; });
+      if (!confirm('⚠ ' + (_t ? _t.name : 'Ce géotechnicien') + ' est déjà affecté à cette commande.\nL\'intervention supplémentaire doit normalement être attribuée à un autre géotechnicien.\n\nContinuer quand même ?')) return;
+    }
+    var _newInp = document.querySelector('input[data-sibling-new]');
+    var _newDurSupp = _newInp ? (parseDurInput(_newInp.value) || 0) : (data.duration || 0);
+    if (_newDurSupp <= 0) {
+      alert('⚠ La durée de la nouvelle intervention est à 0h00.\nVeuillez répartir les temps avant de sauvegarder.');
+      return;
+    }
+    var _sibInputs = document.querySelectorAll('input[data-sibling-id]');
+    var _durZero = [];
+    _sibInputs.forEach(function(inp) {
+      if ((parseDurInput(inp.value) || 0) <= 0) {
+        var sid = inp.getAttribute('data-sibling-id');
+        var si = _siblings.find(function(s) { return String(s.id) === sid; });
+        var st = si ? TECHNICIANS.find(function(t) { return t.id === si.techId; }) : null;
+        _durZero.push(st ? st.name : 'Int. #' + sid);
+      }
+    });
+    if (_durZero.length > 0) {
+      if (!confirm('⚠ Durée à 0h00 pour : ' + _durZero.join(', ') + '.\nLa répartition des temps semble incohérente.\n\nContinuer quand même ?')) return;
+    }
+    var _estEl = document.querySelector('[data-sibling-estimated]');
+    var _estimated = _estEl ? parseInt(_estEl.getAttribute('data-sibling-estimated')) || 0 : 0;
+    if (_estimated > 0) {
+      var _totalAll = _newDurSupp;
+      _sibInputs.forEach(function(inp) { _totalAll += parseDurInput(inp.value) || 0; });
+      if (_totalAll > _estimated) {
+        if (!confirm('⚠ Le total réparti (' + fmtTravelTime(_totalAll) + ') dépasse le temps estimé (' + fmtTravelTime(_estimated) + ').\n\nContinuer quand même ?')) return;
+      }
+    }
+  }
+
   // Vérifier compétence avant sauvegarde
   var compWarn = checkCompetenceAlert(data);
   if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
