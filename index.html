@@ -6009,22 +6009,17 @@ async function loadCommandesFromSupabase() {
 async function cleanOrphanCommandes() {
   if (!commandesLoaded || commandesData.length === 0) return;
   var first = commandesData[0];
-  console.log('[Nettoyage] Premier commande debug → id:', first.id, 'ref:', first.ref, 'typeof id:', typeof first.id);
-  // Test avec l'ID numérique sur la première commande
+  console.log('[Nettoyage] Debug commande:', JSON.stringify({ id: first.id, ref: first.ref, nom: first.nom }));
+  // Test 1: recherche par number IS ref
   try {
-    var testR = await fetch(AKUITEO_PROXY + '/sales/orders/' + first.id + '/read', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ options: [] }),
-    });
-    console.log('[Nettoyage] Test avec id=' + first.id + ' → status ' + testR.status);
-  } catch(e) { console.log('[Nettoyage] Test avec id erreur:', e.message); }
+    var r1 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { number: { operator: 'IS', value: first.ref } });
+    console.log('[Nettoyage] Search number IS "' + first.ref + '" →', JSON.stringify(r1));
+  } catch(e) { console.log('[Nettoyage] Search number IS erreur:', e.message); }
+  // Test 2: voir les champs du premier résultat de la recherche globale
   try {
-    var testR2 = await fetch(AKUITEO_PROXY + '/sales/orders/' + first.ref + '/read', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ options: [] }),
-    });
-    console.log('[Nettoyage] Test avec ref=' + first.ref + ' → status ' + testR2.status);
-  } catch(e) { console.log('[Nettoyage] Test avec ref erreur:', e.message); }
+    var r2 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'IS_NOT', value: '0' } });
+    console.log('[Nettoyage] Premier ordre Akuiteo:', JSON.stringify(r2));
+  } catch(e) { console.log('[Nettoyage] Search globale erreur:', e.message); }
 }
 
 async function refreshCommandes() {
