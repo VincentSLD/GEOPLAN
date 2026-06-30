@@ -1854,6 +1854,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;" id="aPlanifierSocFilters2"></div>
         <div style="display:flex;gap:4px;">
           <input type="text" id="aPlanifierSearch2" placeholder="Rechercher..." oninput="renderAPlanifier()" style="flex:1;height:26px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.7rem;font-family:inherit;">
+          <button id="deleteModeBtn" onclick="toggleDeleteMode()" title="Mode suppression" style="height:26px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);cursor:pointer;font-size:0.7rem;color:var(--text-muted);">🗑</button>
         </div>
       </div>
       <div style="padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:6px;">
@@ -5597,7 +5598,7 @@ function renderAPlanifier() {
 
     html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')" ondblclick="planifierCommande(\'' + cmd.id.replace(/'/g,"\\'") + '\')" style="border-left:3px solid ' + statutColor + ';background:' + statutColor + '08;cursor:grab;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span><div style="display:flex;align-items:center;gap:4px;">';
-    html += '<button onclick="event.stopPropagation();removeCommandeFromCache(\'' + cmd.id.replace(/'/g,"\\'") + '\')" title="Supprimer du cache" style="background:none;border:none;cursor:pointer;font-size:0.65rem;color:var(--text-muted);padding:0 2px;line-height:1;" onmouseover="this.style.color=\'#DC2626\'" onmouseout="this.style.color=\'var(--text-muted)\'">✕</button>';
+    if (deleteModeActive) html += '<button onclick="event.stopPropagation();removeCommandeFromCache(\'' + cmd.id.replace(/'/g,"\\'") + '\')" title="Supprimer du cache" style="background:none;border:none;cursor:pointer;font-size:0.65rem;color:#DC2626;padding:0 2px;line-height:1;font-weight:700;">✕</button>';
     if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
     if (dlcFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + dlcFmt + '</span>';
@@ -6005,6 +6006,54 @@ async function loadCommandesFromSupabase() {
     }
   } catch(e) { console.warn('[Commandes] Erreur:', e); }
   if (!mobileMyTechId) hideLoader();
+}
+
+function toggleDeleteMode() {
+  if (deleteModeActive) {
+    deleteModeActive = false;
+    var btn = document.getElementById('deleteModeBtn');
+    if (btn) { btn.style.background = 'var(--bg-primary)'; btn.style.borderColor = 'var(--border)'; }
+    renderAPlanifier();
+    return;
+  }
+  var adminPwd = settingsGeneral.adminPassword || '';
+  if (!adminPwd) { deleteModeActive = true; updateDeleteModeUI(); renderAPlanifier(); return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'deleteModeOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2);">' +
+    '<h3 style="margin:0 0 16px;font-size:1rem;">🗑 Mode suppression</h3>' +
+    '<label style="font-size:0.75rem;font-weight:600;">Mot de passe</label>' +
+    '<input type="password" id="deleteModeInput" style="width:100%;padding:8px;margin:4px 0 6px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;" placeholder="••••••">' +
+    '<div id="deleteModeError" style="display:none;color:#DC2626;font-size:0.72rem;margin-bottom:8px;">Mot de passe incorrect</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+      '<button onclick="document.getElementById(\'deleteModeOverlay\').remove()" style="padding:6px 14px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:0.8rem;">Annuler</button>' +
+      '<button id="deleteModeOk" style="padding:6px 14px;border:none;border-radius:6px;background:#DC2626;color:#fff;cursor:pointer;font-weight:600;font-size:0.8rem;">Activer</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  var inp = document.getElementById('deleteModeInput');
+  inp.focus();
+  function validate() {
+    if (inp.value === adminPwd) {
+      deleteModeActive = true;
+      overlay.remove();
+      updateDeleteModeUI();
+      renderAPlanifier();
+    } else {
+      document.getElementById('deleteModeError').style.display = 'block';
+      inp.style.borderColor = '#DC2626';
+      inp.select();
+    }
+  }
+  document.getElementById('deleteModeOk').onclick = validate;
+  inp.onkeydown = function(e) { if (e.key === 'Enter') validate(); if (e.key === 'Escape') overlay.remove(); };
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+}
+
+function updateDeleteModeUI() {
+  var btn = document.getElementById('deleteModeBtn');
+  if (btn) { btn.style.background = '#fef2f2'; btn.style.borderColor = '#DC2626'; }
 }
 
 async function removeCommandeFromCache(cmdId) {
@@ -8337,6 +8386,7 @@ function pcCloseDrill() {
 
 // --- Open / Close ---
 var settingsUnlocked = false;
+var deleteModeActive = false;
 
 function openSettingsWithPassword() {
   if (settingsUnlocked) { showView('settings'); return; }
