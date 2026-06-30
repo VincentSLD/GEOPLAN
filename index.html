@@ -3745,6 +3745,9 @@ var _searchTimer = null;
 function onGlobalSearch() {
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(doGlobalSearch, 200);
+  var q = document.getElementById('globalSearch').value || '';
+  var ap = document.getElementById('aPlanifierSearch2');
+  if (ap && ap.value !== q) { ap.value = q; renderAPlanifier(); }
 }
 
 function doGlobalSearch() {
