@@ -6009,17 +6009,22 @@ async function loadCommandesFromSupabase() {
 async function cleanOrphanCommandes() {
   if (!commandesLoaded || commandesData.length === 0) return;
   var first = commandesData[0];
-  console.log('[Nettoyage] Debug commande:', JSON.stringify({ id: first.id, ref: first.ref, nom: first.nom }));
-  // Test 1: recherche par number IS ref
+  console.log('[Nettoyage] Debug ref:', first.ref);
+  // Test: recherche par id IS ref
   try {
-    var r1 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { number: { operator: 'IS', value: first.ref } });
-    console.log('[Nettoyage] Search number IS "' + first.ref + '" →', JSON.stringify(r1));
-  } catch(e) { console.log('[Nettoyage] Search number IS erreur:', e.message); }
-  // Test 2: voir les champs du premier résultat de la recherche globale
+    var r1 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'IS', value: first.ref } });
+    console.log('[Nettoyage] id IS "' + first.ref + '" → ' + (Array.isArray(r1) ? r1.length + ' résultat(s)' : JSON.stringify(r1).substring(0, 200)));
+  } catch(e) { console.log('[Nettoyage] id IS erreur:', e.message); }
+  // Test: recherche par id STARTS_WITH entity
   try {
-    var r2 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'IS_NOT', value: '0' } });
-    console.log('[Nettoyage] Premier ordre Akuiteo:', JSON.stringify(r2));
-  } catch(e) { console.log('[Nettoyage] Search globale erreur:', e.message); }
+    var r2 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'STARTS_WITH', value: 'G85-CC' } });
+    console.log('[Nettoyage] id STARTS_WITH "G85-CC" → ' + (Array.isArray(r2) ? r2.length + ' résultat(s), premier: ' + r2[0].id : JSON.stringify(r2).substring(0, 200)));
+  } catch(e) { console.log('[Nettoyage] id STARTS_WITH erreur:', e.message); }
+  // Test: recherche par id LIKE
+  try {
+    var r3 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'LIKE', value: first.ref } });
+    console.log('[Nettoyage] id LIKE "' + first.ref + '" → ' + (Array.isArray(r3) ? r3.length + ' résultat(s)' : JSON.stringify(r3).substring(0, 200)));
+  } catch(e) { console.log('[Nettoyage] id LIKE erreur:', e.message); }
 }
 
 async function refreshCommandes() {
