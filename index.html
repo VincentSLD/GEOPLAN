@@ -6008,8 +6008,9 @@ async function loadCommandesFromSupabase() {
 
 async function cleanOrphanInterventions() {
   var withCmd = interventions.filter(function(i) { return !!i.commandeId; });
-  var withAff = interventions.filter(function(i) { return !!i.affaireRef && !i.commandeId; });
-  console.log('[Nettoyage] ' + interventions.length + ' interventions, ' + withCmd.length + ' avec commandeId, ' + withAff.length + ' avec affaireRef sans commandeId');
+  console.log('[Nettoyage] ' + interventions.length + ' interventions, ' + withCmd.length + ' avec commandeId');
+  var rouleau = interventions.filter(function(i) { return JSON.stringify(i).toLowerCase().indexOf('rouleau') >= 0; });
+  if (rouleau.length > 0) console.log('[Nettoyage] ROULEAU trouvé:', JSON.stringify(rouleau[0], null, 2));
   var uniqueCmdIds = {};
   withCmd.forEach(function(i) { uniqueCmdIds[i.commandeId] = true; });
   var cmdIdsToCheck = Object.keys(uniqueCmdIds);
