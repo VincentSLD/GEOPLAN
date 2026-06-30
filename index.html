@@ -6009,17 +6009,20 @@ async function cleanOrphanInterventions() {
   var cmdIdsToCheck = Object.keys(uniqueCmdIds);
   if (cmdIdsToCheck.length === 0) return;
 
+  console.log('[Nettoyage] Vérification de ' + cmdIdsToCheck.length + ' commandes dans Akuiteo...');
   var deletedCmdIds = [];
   for (var c = 0; c < cmdIdsToCheck.length; c++) {
     try {
       var result = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'EQUALS', value: cmdIdsToCheck[c] } });
+      console.log('[Nettoyage] Commande ' + cmdIdsToCheck[c] + ' → ' + (Array.isArray(result) ? result.length + ' résultat(s)' : JSON.stringify(result).substring(0, 100)));
       if (!result || (Array.isArray(result) && result.length === 0)) {
         deletedCmdIds.push(cmdIdsToCheck[c]);
       }
     } catch(e) {
-      // Erreur API → on ne touche pas cette commande
+      console.log('[Nettoyage] Commande ' + cmdIdsToCheck[c] + ' → ERREUR: ' + e.message);
     }
   }
+  console.log('[Nettoyage] Résultat: ' + deletedCmdIds.length + ' supprimée(s) sur ' + cmdIdsToCheck.length);
 
   if (deletedCmdIds.length === 0) return;
   if (deletedCmdIds.length > 3) {
