@@ -6007,10 +6007,13 @@ async function loadCommandesFromSupabase() {
 }
 
 async function cleanOrphanInterventions() {
+  var withCmd = interventions.filter(function(i) { return !!i.commandeId; });
+  var withAff = interventions.filter(function(i) { return !!i.affaireRef && !i.commandeId; });
+  console.log('[Nettoyage] ' + interventions.length + ' interventions, ' + withCmd.length + ' avec commandeId, ' + withAff.length + ' avec affaireRef sans commandeId');
   var uniqueCmdIds = {};
-  interventions.forEach(function(i) { if (i.commandeId) uniqueCmdIds[i.commandeId] = true; });
+  withCmd.forEach(function(i) { uniqueCmdIds[i.commandeId] = true; });
   var cmdIdsToCheck = Object.keys(uniqueCmdIds);
-  if (cmdIdsToCheck.length === 0) return;
+  if (cmdIdsToCheck.length === 0 && withAff.length === 0) return;
 
   console.log('[Nettoyage] Vérification de ' + cmdIdsToCheck.length + ' commandes dans Akuiteo...');
   var deletedCmdIds = [];
