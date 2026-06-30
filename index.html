@@ -6004,16 +6004,31 @@ async function loadCommandesFromSupabase() {
 }
 
 async function cleanOrphanInterventions() {
-  if (!commandesLoaded || commandesData.length === 0) return;
-  var cmdIds = {};
-  commandesData.forEach(function(c) { cmdIds[c.id] = true; });
-  var orphans = interventions.filter(function(i) { return i.commandeId && !cmdIds[i.commandeId]; });
-  if (orphans.length === 0) return;
-  console.log('[Nettoyage] ' + orphans.length + ' intervention(s) orpheline(s) détectée(s), suppression...');
+  var uniqueCmdIds = {};
+  interventions.forEach(function(i) { if (i.commandeId) uniqueCmdIds[i.commandeId] = true; });
+  var cmdIdsToCheck = Object.keys(uniqueCmdIds);
+  if (cmdIdsToCheck.length === 0) return;
+
+  var deletedCmdIds = {};
+  for (var c = 0; c < cmdIdsToCheck.length; c++) {
+    try {
+      await akuiteoFetch('GET', '/sales/orders/' + cmdIdsToCheck[c]);
+    } catch(e) {
+      if (e.message && e.message.indexOf('404') >= 0) {
+        deletedCmdIds[cmdIdsToCheck[c]] = true;
+      }
+    }
+  }
+
+  var deletedKeys = Object.keys(deletedCmdIds);
+  if (deletedKeys.length === 0) return;
+
+  var orphans = interventions.filter(function(i) { return i.commandeId && deletedCmdIds[i.commandeId]; });
+  console.log('[Nettoyage] ' + orphans.length + ' intervention(s) orpheline(s) (commandes supprimées Akuiteo: ' + deletedKeys.join(', ') + ')');
   for (var i = 0; i < orphans.length; i++) {
     await deleteInterventionFromSupabase(orphans[i].id);
   }
-  interventions = interventions.filter(function(i) { return !i.commandeId || cmdIds[i.commandeId]; });
+  interventions = interventions.filter(function(i) { return !deletedCmdIds[i.commandeId]; });
   renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
 }
 
