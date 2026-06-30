@@ -6008,39 +6008,23 @@ async function loadCommandesFromSupabase() {
 
 async function cleanOrphanCommandes() {
   if (!commandesLoaded || commandesData.length === 0) return;
-  console.log('[Nettoyage] Vérification de ' + commandesData.length + ' commandes...');
-  var deletedIds = [];
-  var checked = 0;
-  for (var i = 0; i < commandesData.length; i++) {
-    var cmd = commandesData[i];
-    var akId = cmd.ref || cmd.akuiteo_id || String(cmd.id).replace('akc_', '').replace(/_/g, '-');
-    try {
-      var r = await fetch(AKUITEO_PROXY + '/sales/orders/' + akId + '/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ options: [] }),
-      });
-      checked++;
-      if (r.status === 404) {
-        console.log('[Nettoyage] Commande ' + akId + ' (' + (cmd.client_name || '?') + ') → 404, supprimée d\'Akuiteo');
-        deletedIds.push(cmd.id);
-      }
-    } catch(e) {}
-    if (i < commandesData.length - 1) await new Promise(function(resolve) { setTimeout(resolve, 200); });
-  }
-  console.log('[Nettoyage] ' + checked + ' vérifiées, ' + deletedIds.length + ' supprimée(s) d\'Akuiteo');
-  if (deletedIds.length === 0) return;
-  if (deletedIds.length > 10) {
-    console.warn('[Nettoyage] Trop de suppressions détectées (' + deletedIds.length + '), abandon par sécurité');
-    return;
-  }
-  for (var d = 0; d < deletedIds.length; d++) {
-    await sbAuth.from('commandes').delete().eq('id', deletedIds[d]);
-  }
-  commandesData = commandesData.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
-  commandesFiltered = commandesFiltered.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
-  renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
-  console.log('[Nettoyage] ' + deletedIds.length + ' commande(s) orpheline(s) nettoyée(s)');
+  var first = commandesData[0];
+  console.log('[Nettoyage] Premier commande debug → id:', first.id, 'ref:', first.ref, 'typeof id:', typeof first.id);
+  // Test avec l'ID numérique sur la première commande
+  try {
+    var testR = await fetch(AKUITEO_PROXY + '/sales/orders/' + first.id + '/read', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ options: [] }),
+    });
+    console.log('[Nettoyage] Test avec id=' + first.id + ' → status ' + testR.status);
+  } catch(e) { console.log('[Nettoyage] Test avec id erreur:', e.message); }
+  try {
+    var testR2 = await fetch(AKUITEO_PROXY + '/sales/orders/' + first.ref + '/read', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ options: [] }),
+    });
+    console.log('[Nettoyage] Test avec ref=' + first.ref + ' → status ' + testR2.status);
+  } catch(e) { console.log('[Nettoyage] Test avec ref erreur:', e.message); }
 }
 
 async function refreshCommandes() {
