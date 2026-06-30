@@ -6008,41 +6008,35 @@ async function loadCommandesFromSupabase() {
 
 async function cleanOrphanCommandes() {
   if (!commandesLoaded || commandesData.length === 0) return;
-  var idsToCheck = commandesData.map(function(c) { return c.id; });
-  console.log('[Nettoyage] Vérification de ' + idsToCheck.length + ' commandes dans Akuiteo...');
+  console.log('[Nettoyage] Chargement des IDs Akuiteo...');
+  try {
+    var allOrders = await akuiteoFetchAll('/sales/orders/search', { id: { operator: 'IS_NOT', value: '0' } }, 200);
+    var akIds = {};
+    allOrders.forEach(function(o) { akIds[String(o.id)] = true; });
+    console.log('[Nettoyage] ' + allOrders.length + ' commandes dans Akuiteo, ' + commandesData.length + ' dans le cache Supabase');
 
-  var deletedIds = [];
-  for (var i = 0; i < idsToCheck.length; i++) {
-    try {
-      var result = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'EQUALS', value: String(idsToCheck[i]) } });
-      if (!result || (Array.isArray(result) && result.length === 0)) {
-        var cmd = commandesData.find(function(c) { return c.id === idsToCheck[i]; });
-        console.log('[Nettoyage] Commande ' + idsToCheck[i] + ' (' + (cmd ? cmd.ref || cmd.client_name : '?') + ') → supprimée d\'Akuiteo');
-        deletedIds.push(idsToCheck[i]);
-      }
-    } catch(e) {}
+    var deletedIds = commandesData.filter(function(c) { return !akIds[String(c.id)]; }).map(function(c) { return c.id; });
+    if (deletedIds.length === 0) { console.log('[Nettoyage] Toutes les commandes existent dans Akuiteo'); return; }
+    if (deletedIds.length > 10) {
+      console.warn('[Nettoyage] ' + deletedIds.length + ' commandes absentes — trop nombreuses, abandon par sécurité');
+      return;
+    }
+
+    deletedIds.forEach(function(id) {
+      var cmd = commandesData.find(function(c) { return c.id === id; });
+      console.log('[Nettoyage] Commande ' + id + ' (' + (cmd ? cmd.ref || cmd.client_name : '?') + ') → supprimée d\'Akuiteo');
+    });
+
+    for (var d = 0; d < deletedIds.length; d++) {
+      await sbAuth.from('commandes').delete().eq('id', deletedIds[d]);
+    }
+    commandesData = commandesData.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
+    commandesFiltered = commandesFiltered.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
+    renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
+    console.log('[Nettoyage] ' + deletedIds.length + ' commande(s) orpheline(s) supprimée(s)');
+  } catch(e) {
+    console.warn('[Nettoyage] Erreur:', e.message);
   }
-
-  if (deletedIds.length === 0) { console.log('[Nettoyage] Toutes les commandes existent dans Akuiteo'); return; }
-  if (deletedIds.length > 5) {
-    console.warn('[Nettoyage] ' + deletedIds.length + ' commandes absentes — trop nombreuses, abandon par sécurité');
-    return;
-  }
-
-  console.log('[Nettoyage] Suppression de ' + deletedIds.length + ' commande(s) orpheline(s) du cache Supabase...');
-  for (var d = 0; d < deletedIds.length; d++) {
-    await sbAuth.from('commandes').delete().eq('id', deletedIds[d]);
-  }
-  commandesData = commandesData.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
-  commandesFiltered = commandesFiltered.filter(function(c) { return deletedIds.indexOf(c.id) < 0; });
-
-  var orphanInts = interventions.filter(function(i) { return i.commandeId && deletedIds.indexOf(i.commandeId) >= 0; });
-  for (var o = 0; o < orphanInts.length; o++) {
-    await deleteInterventionFromSupabase(orphanInts[o].id);
-  }
-  if (orphanInts.length > 0) interventions = interventions.filter(function(i) { return !i.commandeId || deletedIds.indexOf(i.commandeId) < 0; });
-
-  renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
 }
 
 async function refreshCommandes() {
