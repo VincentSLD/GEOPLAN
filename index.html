@@ -6004,7 +6004,32 @@ async function loadCommandesFromSupabase() {
 }
 
 async function cleanOrphanInterventions() {
-  // Désactivé — à retravailler
+  var uniqueCmdIds = {};
+  interventions.forEach(function(i) { if (i.commandeId) uniqueCmdIds[i.commandeId] = true; });
+  var cmdIdsToCheck = Object.keys(uniqueCmdIds);
+  if (cmdIdsToCheck.length === 0) return;
+
+  var existingIds = {};
+  for (var c = 0; c < cmdIdsToCheck.length; c += 100) {
+    var batch = cmdIdsToCheck.slice(c, c + 100);
+    var r = await sbAuth.from('commandes').select('id').in('id', batch);
+    if (r.data) r.data.forEach(function(row) { existingIds[row.id] = true; });
+  }
+
+  var orphanCmdIds = cmdIdsToCheck.filter(function(id) { return !existingIds[id]; });
+  if (orphanCmdIds.length === 0) return;
+  if (orphanCmdIds.length > 3) {
+    console.warn('[Nettoyage] ' + orphanCmdIds.length + ' commandes absentes — trop nombreuses, abandon par sécurité');
+    return;
+  }
+
+  var orphans = interventions.filter(function(i) { return i.commandeId && orphanCmdIds.indexOf(i.commandeId) >= 0; });
+  console.log('[Nettoyage] ' + orphans.length + ' intervention(s) orpheline(s) (commandes absentes: ' + orphanCmdIds.join(', ') + ')');
+  for (var i = 0; i < orphans.length; i++) {
+    await deleteInterventionFromSupabase(orphans[i].id);
+  }
+  interventions = interventions.filter(function(i) { return !i.commandeId || orphanCmdIds.indexOf(i.commandeId) < 0; });
+  renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
 }
 
 async function refreshCommandes() {
