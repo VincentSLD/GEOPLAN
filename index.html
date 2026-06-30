@@ -5597,6 +5597,7 @@ function renderAPlanifier() {
 
     html += '<div class="aplan-card" draggable="true" ondragstart="dragAPlanifier(event,\'' + cmd.id.replace(/'/g,"\\'") + '\')" ondblclick="planifierCommande(\'' + cmd.id.replace(/'/g,"\\'") + '\')" style="border-left:3px solid ' + statutColor + ';background:' + statutColor + '08;cursor:grab;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span class="aplan-card-ref">' + affRef + (affNom ? ' — ' + affNom.substring(0,20) : '') + '</span><div style="display:flex;align-items:center;gap:4px;">';
+    html += '<button onclick="event.stopPropagation();removeCommandeFromCache(\'' + cmd.id.replace(/'/g,"\\'") + '\')" title="Supprimer du cache" style="background:none;border:none;cursor:pointer;font-size:0.65rem;color:var(--text-muted);padding:0 2px;line-height:1;" onmouseover="this.style.color=\'#DC2626\'" onmouseout="this.style.color=\'var(--text-muted)\'">✕</button>';
     if (cdStatutVal) html += '<span style="font-size:0.52rem;font-weight:700;padding:1px 5px;border-radius:6px;background:' + statutColor + '18;color:' + statutColor + ';border:1px solid ' + statutColor + '30;">' + cdStatutVal + '</span>';
     if (dlrFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlrWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:var(--bg-primary);color:var(--text-muted);border:1px solid var(--border);') + '">DLR ' + dlrFmt + '</span>';
     if (dlcFmt) html += '<span style="padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;' + (dlcWarn ? 'background:#fef2f2;color:#DC2626;border:1px solid #DC262630;' : 'background:#f0fdf4;color:#16A34A;border:1px solid #16A34A30;') + '">DLC ' + dlcFmt + '</span>';
@@ -6006,25 +6007,17 @@ async function loadCommandesFromSupabase() {
   if (!mobileMyTechId) hideLoader();
 }
 
-async function cleanOrphanCommandes() {
-  if (!commandesLoaded || commandesData.length === 0) return;
-  var first = commandesData[0];
-  console.log('[Nettoyage] Debug ref:', first.ref);
-  // Test: recherche par id IS ref
-  try {
-    var r1 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'IS', value: first.ref } });
-    console.log('[Nettoyage] id IS "' + first.ref + '" → ' + (Array.isArray(r1) ? r1.length + ' résultat(s)' : JSON.stringify(r1).substring(0, 200)));
-  } catch(e) { console.log('[Nettoyage] id IS erreur:', e.message); }
-  // Test: recherche par id STARTS_WITH entity
-  try {
-    var r2 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'STARTS_WITH', value: 'G85-CC' } });
-    console.log('[Nettoyage] id STARTS_WITH "G85-CC" → ' + (Array.isArray(r2) ? r2.length + ' résultat(s), premier: ' + r2[0].id : JSON.stringify(r2).substring(0, 200)));
-  } catch(e) { console.log('[Nettoyage] id STARTS_WITH erreur:', e.message); }
-  // Test: recherche par id LIKE
-  try {
-    var r3 = await akuiteoFetch('POST', '/sales/orders/search?limit=1', { id: { operator: 'LIKE', value: first.ref } });
-    console.log('[Nettoyage] id LIKE "' + first.ref + '" → ' + (Array.isArray(r3) ? r3.length + ' résultat(s)' : JSON.stringify(r3).substring(0, 200)));
-  } catch(e) { console.log('[Nettoyage] id LIKE erreur:', e.message); }
+async function removeCommandeFromCache(cmdId) {
+  var cmd = commandesData.find(function(c) { return c.id === cmdId; });
+  if (!cmd) return;
+  if (!confirm('Supprimer "' + (cmd.ref || cmd.client_name || cmdId) + '" du cache ?\n\nCette commande ne sera plus affichée dans le planning.')) return;
+  await sbAuth.from('commandes').delete().eq('id', cmdId);
+  commandesData = commandesData.filter(function(c) { return c.id !== cmdId; });
+  commandesFiltered = commandesFiltered.filter(function(c) { return c.id !== cmdId; });
+  renderAPlanifier();
+  renderCurrentView();
+  updateTodayCount();
+  populateSidebar();
 }
 
 async function refreshCommandes() {
