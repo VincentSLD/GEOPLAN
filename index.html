@@ -3518,6 +3518,7 @@ async function init() {
       loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); }),
       loadDDCCache()
     ]).then(function() {
+      cleanOrphanInterventions();
       syncCustomDataSilent();
       autoLinkGeosoliaSilent();
     });
@@ -6000,6 +6001,20 @@ async function loadCommandesFromSupabase() {
     }
   } catch(e) { console.warn('[Commandes] Erreur:', e); }
   if (!mobileMyTechId) hideLoader();
+}
+
+async function cleanOrphanInterventions() {
+  if (!commandesLoaded || commandesData.length === 0) return;
+  var cmdIds = {};
+  commandesData.forEach(function(c) { cmdIds[c.id] = true; });
+  var orphans = interventions.filter(function(i) { return i.commandeId && !cmdIds[i.commandeId]; });
+  if (orphans.length === 0) return;
+  console.log('[Nettoyage] ' + orphans.length + ' intervention(s) orpheline(s) détectée(s), suppression...');
+  for (var i = 0; i < orphans.length; i++) {
+    await deleteInterventionFromSupabase(orphans[i].id);
+  }
+  interventions = interventions.filter(function(i) { return !i.commandeId || cmdIds[i.commandeId]; });
+  renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
 }
 
 async function refreshCommandes() {
