@@ -10409,16 +10409,20 @@ function buildPlanningContext() {
   const todayStr = localDateStr(TODAY);
   const mon = getMonday(currentDate);
 
-  // Interventions de la semaine (avec ID pour actions)
+  // Interventions de la semaine courante + semaine prochaine (14 jours)
   const weekInts = [];
-  for (let i = 0; i < 7; i++) {
+  const nextWeekInts = [];
+  const nextMon = new Date(mon); nextMon.setDate(mon.getDate() + 7);
+  for (let i = 0; i < 14; i++) {
     const d = new Date(mon); d.setDate(mon.getDate() + i);
     const ds = localDateStr(d);
     const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => (a.startTime||'').localeCompare(b.startTime||''));
     dayInts.forEach(int => {
       const tech = TECHNICIANS.find(t => t.id === int.techId);
       const isBlocked = int.type && !int.commandeId;
-      weekInts.push(`[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`);
+      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
+      if (i < 7) weekInts.push(line);
+      else nextWeekInts.push(line);
     });
   }
 
@@ -10544,22 +10548,26 @@ function buildPlanningContext() {
     }
   }
 
-  // Construire le calendrier de la semaine avec statut de chaque jour
+  // Construire le calendrier des 2 semaines avec statut de chaque jour
   var joursDispo = [];
   var joursInterdits = [];
+  var joursDispoNext = [];
+  var joursInterditsNext = [];
   var dnFr = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-  for (var di = 0; di < 7; di++) {
+  for (var di = 0; di < 14; di++) {
     var dd = new Date(mon); dd.setDate(mon.getDate() + di);
     var dds = localDateStr(dd);
     var dow = dd.getDay();
     var jf = isJourFerie(dds);
     var label = dnFr[dow] + ' ' + dd.toLocaleDateString('fr-FR', {day:'numeric', month:'long'});
+    var targetDispo = di < 7 ? joursDispo : joursDispoNext;
+    var targetInterdit = di < 7 ? joursInterdits : joursInterditsNext;
     if (dow === 0 || dow === 6) {
-      joursInterdits.push(dds + ' (' + label + ') — ⛔ WEEK-END, INTERDIT');
+      targetInterdit.push(dds + ' (' + label + ') — ⛔ WEEK-END, INTERDIT');
     } else if (jf) {
-      joursInterdits.push(dds + ' (' + label + ') — ⛔ JOUR FÉRIÉ: ' + jf + ', INTERDIT');
+      targetInterdit.push(dds + ' (' + label + ') — ⛔ JOUR FÉRIÉ: ' + jf + ', INTERDIT');
     } else {
-      joursDispo.push(dds + ' (' + label + ') — ✅ jour ouvré');
+      targetDispo.push(dds + ' (' + label + ') — ✅ jour ouvré');
     }
   }
 
@@ -10596,9 +10604,17 @@ ${absencesDetail}\n`;
   });
   if (feriesLines.length > 0) ctx += `\nJOURS FÉRIÉS (ne JAMAIS planifier dessus) :\n${feriesLines.join('\n')}\n`;
 
-  ctx += `\nINTERVENTIONS DE LA SEMAINE (${weekInts.length} au total):
+  ctx += `\nINTERVENTIONS DE LA SEMAINE COURANTE (${weekInts.length} au total):
 Note: Les interventions marquées "⛔ TEMPS BLOQUÉ" (Réservation A++, Rapports, etc.) sont des créneaux indisponibles.
 ${weekInts.length > 0 ? weekInts.join('\n') : 'Aucune intervention cette semaine.'}`;
+
+  ctx += `\n\n--- SEMAINE PROCHAINE (${localDateStr(nextMon)} → 5 jours ouvrés) ---
+⛔ JOURS INTERDITS SEMAINE PROCHAINE :
+${joursInterditsNext.length > 0 ? joursInterditsNext.join('\n') : 'Aucun jour interdit.'}
+✅ JOURS DISPONIBLES SEMAINE PROCHAINE :
+${joursDispoNext.join('\n')}
+INTERVENTIONS DÉJÀ PLANIFIÉES SEMAINE PROCHAINE (${nextWeekInts.length}):
+${nextWeekInts.length > 0 ? nextWeekInts.join('\n') : 'Aucune intervention planifiée pour la semaine prochaine.'}`;
 
   // Rapports non planifiés
   var unplannedRapports = interventions.filter(function(i) { return i.isRapport && !i.date; });
@@ -10664,7 +10680,16 @@ function aiQuick(type) {
     charge: "Analyse la charge de travail de chaque technicien cette semaine (nombre d'interventions, heures cumulées, km parcourus). Qui est surchargé ? Qui a de la disponibilité ? Propose un rééquilibrage. Utilise un tableau comparatif.",
     suggestion: "Donne-moi un résumé complet de la semaine et tes suggestions d'amélioration : regroupements possibles, créneaux perdus, optimisations de trajets, habilitations manquantes. Classe par priorité.",
     urgent: "J'ai une intervention urgente à caser aujourd'hui. Quel technicien a le plus de disponibilité et le créneau le plus adapté ? Tiens compte des zones géographiques, des habilitations et de la météo.",
-    planifier: "Propose un planning optimisé pour la semaine prochaine en te basant sur les interventions actuelles et les tendances. Regroupe par zone géographique, équilibre la charge entre techniciens, et tiens compte des horaires de travail jour par jour. Présente sous forme de tableau jour par jour.",
+    planifier: (function() {
+      var thisMon = getMonday(new Date(TODAY));
+      var nextMon = new Date(thisMon); nextMon.setDate(thisMon.getDate() + 7);
+      var jours = [];
+      for (var i = 0; i < 5; i++) {
+        var d = new Date(nextMon); d.setDate(nextMon.getDate() + i);
+        jours.push(d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) + ' (' + localDateStr(d) + ')');
+      }
+      return "Propose un planning optimisé pour la SEMAINE PROCHAINE, c'est-à-dire du " + jours[0] + " au " + jours[4] + ".\nJours à planifier : " + jours.join(', ') + ".\nPlanifie les commandes \"À planifier\" sur ces 5 jours ouvrés (lundi-vendredi). Regroupe par zone géographique, équilibre la charge entre techniciens, et tiens compte des horaires de travail jour par jour. Présente sous forme de tableau jour par jour.";
+    })(),
     conflits: "Vérifie tous les conflits potentiels dans le planning de la semaine : chevauchements horaires, technicien affecté à 2 lieux simultanément, dépassement des horaires de travail, habilitations manquantes pour le type d'intervention, temps de trajet irréaliste entre 2 interventions. Liste chaque problème trouvé avec sa sévérité (critique/attention/info).",
     meteo: "Analyse l'impact de la météo sur les interventions de la semaine. Identifie les jours et lieux à risque (pluie forte, vent, gel). Propose des reports ou réorganisations pour les interventions extérieures impactées. Quelles interventions peuvent être maintenues en intérieur ?",
     affecter: "Je dois affecter une nouvelle intervention cette semaine. En analysant la charge actuelle, les zones géographiques, les spécialités et les disponibilités de chaque technicien, propose le meilleur technicien et le meilleur créneau pour chaque jour de la semaine restante. Présente les options sous forme de tableau.",
