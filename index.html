@@ -10470,6 +10470,8 @@ function buildPlanningContext() {
       const comps = t.competences && t.competences.length > 0 ? t.competences.join(', ') : 'toutes (non restreint)';
       const techObj = TECHNICIANS.find(x => x.id === t.id) || { id: t.id, base: t.base };
       const domStr = t.domicileLat && t.domicileLon ? `Domicile: ${t.domicile || '-'} [GPS: ${t.domicileLat}, ${t.domicileLon}]` : `Domicile: ${t.domicile || '-'}`;
+      const binome = t.binomeId ? settingsTeam.find(m => m.id === t.binomeId) : null;
+      const binomeStr = binome ? `Binôme rapport: ${binome.prenom} ${binome.nom} (techId:${binome.id})` : 'Binôme rapport: aucun';
       const joursFr = ['lundi','mardi','mercredi','jeudi','vendredi'];
       const daysInfo = joursFr.map(jour => {
         const dep = getTechDepartCoords(techObj, getDateForDayName(jour, mon));
@@ -10478,7 +10480,7 @@ function buildPlanningContext() {
         const arrLabel = getArriveeLabel(t, jour);
         return `${jour.charAt(0).toUpperCase()+jour.slice(1)}: départ=${depLabel}${dep ? ' ['+dep.lat+','+dep.lon+']' : ''} → arrivée=${arrLabel}${arr ? ' ['+arr.lat+','+arr.lon+']' : ''}`;
       }).join(' ; ');
-      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — ${domStr} | Trajets: ${daysInfo} | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
+      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — ${domStr} | ${binomeStr} | Trajets: ${daysInfo} | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
     }).join('\n');
   } else {
     teamDetail = TECHNICIANS.map(t => `- [techId:${t.id}] ${t.name} (${t.role}) — base: ${t.base}`).join('\n');

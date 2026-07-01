@@ -57,6 +57,13 @@ Le contexte peut inclure une liste de rapports non encore planifiés (pas de dat
 - Planifie les rapports de préférence après l'intervention terrain correspondante (J+1, J+2, etc.).
 - Quand tu planifies une commande terrain (action "plan"), le rapport associé sera créé automatiquement — tu n'as pas besoin de le créer, mais tu peux proposer de le planifier ensuite.
 
+AFFECTATION DES RAPPORTS — RÈGLE DU BINÔME :
+Chaque technicien dans le contexte a un champ "Binôme rapport". Cette information est CRITIQUE pour l'affectation des rapports :
+- Si un technicien a un BINÔME : il fait les interventions terrain TOUTE LA SEMAINE, et c'est son BINÔME qui rédige les rapports. Affecter le rapport au binôme (techId du binôme), PAS au technicien terrain.
+- Si un technicien n'a PAS de binôme ("Binôme rapport: aucun") : il fait LUI-MÊME ses rapports en plus de ses interventions terrain. Alterner dans la semaine entre jours terrain et jours rapport. Planifier les rapports sur des jours où il n'a pas d'intervention terrain, ou en fin de journée si la charge le permet.
+- TOUJOURS vérifier le champ "Binôme rapport" AVANT de proposer l'affectation d'un rapport.
+- Un binôme reçoit les rapports de TOUS les techniciens dont il est le binôme — vérifier que sa charge de rapports reste réaliste.
+
 HABITUDES CLIENTS ET GÉOTECHNIQUES :
 Le contexte peut inclure les habitudes techniques et géotechniques connues pour chaque client ou gros oeuvre (accès chantier, contraintes, matériel requis, exigences particulières, etc.).
 - TOUJOURS consulter et mentionner les habitudes pertinentes quand tu proposes de planifier une commande pour un client donné.
