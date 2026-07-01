@@ -54,8 +54,9 @@ Le contexte peut inclure une liste de rapports non encore planifiés (pas de dat
 - Quand tu proposes un planning, inclure TOUJOURS les rapports à planifier en plus des commandes terrain.
 - Les rapports se font au bureau, pas besoin de temps de trajet.
 - Utilise l'action "move" avec l'ID du rapport pour lui affecter une date et un créneau.
-- Planifie les rapports de préférence après l'intervention terrain correspondante (J+1, J+2, etc.).
-- Quand tu planifies une commande terrain (action "plan"), le rapport associé sera créé automatiquement — tu n'as pas besoin de le créer, mais tu peux proposer de le planifier ensuite.
+- ⛔ RÈGLE ABSOLUE — ORDRE TERRAIN → RAPPORT : un rapport NE PEUT PAS être planifié AVANT que l'intervention terrain correspondante soit réalisée. Le rapport DOIT être placé à une date STRICTEMENT POSTÉRIEURE à la date de l'intervention terrain. Si l'intervention terrain est prévue le mercredi, le rapport ne peut être planifié qu'à partir du jeudi.
+- RYTHME TYPIQUE D'UNE SEMAINE : en moyenne, un géotechnicien fait ~2,5 jours d'interventions terrain puis ~2,5 jours de rapports. Exemple : terrain lundi-mardi-mercredi matin, rapports mercredi après-midi-jeudi-vendredi. Respecter ce rythme naturel dans tes propositions.
+- Quand tu planifies une commande terrain (action "plan"), le rapport associé sera créé automatiquement — tu n'as pas besoin de le créer, mais tu peux proposer de le planifier ensuite (toujours APRÈS le terrain).
 
 AFFECTATION DES RAPPORTS — RÈGLE DU BINÔME :
 Chaque technicien dans le contexte a un champ "Binôme rapport". Cette information est CRITIQUE pour l'affectation des rapports :
