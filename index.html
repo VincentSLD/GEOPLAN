@@ -2208,6 +2208,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     <button class="ai-quick-btn" onclick="aiQuick('suggestion')">💡 Suggestions semaine</button>
     <button class="ai-quick-btn" onclick="aiQuick('urgent')">🚨 Caser une urgence</button>
     <button class="ai-quick-btn" onclick="aiQuick('planifier')">📅 Planifier semaine prochaine</button>
+    <button class="ai-quick-btn" onclick="aiQuick('planifierAvecRapports')">📅📝 Planifier + Rapports</button>
     <button class="ai-quick-btn" onclick="aiQuick('conflits')">⚠️ Vérifier conflits</button>
     <button class="ai-quick-btn" onclick="aiQuick('meteo')">🌦️ Impact météo</button>
     <button class="ai-quick-btn" onclick="aiQuick('affecter')">👤 Affecter intervention</button>
@@ -10501,11 +10502,11 @@ function buildPlanningContext() {
     }).join('\n');
   }
 
-  // Absences de la semaine (Lucca)
+  // Absences des 2 semaines (Lucca)
   let absencesDetail = '';
   if (typeof settingsTeam !== 'undefined' && settingsTeam.length > 0) {
     var absLines = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 14; i++) {
       const d = new Date(mon); d.setDate(mon.getDate() + i);
       const ds = localDateStr(d);
       const dayName = d.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
@@ -10513,7 +10514,7 @@ function buildPlanningContext() {
         if (!t.luccaId) return;
         var abs = getAbsenceForDate(t.luccaId, ds);
         if (abs) {
-          absLines.push(`- ${ds} (${dayName}) : ${t.prenom} ${t.nom} — ${abs.label}${abs.full ? ' (JOURNÉE ENTIÈRE — INDISPONIBLE)' : ' (DEMI-JOURNÉE)'}`);
+          absLines.push(`- ${ds} (${dayName}) : ${t.prenom} ${t.nom} — ${abs.label}${abs.full ? ' (JOURNÉE ENTIÈRE — ⛔ INDISPONIBLE, NE PAS PLANIFIER)' : ' (DEMI-JOURNÉE — disponible uniquement l\'autre demi-journée)'}`);
         }
       });
     }
@@ -10637,8 +10638,8 @@ ${teamDetail}
   if (groupsDetail) ctx += `\nGROUPES/ÉQUIPES RÉGIONALES:\n${groupsDetail}\n`;
   if (horairesDetail) ctx += `\nHORAIRES DE TRAVAIL:\n${horairesDetail}\n`;
   if (generalDetail) ctx += `\nPARAMÈTRES GÉNÉRAUX:\n${generalDetail}\n`;
-  if (absencesDetail) ctx += `\nABSENCES DE LA SEMAINE (Lucca):
-NE JAMAIS planifier d'intervention terrain sur un technicien absent (journée entière). Pour les demi-journées, ne planifier que sur la période disponible.
+  if (absencesDetail) ctx += `\n⛔ ABSENCES (Lucca) — VÉRIFICATION OBLIGATOIRE AVANT CHAQUE AFFECTATION :
+INTERDIT ABSOLU : NE JAMAIS proposer d'intervention ou de rapport sur un technicien absent (journée entière). Pour les demi-journées, ne planifier que sur la période disponible. AVANT CHAQUE action, vérifier que le technicien N'EST PAS dans cette liste pour la date concernée.
 ${absencesDetail}\n`;
   if (meteoDetail) ctx += `\nMÉTÉO PRÉVISIONS:\n${meteoDetail}\n`;
 
@@ -10737,7 +10738,17 @@ function aiQuick(type) {
         var d = new Date(nextMon); d.setDate(nextMon.getDate() + i);
         jours.push(d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) + ' (' + localDateStr(d) + ')');
       }
-      return "Propose un planning optimisé pour la SEMAINE PROCHAINE, c'est-à-dire du " + jours[0] + " au " + jours[4] + ".\nJours à planifier : " + jours.join(', ') + ".\nPlanifie les commandes \"À planifier\" sur ces 5 jours ouvrés (lundi-vendredi). Regroupe par zone géographique, équilibre la charge entre techniciens, et tiens compte des horaires de travail jour par jour. Présente sous forme de tableau jour par jour.";
+      return "Propose un planning optimisé pour la SEMAINE PROCHAINE, c'est-à-dire du " + jours[0] + " au " + jours[4] + ".\nJours à planifier : " + jours.join(', ') + ".\nPlanifie les commandes \"À planifier\" (interventions terrain uniquement, PAS les rapports) sur ces 5 jours ouvrés (lundi-vendredi). Regroupe par zone géographique, équilibre la charge entre techniciens, et tiens compte des horaires de travail jour par jour. Présente sous forme de tableau jour par jour.";
+    })(),
+    planifierAvecRapports: (function() {
+      var thisMon = getMonday(new Date(TODAY));
+      var nextMon = new Date(thisMon); nextMon.setDate(thisMon.getDate() + 7);
+      var jours = [];
+      for (var i = 0; i < 5; i++) {
+        var d = new Date(nextMon); d.setDate(nextMon.getDate() + i);
+        jours.push(d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}) + ' (' + localDateStr(d) + ')');
+      }
+      return "Propose un planning optimisé pour la SEMAINE PROCHAINE, c'est-à-dire du " + jours[0] + " au " + jours[4] + ".\nJours à planifier : " + jours.join(', ') + ".\nPlanifie les commandes \"À planifier\" (interventions terrain) ET les rapports associés sur ces 5 jours ouvrés.\n\nPour les RAPPORTS :\n- Planifier APRÈS l'intervention terrain correspondante (jamais avant)\n- Si le technicien a un binôme → affecter le rapport au binôme\n- Si pas de binôme → le technicien fait lui-même le rapport (terrain début de semaine, rapports fin de semaine)\n- Utiliser les créneaux réservation \"Rapport\" existants si disponibles\n\nRegroupe par zone géographique, équilibre la charge entre techniciens. Présente sous forme de tableau jour par jour.";
     })(),
     conflits: "Vérifie tous les conflits potentiels dans le planning de la semaine : chevauchements horaires, technicien affecté à 2 lieux simultanément, dépassement des horaires de travail, habilitations manquantes pour le type d'intervention, temps de trajet irréaliste entre 2 interventions. Liste chaque problème trouvé avec sa sévérité (critique/attention/info).",
     meteo: "Analyse l'impact de la météo sur les interventions de la semaine. Identifie les jours et lieux à risque (pluie forte, vent, gel). Propose des reports ou réorganisations pour les interventions extérieures impactées. Quelles interventions peuvent être maintenues en intérieur ?",

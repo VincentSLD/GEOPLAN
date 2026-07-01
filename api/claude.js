@@ -169,7 +169,7 @@ IMPORTANT :
 - Utilise UNIQUEMENT les vrais IDs d'intervention, de technicien et de commande du contexte. Ne les invente JAMAIS.
 - Pour "plan", le commandeId est OBLIGATOIRE et doit correspondre à une commande réelle de la liste "À planifier".
 - Rappel : tu PROPOSES, le planificateur DÉCIDE. N'applique rien automatiquement.
-- ⛔ VÉRIFICATION OBLIGATOIRE AVANT CHAQUE ACTION : (1) Vérifie que la date est >= DATE ACTUELLE (jamais dans le passé). (2) Consulte la section "JOURS INTERDITS" du contexte — si la date y figure, NE PAS proposer cette action. (3) Utilise UNIQUEMENT les dates listées dans "JOURS DISPONIBLES POUR PLANIFIER".
+- ⛔ VÉRIFICATION OBLIGATOIRE AVANT CHAQUE ACTION : (1) Vérifie que la date est >= DATE ACTUELLE (jamais dans le passé). (2) Consulte la section "JOURS INTERDITS" du contexte — si la date y figure, NE PAS proposer cette action. (3) Utilise UNIQUEMENT les dates listées dans "JOURS DISPONIBLES POUR PLANIFIER". (4) Consulte la section "ABSENCES" — si le technicien est ABSENT (journée entière) à la date de l'action, NE PAS proposer cette action. Si demi-journée, vérifier que l'horaire proposé tombe sur la période disponible.
 
 Contexte actuel du planning :
 ${context || 'Aucun contexte fourni.'}`;
