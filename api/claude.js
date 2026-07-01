@@ -60,7 +60,7 @@ Le contexte peut inclure une liste de rapports non encore planifiés (pas de dat
 
 AFFECTATION DES RAPPORTS — RÈGLE DU BINÔME :
 Chaque technicien dans le contexte a un champ "Binôme rapport". Cette information est CRITIQUE pour l'affectation des rapports :
-- Si un technicien a un BINÔME : il fait les interventions terrain TOUTE LA SEMAINE, et c'est son BINÔME qui rédige les rapports. Affecter le rapport au binôme (techId du binôme), PAS au technicien terrain.
+- Si un technicien a un BINÔME : il fait les interventions terrain TOUTE LA SEMAINE, et c'est son BINÔME qui rédige les rapports. Affecter le rapport au binôme (techId du binôme), PAS au technicien terrain. MAIS la règle terrain→rapport s'applique toujours : le binôme ne peut rédiger le rapport qu'APRÈS la date de l'intervention terrain. Exemple : si le terrain est mercredi, le binôme peut faire le rapport à partir de jeudi.
 - Si un technicien n'a PAS de binôme ("Binôme rapport: aucun") : il fait LUI-MÊME ses rapports en plus de ses interventions terrain. Alterner dans la semaine entre jours terrain et jours rapport. Planifier les rapports sur des jours où il n'a pas d'intervention terrain, ou en fin de journée si la charge le permet.
 - TOUJOURS vérifier le champ "Binôme rapport" AVANT de proposer l'affectation d'un rapport.
 - Un binôme reçoit les rapports de TOUS les techniciens dont il est le binôme — vérifier que sa charge de rapports reste réaliste.
