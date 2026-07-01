@@ -1,16 +1,19 @@
-const https = require('https');
+export const config = { runtime: 'edge' };
 
-module.exports = function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export default async function handler(req) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!apiKey) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), { status: 500, headers: corsHeaders });
 
-  const { messages, context } = req.body;
+  const { messages, context } = await req.json();
 
   const systemPrompt = `Tu es l'assistant IA de GéoPlan', l'outil de planification d'interventions géotechniques du bureau d'études GPH.
 
@@ -135,77 +138,70 @@ IMPORTANT :
 Contexte actuel du planning :
 ${context || 'Aucun contexte fourni.'}`;
 
-  const postData = JSON.stringify({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    stream: true,
-    system: systemPrompt,
-    messages,
-  });
-
-  const options = {
-    hostname: 'api.anthropic.com',
-    path: '/v1/messages',
+  const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
-      'Content-Length': Buffer.byteLength(postData),
     },
-    timeout: 120000,
-  };
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 16384,
+      stream: true,
+      system: systemPrompt,
+      messages,
+    }),
+  });
 
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
+  if (!claudeResponse.ok) {
+    const errBody = await claudeResponse.text();
+    return new Response('data: ' + JSON.stringify({ error: errBody }) + '\n\n', {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+    });
+  }
 
-  const request = https.request(options, (response) => {
-    if (response.statusCode !== 200) {
-      let body = '';
-      response.on('data', (chunk) => { body += chunk; });
-      response.on('end', () => {
-        res.write('data: ' + JSON.stringify({ error: body }) + '\n\n');
-        res.end();
-      });
-      return;
-    }
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
 
+  (async () => {
+    const reader = claudeResponse.body.getReader();
+    const decoder = new TextDecoder();
     let buffer = '';
-    response.on('data', (chunk) => {
-      buffer += chunk.toString();
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (!data || data === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(data);
-          if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
-            res.write('data: ' + JSON.stringify({ text: evt.delta.text }) + '\n\n');
-          }
-        } catch (e) {}
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (!data || data === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(data);
+            if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
+              await writer.write(encoder.encode('data: ' + JSON.stringify({ text: evt.delta.text }) + '\n\n'));
+            }
+          } catch (e) {}
+        }
       }
-    });
+      await writer.write(encoder.encode('data: [DONE]\n\n'));
+    } catch (e) {
+      await writer.write(encoder.encode('data: ' + JSON.stringify({ error: e.message }) + '\n\n'));
+    } finally {
+      await writer.close();
+    }
+  })();
 
-    response.on('end', () => {
-      res.write('data: [DONE]\n\n');
-      res.end();
-    });
+  return new Response(readable, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
   });
-
-  request.on('error', (e) => {
-    res.write('data: ' + JSON.stringify({ error: e.message }) + '\n\n');
-    res.end();
-  });
-
-  request.on('timeout', () => {
-    request.destroy();
-    res.write('data: ' + JSON.stringify({ error: 'Claude API timeout' }) + '\n\n');
-    res.end();
-  });
-
-  request.write(postData);
-  request.end();
-};
+}
