@@ -10704,13 +10704,40 @@ async function sendAIMessage() {
     typingEl.remove();
 
     if (!r.ok) {
-      const err = await r.json().catch(() => ({ error: 'Erreur serveur' }));
-      appendAIMessage('ai', '⚠️ Erreur : ' + (err.error || 'Impossible de contacter l\'assistant.'));
-      aiConversation.pop(); // remove failed user msg from context
+      const err = await r.text().catch(() => 'Erreur serveur');
+      appendAIMessage('ai', '⚠️ Erreur : ' + err);
+      aiConversation.pop();
     } else {
-      const data = await r.json();
-      aiConversation.push({ role: 'assistant', content: data.content });
-      appendAIMessage('ai', data.content);
+      var fullText = '';
+      var aiEl = document.createElement('div');
+      aiEl.className = 'ai-msg ai-msg-ai';
+      document.getElementById('aiMessages').appendChild(aiEl);
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var sseBuffer = '';
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        sseBuffer += decoder.decode(chunk.value, { stream: true });
+        var sseLines = sseBuffer.split('\n');
+        sseBuffer = sseLines.pop();
+        for (var li = 0; li < sseLines.length; li++) {
+          var line = sseLines[li];
+          if (!line.startsWith('data: ')) continue;
+          var payload = line.slice(6).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            var evt = JSON.parse(payload);
+            if (evt.error) { fullText += '\n⚠️ ' + evt.error; break; }
+            if (evt.text) fullText += evt.text;
+          } catch(pe) {}
+        }
+        aiEl.innerHTML = renderMarkdown(fullText);
+      }
+      if (fullText) {
+        aiConversation.push({ role: 'assistant', content: fullText });
+        aiEl.innerHTML = renderMarkdown(fullText);
+      }
     }
   } catch (e) {
     typingEl.remove();

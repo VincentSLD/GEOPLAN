@@ -135,6 +135,7 @@ ${context || 'Aucun contexte fourni.'}`;
   const postData = JSON.stringify({
     model: 'claude-sonnet-4-6',
     max_tokens: 4096,
+    stream: true,
     system: systemPrompt,
     messages,
   });
@@ -149,32 +150,57 @@ ${context || 'Aucun contexte fourni.'}`;
       'anthropic-version': '2023-06-01',
       'Content-Length': Buffer.byteLength(postData),
     },
-    timeout: 60000,
+    timeout: 120000,
   };
 
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
   const request = https.request(options, (response) => {
-    let body = '';
-    response.on('data', (chunk) => { body += chunk; });
-    response.on('end', () => {
-      try {
-        const data = JSON.parse(body);
-        if (response.statusCode !== 200) {
-          return res.status(response.statusCode).json({ error: body });
-        }
-        return res.status(200).json({ content: data.content[0].text });
-      } catch (e) {
-        return res.status(500).json({ error: 'Invalid response from Claude API', raw: body });
+    if (response.statusCode !== 200) {
+      let body = '';
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        res.write('data: ' + JSON.stringify({ error: body }) + '\n\n');
+        res.end();
+      });
+      return;
+    }
+
+    let buffer = '';
+    response.on('data', (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(data);
+          if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
+            res.write('data: ' + JSON.stringify({ text: evt.delta.text }) + '\n\n');
+          }
+        } catch (e) {}
       }
+    });
+
+    response.on('end', () => {
+      res.write('data: [DONE]\n\n');
+      res.end();
     });
   });
 
   request.on('error', (e) => {
-    return res.status(500).json({ error: e.message });
+    res.write('data: ' + JSON.stringify({ error: e.message }) + '\n\n');
+    res.end();
   });
 
   request.on('timeout', () => {
     request.destroy();
-    return res.status(504).json({ error: 'Claude API timeout (60s)' });
+    res.write('data: ' + JSON.stringify({ error: 'Claude API timeout' }) + '\n\n');
+    res.end();
   });
 
   request.write(postData);
