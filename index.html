@@ -10502,11 +10502,11 @@ function buildPlanningContext() {
     }).join('\n');
   }
 
-  // Absences des 2 semaines (Lucca)
+  // Absences sur 6 semaines (Lucca)
   let absencesDetail = '';
   if (typeof settingsTeam !== 'undefined' && settingsTeam.length > 0) {
     var absLines = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 42; i++) {
       const d = new Date(mon); d.setDate(mon.getDate() + i);
       const ds = localDateStr(d);
       const dayName = d.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'short'});
