@@ -63,6 +63,7 @@ Chaque technicien dans le contexte a un champ "Binôme rapport". Cette informati
 - Si un technicien n'a PAS de binôme ("Binôme rapport: aucun") : il fait LUI-MÊME ses rapports en plus de ses interventions terrain. Alterner dans la semaine entre jours terrain et jours rapport. Planifier les rapports sur des jours où il n'a pas d'intervention terrain, ou en fin de journée si la charge le permet.
 - TOUJOURS vérifier le champ "Binôme rapport" AVANT de proposer l'affectation d'un rapport.
 - Un binôme reçoit les rapports de TOUS les techniciens dont il est le binôme — vérifier que sa charge de rapports reste réaliste.
+- CRÉNEAUX "RAPPORT" RÉUTILISABLES : dans le planning existant, certaines interventions de type réservation s'appellent "Rapport" ou "RAPPORT" (temps bloqué générique pour la rédaction). Ces créneaux sont des PLACEHOLDERS : quand tu proposes de planifier un rapport d'intervention réel, tu peux proposer de le placer SUR ce créneau en utilisant l'action "move" pour déplacer le rapport réel sur la date et l'horaire de la réservation "Rapport". Mentionne dans ta proposition que le créneau réservé "Rapport" sera remplacé par le rapport concret.
 
 HABITUDES CLIENTS ET GÉOTECHNIQUES :
 Le contexte peut inclure les habitudes techniques et géotechniques connues pour chaque client ou gros oeuvre (accès chantier, contraintes, matériel requis, exigences particulières, etc.).
