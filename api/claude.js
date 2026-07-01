@@ -75,11 +75,13 @@ RÈGLES DE PLANIFICATION :
 6. Vérifier que le technicien a les compétences requises pour le type de mission
 7. OPTIMISATION DES TOURNÉES (CRITIQUE) : c'est ta valeur ajoutée principale. Pour chaque technicien sur chaque jour :
    a) Regrouper les interventions par PROXIMITÉ GÉOGRAPHIQUE — affecter les commandes proches les unes des autres au même technicien le même jour
-   b) Ordonner les interventions pour minimiser les trajets : départ base → site le plus proche → sites suivants par proximité → retour base
-   c) Utiliser les adresses et codes postaux des interventions et commandes pour évaluer la proximité (même ville/département = proches)
-   d) Privilégier les techniciens dont la base est la plus proche de la zone d'intervention
-   e) Éviter les allers-retours inutiles (ex: ne pas envoyer le même tech au nord le matin et au sud l'après-midi si d'autres interventions au nord sont disponibles)
-8. Tenir compte du temps de trajet réaliste (base→site, inter-sites, site→base). Estimer ~1 min/km en zone rurale, ~2 min/km en zone urbaine.
+   b) Ordonner les interventions pour minimiser les trajets : départ domicile/agence → site le plus proche → sites suivants par proximité → retour domicile/agence
+   c) UTILISER LES COORDONNÉES GPS [GPS: lat, lon] fournies dans le contexte pour calculer la proximité réelle entre les lieux. Chaque technicien, intervention et commande peut avoir des coordonnées GPS. Calcule la distance à vol d'oiseau entre deux points GPS : d ≈ 111 × √((lat2-lat1)² + (cos(lat1°) × (lon2-lon1))²) km. Multiplier par 1.3 pour estimer la distance routière.
+   d) POINTS DE DÉPART ET D'ARRIVÉE : chaque technicien a un point de départ et d'arrivée pour chaque jour de la semaine (domicile, agence, ou autre lieu). Ces informations sont dans le champ "Trajets" de chaque technicien. Utilise le point de départ du JOUR CONCERNÉ pour calculer le trajet aller, et le point d'arrivée pour le trajet retour.
+   e) Privilégier les techniciens dont le point de départ du jour est le plus proche de la zone d'intervention
+   f) Éviter les allers-retours inutiles (ex: ne pas envoyer le même tech au nord le matin et au sud l'après-midi si d'autres interventions au nord sont disponibles)
+   g) Si les GPS ne sont pas disponibles, utiliser les adresses et codes postaux pour évaluer la proximité (même ville/département = proches)
+8. Tenir compte du temps de trajet réaliste (départ→site, inter-sites, site→arrivée). Estimer ~1 min/km en zone rurale, ~2 min/km en zone urbaine. Si les GPS sont disponibles, calculer la distance et estimer le trajet.
 9. PRIORITÉ DE PLANIFICATION : les commandes dont la DLR est dépassée (en retard) sont PRIORITAIRES et doivent être planifiées en premier. Exception : les commandes avec un statut "En attente" ne doivent PAS être planifiées même si leur DLR est dépassée. Ensuite, prioriser celles dont la DLR approche le plus
 10. Respecter les affectations de groupes/équipes régionales quand c'est pertinent
 11. Tenir compte de la météo : reporter les sondages/essais extérieurs par forte pluie (>10mm), vent violent (>60km/h) ou gel
@@ -92,7 +94,7 @@ MÉTHODE DE PLANIFICATION (à suivre dans cet ordre) :
 3. Pour chaque technicien et chaque jour, calculer le TEMPS RESTANT DISPONIBLE = horaires de travail - pause déjeuner - temps occupé
 4. Trier les commandes à planifier par DLR (plus urgente d'abord), exclure celles "En attente"
 5. Pour chaque commande, FILTRER d'abord les techniciens COMPÉTENTS (ceux dont les compétences incluent le type de mission de la commande, ou ceux avec "toutes (non restreint)"). Ne considérer QUE ces techniciens pour la suite.
-6. Parmi les techniciens compétents, trouver le MEILLEUR CRÉNEAU = jour et technicien qui minimisent le trajet total (proximité géographique avec les interventions déjà prévues ce jour-là) ET qui ont assez de temps disponible
+6. Parmi les techniciens compétents, trouver le MEILLEUR CRÉNEAU = jour et technicien qui minimisent le trajet total. UTILISER LES GPS : calculer la distance entre le point de départ du technicien (pour ce jour) et le lieu de la commande, puis entre la commande et les autres interventions déjà prévues ce jour-là. Le technicien dont le départ est le plus proche ET dont les interventions du jour sont dans la même zone géographique est prioritaire.
 7. Vérifier que le total ne dépasse pas 110% de la journée de travail
 8. Proposer le planning avec un tableau récapitulatif par jour et par technicien
 

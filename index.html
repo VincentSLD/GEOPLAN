@@ -10405,6 +10405,39 @@ function toggleAIMaximize() {
   });
 })()
 
+function getDateForDayName(jour, mondayDate) {
+  var jourIdx = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'].indexOf(jour);
+  if (jourIdx < 0) return null;
+  var d = new Date(mondayDate); d.setDate(mondayDate.getDate() + jourIdx);
+  return localDateStr(d);
+}
+
+function getDepartLabel(tech, jour) {
+  if (tech.planningJours && tech.planningJours[jour]) {
+    var pj = tech.planningJours[jour];
+    if (pj.departType === 'agence') {
+      var ag = (typeof settingsAgences !== 'undefined') ? settingsAgences.find(function(a) { return a.id === parseInt(pj.departVal); }) : null;
+      return ag ? ag.nom : 'agence';
+    }
+    if (pj.departType === 'domicile') return 'domicile';
+    if (pj.departType === 'autre') return tech.autreAdresse || 'autre';
+  }
+  return tech.domicile || tech.departAdresse || tech.base || '?';
+}
+
+function getArriveeLabel(tech, jour) {
+  if (tech.planningJours && tech.planningJours[jour]) {
+    var pj = tech.planningJours[jour];
+    if (pj.arriveeType === 'agence') {
+      var ag = (typeof settingsAgences !== 'undefined') ? settingsAgences.find(function(a) { return a.id === parseInt(pj.arriveeVal); }) : null;
+      return ag ? ag.nom : 'agence';
+    }
+    if (pj.arriveeType === 'domicile') return 'domicile';
+    if (pj.arriveeType === 'autre') return tech.autreAdresse || 'autre';
+  }
+  return tech.domicile || tech.arriveeAdresse || tech.base || '?';
+}
+
 function buildPlanningContext() {
   const todayStr = localDateStr(TODAY);
   const mon = getMonday(currentDate);
@@ -10420,7 +10453,9 @@ function buildPlanningContext() {
     dayInts.forEach(int => {
       const tech = TECHNICIANS.find(t => t.id === int.techId);
       const isBlocked = int.type && !int.commandeId;
-      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
+      const intCoords = getInterventionCoords(int);
+      const gpsStr = intCoords ? ` | GPS: ${intCoords.lat}, ${intCoords.lon}` : '';
+      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'}${gpsStr} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
       if (i < 7) weekInts.push(line);
       else nextWeekInts.push(line);
     });
@@ -10433,7 +10468,17 @@ function buildPlanningContext() {
       const grp = (typeof settingsGroups !== 'undefined') ? settingsGroups.find(g => g.id === t.groupeId) : null;
       const habs = t.habilitations && t.habilitations.length > 0 ? t.habilitations.map(h => typeof h === 'object' ? h.nom : h).join(', ') : 'aucune';
       const comps = t.competences && t.competences.length > 0 ? t.competences.join(', ') : 'toutes (non restreint)';
-      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — Base: ${t.base} [GPS: ${t.lat || '?'}, ${t.lon || '?'}] | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
+      const techObj = TECHNICIANS.find(x => x.id === t.id) || { id: t.id, base: t.base };
+      const domStr = t.domicileLat && t.domicileLon ? `Domicile: ${t.domicile || '-'} [GPS: ${t.domicileLat}, ${t.domicileLon}]` : `Domicile: ${t.domicile || '-'}`;
+      const joursFr = ['lundi','mardi','mercredi','jeudi','vendredi'];
+      const daysInfo = joursFr.map(jour => {
+        const dep = getTechDepartCoords(techObj, getDateForDayName(jour, mon));
+        const arr = getTechArriveeCoords(techObj, getDateForDayName(jour, mon));
+        const depLabel = getDepartLabel(t, jour);
+        const arrLabel = getArriveeLabel(t, jour);
+        return `${jour.charAt(0).toUpperCase()+jour.slice(1)}: départ=${depLabel}${dep ? ' ['+dep.lat+','+dep.lon+']' : ''} → arrivée=${arrLabel}${arr ? ' ['+arr.lat+','+arr.lon+']' : ''}`;
+      }).join(' ; ');
+      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — ${domStr} | Trajets: ${daysInfo} | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
     }).join('\n');
   } else {
     teamDetail = TECHNICIANS.map(t => `- [techId:${t.id}] ${t.name} (${t.role}) — base: ${t.base}`).join('\n');
@@ -10531,19 +10576,21 @@ function buildPlanningContext() {
         const apporteur = getCD('1-alpha10');
         const aff = cmd._affaire ? `Affaire: ${cmd._affaire.ref || ''} — ${cmd._affaire.nom || ''}` : '';
         const addr = cmd._affaire ? [cmd._affaire.adresse, cmd._affaire.ville, cmd._affaire.code_postal].filter(Boolean).join(', ') : '';
+        const cmdLat = cmd._lat || (cmd._affaire && cmd._affaire.lat) || null;
+        const cmdLng = cmd._lng || (cmd._affaire && cmd._affaire.lng) || null;
+        const cmdGps = cmdLat && cmdLng ? ` [GPS: ${cmdLat}, ${cmdLng}]` : '';
         const durMin = (typeof computeGeoDuration === 'function') ? computeGeoDuration(cmd) : 0;
         const durH = durMin ? fmtTravelTime(durMin) : '?';
-        // Geosolia
         let geoInfo = '';
         const geoId = (typeof commandeGeosoliaLinks !== 'undefined') ? commandeGeosoliaLinks[cmd.id] : null;
         if (geoId && typeof getGeosoliaProgram === 'function') {
           const prog = getGeosoliaProgram(geoId);
           if (prog) {
             const sondages = Object.entries(prog.sondageCounts || {}).map(([k, n]) => `${prog.sondageLabels[k] || k}: ${n}`).join(', ');
-            geoInfo = ` | Geosolia: mission=${prog.mission || '-'}, adresse=${prog.address || '-'}, sondages=[${sondages}], temps terrain=${prog.timeEstimateMin}min${prog.timeIsReal ? ' (réel)' : ' (estimé)'}${prog.pelleNecessaire ? ', PELLE NÉCESSAIRE' : ''}${prog.laboratoire ? ', LABO' : ''}${prog.infoGeotechnicien ? ', Info: '+prog.infoGeotechnicien : ''}`;
+            geoInfo = ` | Geosolia: mission=${prog.mission || '-'}, adresse=${prog.address || '-'}${prog.lat && prog.lng ? ' [GPS: '+prog.lat+','+prog.lng+']' : ''}, sondages=[${sondages}], temps terrain=${prog.timeEstimateMin}min${prog.timeIsReal ? ' (réel)' : ' (estimé)'}${prog.pelleNecessaire ? ', PELLE NÉCESSAIRE' : ''}${prog.laboratoire ? ', LABO' : ''}${prog.infoGeotechnicien ? ', Info: '+prog.infoGeotechnicien : ''}`;
           }
         }
-        return `- [cmdId:${cmd.id}] Réf: ${cmd.ref || '-'} | Client: ${cmd.client_name || '-'} | ${aff} | Société: ${cmd.societe || '-'} | Catégorie: ${categorie || '-'} | Mission: ${missionType || '-'} | Statut: ${statut || '-'} | DLR: ${dlr || '-'} | DLC: ${dlc || '-'} | Durée estimée: ${durH} | Montant: ${cmd.montant || '-'}€ | Adresse: ${addr || '-'}${codeGO ? ' | Code GO: '+codeGO : ''}${grosOeuvre ? ' | GO: '+grosOeuvre : ''}${options ? ' | Options: '+options : ''}${longrines ? ' | Longrines: '+longrines : ''}${apporteur ? ' | Apporteur: '+apporteur : ''}${geoInfo}`;
+        return `- [cmdId:${cmd.id}] Réf: ${cmd.ref || '-'} | Client: ${cmd.client_name || '-'} | ${aff} | Société: ${cmd.societe || '-'} | Catégorie: ${categorie || '-'} | Mission: ${missionType || '-'} | Statut: ${statut || '-'} | DLR: ${dlr || '-'} | DLC: ${dlc || '-'} | Durée estimée: ${durH} | Montant: ${cmd.montant || '-'}€ | Adresse: ${addr || '-'}${cmdGps}${codeGO ? ' | Code GO: '+codeGO : ''}${grosOeuvre ? ' | GO: '+grosOeuvre : ''}${options ? ' | Options: '+options : ''}${longrines ? ' | Longrines: '+longrines : ''}${apporteur ? ' | Apporteur: '+apporteur : ''}${geoInfo}`;
       }).join('\n');
     }
   }
