@@ -4953,13 +4953,24 @@ var _cmdCommentCdKey = null;
 function getCmdCommentKey(cd) {
   if (_cmdCommentCdKey) return _cmdCommentCdKey;
   if (!cd) return null;
+  // Priorité 1 : match exact "Commentaires" ou "Commentaire"
   for (var k in cd) {
     if (!cd[k] || !cd[k].name) continue;
-    var n = cd[k].name.toLowerCase();
-    if (n.indexOf('commentaire') >= 0 || n.indexOf('comment') >= 0) {
+    var n = cd[k].name.trim().toLowerCase();
+    if (n === 'commentaires' || n === 'commentaire') {
       _cmdCommentCdKey = k;
-      console.log('[Commentaires] Clé détectée : ' + k + ' (name=' + cd[k].name + ', type=' + cd[k].type + ')');
+      console.log('[Commentaires] Clé détectée (exact) : ' + k + ' (name=' + cd[k].name + ')');
       return k;
+    }
+  }
+  // Priorité 2 : match partiel
+  for (var k2 in cd) {
+    if (!cd[k2] || !cd[k2].name) continue;
+    var n2 = cd[k2].name.toLowerCase();
+    if (n2.indexOf('commentaire') >= 0 || n2.indexOf('comment') >= 0) {
+      _cmdCommentCdKey = k2;
+      console.log('[Commentaires] Clé détectée (partiel) : ' + k2 + ' (name=' + cd[k2].name + ')');
+      return k2;
     }
   }
   return null;
