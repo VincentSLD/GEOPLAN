@@ -2246,6 +2246,19 @@ const TYPES = {
   urgent:         { label:'Urgent',          class:'int-urgent',         color:'var(--type-urgent)' },
 };
 const TYPE_RAW = { sondage:'#2563EB', essai:'#16A34A', prelevement:'#7C3AED', reconnaissance:'#D97706', suivi:'#DB2777', labo:'#0891B2', urgent:'#DC2626' };
+const TYPE_BG = {};
+
+function hexToRgba(hex, opacity) {
+  var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + (opacity / 100) + ')';
+}
+
+function getTypeBg(typeId) {
+  var bg = TYPE_BG[typeId];
+  if (bg && bg.color) return hexToRgba(bg.color, bg.opacity != null ? bg.opacity : 15);
+  var c = TYPE_RAW[typeId];
+  return c ? c + '12' : '#88888812';
+}
 
 function getMonday(d) { d = new Date(d); const day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day===0?-6:1))); }
 function dateToLocalStr(d) {
@@ -4145,7 +4158,8 @@ function renderDay() {
       var iH = Math.max(intDur * PX_PER_MIN, 30);
       var typeColor = TYPE_RAW[int.type] || color;
 
-      html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeColor + '12;border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" ondblclick="event.stopPropagation();editIntervention(' + int.id + ')" onmouseenter="_tlShowBarTooltip(' + int.id + ',event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()">';
+      var typeBg = getTypeBg(int.type);
+      html += '<div style="position:absolute;left:4px;right:4px;top:' + iTop + 'px;height:' + iH + 'px;background:' + typeBg + ';border:1px solid ' + typeColor + '40;border-left:3px solid ' + typeColor + ';border-radius:4px;padding:4px 8px;cursor:pointer;overflow:hidden;" ondblclick="event.stopPropagation();editIntervention(' + int.id + ')" onmouseenter="_tlShowBarTooltip(' + int.id + ',event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()">';
       html += '<div style="font-size:0.65rem;font-weight:700;color:' + typeColor + ';">' + int.startTime + ' – ' + int.endTime + getSplitBadge(int);
       html += (!int.isRapport ? ' <span data-weather-int="' + int.id + '" data-weather-size="sm">' + weatherBadgeHTML(getWeatherForInt(int)) + '</span>' : '') + '</div>';
       html += '<div style="font-size:0.72rem;font-weight:600;margin-top:2px;">' + int.title + '</div>';
@@ -4185,7 +4199,7 @@ function renderMonth() {
     if (mJf) html += '<div style="font-size:0.45rem;color:#92400e;font-weight:600;margin-bottom:2px;">🎌 ' + mJf + '</div>';
     // Show absences for selected tech in month view
     if(selectedTechId){const ab=absenceBadgeHTML(selectedTechId,ds);if(ab)html+=ab;}
-    di.slice(0,3).forEach(int=>{const c=TYPE_RAW[int.type];html+=`<div class="month-event" style="background:${c}12;color:${c};border-left:2px solid ${c}">${int.startTime} ${int.title.substring(0,15)}</div>`;});
+    di.slice(0,3).forEach(int=>{const c=TYPE_RAW[int.type];const bg=getTypeBg(int.type);html+=`<div class="month-event" style="background:${bg};color:${c};border-left:2px solid ${c}">${int.startTime} ${int.title.substring(0,15)}</div>`;});
     if(di.length>3)html+=`<div class="month-more">+${di.length-3} de plus</div>`;
     html+=`</div>`;
   }
@@ -9278,7 +9292,8 @@ function buildMobileCard(int, compact) {
   var html = '<div class="mob-card" style="border-left-color:' + typeColor + ';" onclick="openDetail(' + int.id + ')">';
   html += '<div class="mob-card-time"><span>' + int.startTime + ' — ' + int.endTime + '</span><span class="mob-card-duration">' + durLabel + getSplitBadge(int) + '</span></div>';
   html += '<div class="mob-card-title">' + (int.title || type.label) + '</div>';
-  html += '<div class="mob-card-type" style="background:' + typeColor + '12;color:' + typeColor + ';">' + type.label + '</div>';
+  var mobBg = getTypeBg(int.type);
+  html += '<div class="mob-card-type" style="background:' + mobBg + ';color:' + typeColor + ';">' + type.label + '</div>';
   if (int.location) html += '<div class="mob-card-location">📍 ' + int.location.split(',')[0] + '</div>';
   if (!compact) {
     if (int.client) html += '<div class="mob-card-client">🏢 ' + int.client + '</div>';
@@ -9586,8 +9601,9 @@ function renderSettingsTypes() {
   let html = `<div class="stg-toolbar"><h3>Types d'intervention (${settingsIntTypes.length})</h3><button class="stg-add-btn" onclick="editIntType(null)">+ Ajouter</button></div>`;
   html += `<table class="stg-table"><thead><tr><th></th><th>Label</th><th>Identifiant</th><th>Durée par défaut</th><th>Matériel requis</th><th>Actions</th></tr></thead><tbody>`;
   settingsIntTypes.forEach(t => {
+    const bgPreview = t.bgColor ? hexToRgba(t.bgColor, t.bgOpacity != null ? t.bgOpacity : 15) : t.color + '12';
     html += `<tr>
-      <td><span class="stg-color-dot" style="background:${t.color}"></span></td>
+      <td><span style="display:inline-block;width:28px;height:18px;border-radius:4px;border:2px solid ${t.color};background:${bgPreview};vertical-align:middle;"></span></td>
       <td><strong>${t.label}</strong></td>
       <td style="font-family:'DM Mono',monospace;font-size:0.72rem;">${t.id}</td>
       <td>${t.dureeDefaut} min</td>
@@ -9600,13 +9616,18 @@ function renderSettingsTypes() {
 }
 
 function editIntType(id) {
-  const t = id ? settingsIntTypes.find(x => x.id === id) : { id: '', label: '', color: '#666666', dureeDefaut: 120, materielRequis: '' };
+  const t = id ? settingsIntTypes.find(x => x.id === id) : { id: '', label: '', color: '#666666', bgColor: '', bgOpacity: 15, dureeDefaut: 120, materielRequis: '' };
+  const bgCol = t.bgColor || t.color || '#666666';
+  const bgOp = t.bgOpacity != null ? t.bgOpacity : 15;
   openStgForm(`
     <h3>${id ? 'Modifier' : 'Ajouter'} un type d'intervention</h3>
     <div class="stg-form-grid">
       <div class="stg-form-field"><label>Label</label><input id="stf-tlabel" value="${t.label}"></div>
       <div class="stg-form-field"><label>Identifiant (clé unique)</label><input id="stf-tid" value="${t.id}" ${id ? 'disabled' : ''} placeholder="ex: sondage"></div>
-      <div class="stg-form-field"><label>Couleur</label><input type="color" id="stf-tcolor" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
+      <div class="stg-form-field"><label>Couleur bordure</label><input type="color" id="stf-tcolor" value="${t.color}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
+      <div class="stg-form-field"><label>Couleur fond</label><input type="color" id="stf-tbgcolor" value="${bgCol}" style="height:36px;width:60px;cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-xs);padding:2px;"></div>
+      <div class="stg-form-field span2"><label>Opacité du fond : <span id="stf-topval">${bgOp}%</span></label><input type="range" id="stf-tbgopacity" min="0" max="100" value="${bgOp}" style="width:100%;" oninput="document.getElementById('stf-topval').textContent=this.value+'%';document.getElementById('stf-tbgpreview').style.background=hexToRgba(document.getElementById('stf-tbgcolor').value,this.value)"></div>
+      <div class="stg-form-field"><label>Aperçu</label><div id="stf-tbgpreview" style="height:36px;border-radius:var(--radius-xs);border:2px solid ${t.color};background:${hexToRgba(bgCol, bgOp)}"></div></div>
       <div class="stg-form-field"><label>Durée par défaut (min)</label><input id="stf-tduree" type="number" value="${t.dureeDefaut}"></div>
       <div class="stg-form-field span2"><label>Matériel requis</label><input id="stf-tmateriel" value="${t.materielRequis || ''}" placeholder="Tarière, pénétromètre, ..."></div>
     </div>
@@ -9615,6 +9636,15 @@ function editIntType(id) {
       <button class="stg-form-save" onclick="saveIntType('${id || ''}')">Enregistrer</button>
     </div>
   `);
+  setTimeout(function() {
+    var colorInput = document.getElementById('stf-tcolor');
+    var bgColorInput = document.getElementById('stf-tbgcolor');
+    var opInput = document.getElementById('stf-tbgopacity');
+    var preview = document.getElementById('stf-tbgpreview');
+    function updatePreview() { preview.style.background = hexToRgba(bgColorInput.value, opInput.value); preview.style.borderColor = colorInput.value; }
+    colorInput.addEventListener('input', updatePreview);
+    bgColorInput.addEventListener('input', updatePreview);
+  }, 50);
 }
 
 function saveIntType(id) {
@@ -9624,6 +9654,8 @@ function saveIntType(id) {
   const data = {
     id: newId, label,
     color: document.getElementById('stf-tcolor').value,
+    bgColor: document.getElementById('stf-tbgcolor').value,
+    bgOpacity: parseInt(document.getElementById('stf-tbgopacity').value) || 15,
     dureeDefaut: parseInt(document.getElementById('stf-tduree').value) || 120,
     materielRequis: document.getElementById('stf-tmateriel').value.trim(),
   };
@@ -9653,9 +9685,11 @@ function syncTypesToApp() {
   // Update TYPES and TYPE_RAW from settings
   Object.keys(TYPES).forEach(k => { if (!settingsIntTypes.find(x => x.id === k)) delete TYPES[k]; });
   Object.keys(TYPE_RAW).forEach(k => { if (!settingsIntTypes.find(x => x.id === k)) delete TYPE_RAW[k]; });
+  Object.keys(TYPE_BG).forEach(k => { if (!settingsIntTypes.find(x => x.id === k)) delete TYPE_BG[k]; });
   settingsIntTypes.forEach(t => {
     TYPES[t.id] = { label: t.label, class: t.class || 'type-' + t.id };
     TYPE_RAW[t.id] = t.color;
+    if (t.bgColor) TYPE_BG[t.id] = { color: t.bgColor, opacity: t.bgOpacity != null ? t.bgOpacity : 15 };
   });
   renderCurrentView();
 }
