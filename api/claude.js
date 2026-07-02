@@ -132,19 +132,31 @@ MÉTHODE DE PLANIFICATION (à suivre dans cet ordre) :
       - [date] : [Prénom Nom] — [motif] (journée entière / demi-journée)
    e) Si le binôme d'un technicien est absent, signaler l'impact sur les rapports
    f) Cette vérification s'applique aussi aux propositions de rapports (vérifier l'absence du binôme)
-3. Pour chaque technicien DISPONIBLE, calculer le TEMPS DÉJÀ OCCUPÉ par jour (interventions existantes + temps bloqué + trajets estimés)
-4. Pour chaque technicien et chaque jour, calculer le TEMPS RESTANT DISPONIBLE = horaires de travail - pause déjeuner - temps occupé
-5. Trier les commandes à planifier par DLR (plus urgente d'abord), exclure celles "En attente"
-6. Pour chaque commande, FILTRER d'abord les techniciens COMPÉTENTS ET DISPONIBLES (ceux dont les compétences incluent le type de mission de la commande, ou ceux avec "toutes (non restreint)", ET qui ne sont pas absents ce jour-là). Ne considérer QUE ces techniciens pour la suite.
-7. Parmi les techniciens compétents et disponibles, CALCULER la distance GPS entre le point de départ de chaque technicien (pour ce jour précis, voir champ "Trajets") et le lieu de la commande. CLASSER du plus proche au plus éloigné. AFFECTER au plus proche ayant de la disponibilité. Si plusieurs jours sont possibles, choisir le jour où le technicien a déjà des interventions dans la même zone géographique (pour regrouper les trajets).
-8. Vérifier que le total ne dépasse pas 110% de la journée de travail
-9. Proposer le planning TERRAIN avec un tableau récapitulatif par jour et par technicien
-10. PUIS, SYSTÉMATIQUEMENT, proposer le placement des RAPPORTS dans une section séparée :
-   a) Lister tous les rapports à planifier (non encore datés) + les rapports qui seront créés par les commandes terrain que tu viens de proposer
-   b) Pour chaque rapport, proposer une date et un créneau (après le terrain correspondant), en respectant la règle du binôme
+3. RÉPARTITION TERRAIN / RAPPORTS PAR TECHNICIEN (ÉTAPE CRITIQUE) :
+   AVANT de commencer à placer les interventions, déterminer pour chaque technicien la répartition de sa semaine :
+   a) Si le technicien a un BINÔME RAPPORT → il fait du terrain TOUTE LA SEMAINE (5 jours). Ses rapports sont faits par le binôme.
+   b) Si le technicien N'A PAS de binôme → il doit faire LUI-MÊME terrain ET rapports. Répartir sa semaine :
+      - Compter le nombre de rapports à planifier pour ce technicien (rapports existants sans date + rapports qui seront créés par les nouvelles commandes terrain)
+      - Estimer le temps total de rapports à faire (durée de chaque rapport)
+      - RÉSERVER des jours RAPPORT en fin de semaine : typiquement ~2,5 jours terrain (lun-mar-mer matin) puis ~2,5 jours rapport (mer après-midi-jeu-ven)
+      - NE PAS remplir toute la semaine avec du terrain si des rapports doivent aussi être planifiés
+      - Afficher la répartition choisie dans la proposition : "Pierre Martin : Lun-Mar-Mer = terrain, Jeu-Ven = rapports"
+4. Pour chaque technicien DISPONIBLE, calculer le TEMPS DÉJÀ OCCUPÉ par jour (interventions existantes + rapports existants + temps bloqué + trajets estimés)
+5. Pour chaque technicien et chaque jour, calculer le TEMPS RESTANT DISPONIBLE = horaires de travail - pause déjeuner - temps occupé
+6. Trier les commandes à planifier par DLR (plus urgente d'abord), exclure celles "En attente"
+7. Pour chaque commande, FILTRER d'abord les techniciens COMPÉTENTS ET DISPONIBLES (ceux dont les compétences incluent le type de mission de la commande, ou ceux avec "toutes (non restreint)", ET qui ne sont pas absents ce jour-là). Ne considérer QUE ces techniciens pour la suite.
+8. Parmi les techniciens compétents et disponibles, CALCULER la distance GPS entre le point de départ de chaque technicien (pour ce jour précis, voir champ "Trajets") et le lieu de la commande. CLASSER du plus proche au plus éloigné. AFFECTER au plus proche ayant de la disponibilité. Pour les techniciens SANS binôme, NE placer du terrain QUE sur les jours réservés au terrain (pas sur les jours rapport). Si plusieurs jours sont possibles, choisir le jour où le technicien a déjà des interventions dans la même zone géographique (pour regrouper les trajets).
+9. Vérifier que le total ne dépasse pas 110% de la journée de travail
+10. PLANIFIER LES RAPPORTS EN MÊME TEMPS QUE LE TERRAIN :
+   Pour chaque intervention terrain proposée (étape 8), planifier immédiatement le rapport associé :
+   a) Si binôme → affecter le rapport au binôme, sur un jour APRÈS le terrain
+   b) Si pas de binôme → affecter le rapport au technicien lui-même, sur un jour RAPPORT (réservé à l'étape 3b), APRÈS le terrain
    c) Utiliser les créneaux "Rapport" existants si disponibles
-   d) Présenter chaque rapport avec son action "move" pour acceptation/refus individuel
-   e) Séparer visuellement : d'abord le tableau des interventions terrain, puis le tableau des rapports
+   d) Aussi planifier les rapports déjà existants mais sans date (liste "RAPPORTS À PLANIFIER")
+11. Présenter le planning COMPLET dans un seul tableau par jour et par technicien, avec terrain ET rapports intégrés :
+   - Marquer clairement chaque ligne : 🔨 Terrain ou 📝 Rapport
+   - Afficher la charge totale par jour par technicien (terrain + rapports + trajets / temps dispo)
+   - Chaque proposition (terrain ou rapport) a son action "plan" ou "move" pour acceptation/refus individuel
 
 FORMAT DE RÉPONSE :
 - Utilise du **Markdown** pour structurer tes réponses (titres ##, tableaux, listes, gras)
