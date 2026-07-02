@@ -2388,6 +2388,23 @@ function subscribeRealtimeInterventions() {
     });
 }
 
+function subscribeRealtimeCommandes() {
+  sbAuth.channel('geoplan-commandes-sync')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'commandes' }, function(payload) {
+      if (!payload.new) return;
+      var cmd = commandesData.find(function(c) { return c.id === payload.new.id; });
+      if (!cmd) return;
+      if (payload.new.custom_data) cmd.custom_data = payload.new.custom_data;
+      if (payload.new.description !== undefined) cmd.description = payload.new.description;
+      var infosAdvEl = document.getElementById('intInfosAdv');
+      if (infosAdvEl && infosAdvEl.getAttribute('data-cmd-id') === cmd.id && document.activeElement !== infosAdvEl) {
+        infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
+      }
+      console.log('[Realtime] MAJ commande ' + cmd.id);
+    })
+    .subscribe();
+}
+
 async function migrateInterventionsToSupabase() {
   // Migrate from old geoplan_settings JSONB format
   var old = loadSettings('geoplan_interventions', []);
@@ -3505,6 +3522,7 @@ async function init() {
     renderMobileView();
     computeAllTravel();
     subscribeRealtimeInterventions();
+    subscribeRealtimeCommandes();
     hideLoader();
 
     // Charger commandes/géosolia en tâche de fond pour le détail
@@ -3525,6 +3543,7 @@ async function init() {
     await loadLuccaCollabs();
     renderCurrentView(); updateTodayCount(); computeAllTravel();
     subscribeRealtimeInterventions();
+    subscribeRealtimeCommandes();
     hideLoader();
     initMobileMode();
     loadClientsHabits();
