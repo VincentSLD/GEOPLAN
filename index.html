@@ -2089,7 +2089,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div id="intGeosoliaInfo" style="display:none;margin:2px 0 3px;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
-      <div class="form-group"><label class="form-label">Commentaires sur la commande <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(synchronisé avec Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+      <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
       <div id="habitudesAccordion" style="display:none;margin:8px 0;">
         <details style="margin-bottom:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
@@ -3642,7 +3642,7 @@ function _tlBarTooltipHtml(intId) {
   if (int.endTime) html += '<div class="ttp-row"><div class="ttp-k">Fin</div><div class="ttp-v">' + _tlEscape(int.endTime) + '</div></div>';
   if (int.location) html += '<div class="ttp-row"><div class="ttp-k">Lieu</div><div class="ttp-v">' + _tlEscape(int.location) + '</div></div>';
   if (int.notes) html += '<div class="ttp-row"><div class="ttp-k">Notes</div><div class="ttp-v">' + _tlEscape(int.notes) + '</div></div>';
-  var _cmtSrc = (cmd && cmd.description) ? cmd.description : (int.infosAdv || '');
+  var _cmtSrc = (cmd ? getCmdComment(cmd) || cmd.description : '') || (int.infosAdv || '');
   if (_cmtSrc) {
     var _adv = String(_cmtSrc).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|li)>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/\n{2,}/g,'\n').trim();
     if (_adv) html += '<div class="ttp-row"><div class="ttp-k">Commentaires</div><div class="ttp-v" style="white-space:pre-wrap;">' + _tlEscape(_adv) + '</div></div>';
@@ -4949,6 +4949,25 @@ async function akuiteoFetch(method, path, body = null) {
   }
 }
 
+// ═══ COMMENTAIRES → DONNÉES PERSONNALISÉES AKUITEO ═══
+var _cmdCommentCdKey = null;
+function getCmdCommentKey(cd) {
+  if (_cmdCommentCdKey) return _cmdCommentCdKey;
+  if (!cd) return null;
+  for (var k in cd) {
+    if (cd[k] && cd[k].name && cd[k].name.toLowerCase().indexOf('commentaire') >= 0) {
+      _cmdCommentCdKey = k;
+      return k;
+    }
+  }
+  return null;
+}
+function getCmdComment(cmd) {
+  if (!cmd || !cmd.custom_data) return '';
+  var key = getCmdCommentKey(cmd.custom_data);
+  return key && cmd.custom_data[key] ? (cmd.custom_data[key].value || '') : '';
+}
+
 // ═══ SYNC BIDIRECTIONNELLE AKUITEO (debounced) ═══
 var _akuiteoSyncTimer = null;
 function _akuiteoSyncDebounced(reason) {
@@ -4983,7 +5002,7 @@ async function pushCommandeToAkuiteo(opts) {
   var newStatut = statutEl ? (statutEl.value || '').trim() : cdStatutVal;
   var newDlr = dlrEl ? (dlrEl.value || '').trim() : (cdDlrVal && /^\d{4}-\d{2}-\d{2}/.test(String(cdDlrVal)) ? String(cdDlrVal).substring(0, 10) : '');
   var newDlc = dlcEl ? (dlcEl.value || '').trim() : (cdDlcVal && /^\d{4}-\d{2}-\d{2}/.test(String(cdDlcVal)) ? String(cdDlcVal).substring(0, 10) : '');
-  var newDesc = descEl ? (descEl.textContent || '').trim() : (cmd.description || '');
+  var newDesc = descEl ? (descEl.textContent || '').trim() : (getCmdComment(cmd) || cmd.description || '');
   if (statusEl) { statusEl.textContent = '⏳ Sauvegarde Supabase...'; statusEl.style.color = 'var(--text-muted)'; }
   // 1) Mise a jour Supabase
   var newCd = Object.assign({}, cmd.custom_data || {});
@@ -4993,6 +5012,11 @@ async function pushCommandeToAkuiteo(opts) {
   newCd['1-date01'].value = newDlr ? newDlr + 'T00:00:00.000+0000' : null;
   if (!newCd['1-date02']) newCd['1-date02'] = { name: 'DLC', type: 'DATE' };
   newCd['1-date02'].value = newDlc ? newDlc + 'T00:00:00.000+0000' : null;
+  // Commentaires → données personnalisées
+  var commentKey = getCmdCommentKey(newCd);
+  if (commentKey) {
+    newCd[commentKey].value = newDesc || null;
+  }
   try {
     var upd = await sbAuth.from('commandes').update({ custom_data: newCd, description: newDesc }).eq('id', cmdId);
     if (upd.error) throw upd.error;
@@ -5005,13 +5029,17 @@ async function pushCommandeToAkuiteo(opts) {
   }
   // 2) Push custom data vers Akuiteo via batch-update
   var akId = cmd.ref || cmdId.replace('akc_', '').replace(/_/g, '-');
+  var akCustomData = {
+    '1-alpha17': { type: 'ALPHANUMERIC', value: newStatut || null },
+    '1-date01':  { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null },
+    '1-date02':  { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null },
+  };
+  if (commentKey && newCd[commentKey]) {
+    akCustomData[commentKey] = { type: newCd[commentKey].type || 'ALPHANUMERIC', value: newDesc || null };
+  }
   var batchBody = {
     ids: [akId],
-    customData: {
-      '1-alpha17': { type: 'ALPHANUMERIC', value: newStatut || null },
-      '1-date01':  { type: 'DATE', value: newDlr ? newDlr + 'T00:00:00.000+0000' : null },
-      '1-date02':  { type: 'DATE', value: newDlc ? newDlc + 'T00:00:00.000+0000' : null },
-    }
+    customData: akCustomData
   };
   if (statusEl) statusEl.textContent = '⏳ Akuiteo...';
   try {
@@ -6014,6 +6042,13 @@ async function loadCommandesFromSupabase() {
     });
     commandesFiltered = commandesData.slice();
     commandesLoaded = true;
+    // Détecter la clé custom_data "Commentaires" à partir des données chargées
+    if (!_cmdCommentCdKey) {
+      for (var ci = 0; ci < commandesData.length && !_cmdCommentCdKey; ci++) {
+        getCmdCommentKey(commandesData[ci].custom_data);
+      }
+      if (_cmdCommentCdKey) console.log('[Commandes] Clé commentaires détectée : ' + _cmdCommentCdKey);
+    }
     console.log('[Commandes] ' + commandesData.length + '/' + data.length + ' commandes chargées (après filtres), ' + Object.keys(affairesMap).length + ' affaires, ' + Object.keys(marchesMap).length + ' marchés');
     if (data.length !== commandesData.length) {
       var filtered = data.length - commandesData.length;
@@ -6441,9 +6476,9 @@ function onCommandeSelect() {
     cdBox.innerHTML = html;
     cdBox.style.display = html ? 'block' : 'none';
   }
-  // Infos ADV (description commande)
+  // Infos ADV (commentaires données personnalisées Akuiteo)
   if (infosAdvEl) {
-    infosAdvEl.textContent = cmd.description || '';
+    infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
     infosAdvEl.setAttribute('data-cmd-id', cmd.id);
   }
   // Accordéon Habitudes (client + gros oeuvre)
@@ -6506,6 +6541,7 @@ function renderCmdCustomDataHTML(cmd) {
   // Champs lecture seule
   Object.keys(CMD_CUSTOM_DATA_LABELS).forEach(function(key) {
     if (key === '1-alpha17' || key === '1-date01' || key === '1-date02') return; // editables, traités plus loin
+    if (_cmdCommentCdKey && key === _cmdCommentCdKey) return; // commentaires affichés dans le champ dédié
     var raw = cd[key];
     var rawVal = raw && typeof raw === 'object' ? ((raw.value !== undefined) ? raw.value : (raw.val !== undefined ? raw.val : '')) : raw;
     var isEmpty = rawVal === null || rawVal === undefined || rawVal === '';
