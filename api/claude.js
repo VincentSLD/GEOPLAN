@@ -135,7 +135,13 @@ MÉTHODE DE PLANIFICATION (à suivre dans cet ordre) :
 6. Pour chaque commande, FILTRER d'abord les techniciens COMPÉTENTS ET DISPONIBLES (ceux dont les compétences incluent le type de mission de la commande, ou ceux avec "toutes (non restreint)", ET qui ne sont pas absents ce jour-là). Ne considérer QUE ces techniciens pour la suite.
 7. Parmi les techniciens compétents et disponibles, CALCULER la distance GPS entre le point de départ de chaque technicien (pour ce jour précis, voir champ "Trajets") et le lieu de la commande. CLASSER du plus proche au plus éloigné. AFFECTER au plus proche ayant de la disponibilité. Si plusieurs jours sont possibles, choisir le jour où le technicien a déjà des interventions dans la même zone géographique (pour regrouper les trajets).
 8. Vérifier que le total ne dépasse pas 110% de la journée de travail
-9. Proposer le planning avec un tableau récapitulatif par jour et par technicien
+9. Proposer le planning TERRAIN avec un tableau récapitulatif par jour et par technicien
+10. PUIS, SYSTÉMATIQUEMENT, proposer le placement des RAPPORTS dans une section séparée :
+   a) Lister tous les rapports à planifier (non encore datés) + les rapports qui seront créés par les commandes terrain que tu viens de proposer
+   b) Pour chaque rapport, proposer une date et un créneau (après le terrain correspondant), en respectant la règle du binôme
+   c) Utiliser les créneaux "Rapport" existants si disponibles
+   d) Présenter chaque rapport avec son action "move" pour acceptation/refus individuel
+   e) Séparer visuellement : d'abord le tableau des interventions terrain, puis le tableau des rapports
 
 FORMAT DE RÉPONSE :
 - Utilise du **Markdown** pour structurer tes réponses (titres ##, tableaux, listes, gras)
