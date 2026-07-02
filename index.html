@@ -4774,7 +4774,8 @@ function editIntervention(id){
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
-  document.getElementById('intInfosAdv').innerHTML = i.infosAdv || '';
+  var _cmdForComment = i.commandeId ? commandesData.find(function(c){return c.id===i.commandeId;}) : null;
+  document.getElementById('intInfosAdv').innerHTML = getCmdComment(_cmdForComment) || i.infosAdv || '';
   resetRecurrenceUI();
   document.getElementById('intRecurrenceBlock').style.display = i.commandeId ? 'none' : '';
   document.getElementById('btnPlanifierSupp').style.display = (i.commandeId && !i.isRapport) ? '' : 'none';
@@ -6521,20 +6522,16 @@ function onCommandeSelect() {
   }
   // Infos ADV (commentaires données personnalisées Akuiteo)
   if (infosAdvEl) {
-    var comment = getCmdComment(cmd);
-    if (comment) {
-      infosAdvEl.textContent = comment;
-    } else {
-      infosAdvEl.textContent = cmd.description || '';
-      // Recharger les custom_data depuis Akuiteo pour récupérer le champ Commentaires
-      ensureCmdCustomData(cmd).then(function() {
-        var freshComment = getCmdComment(cmd);
-        if (freshComment) {
-          infosAdvEl.textContent = freshComment;
-          if (cdBox) { var html = renderCmdCustomDataHTML(cmd); cdBox.innerHTML = html; cdBox.style.display = html ? 'block' : 'none'; }
-        }
-      });
-    }
+    // Toujours recharger les custom_data depuis Akuiteo
+    infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
+    ensureCmdCustomData(cmd).then(function() {
+      var freshComment = getCmdComment(cmd);
+      console.log('[Commentaires] onCommandeSelect → clé=' + _cmdCommentCdKey + ', valeur="' + freshComment + '", cd[1-alpha20]=' + JSON.stringify(cmd.custom_data && cmd.custom_data['1-alpha20']));
+      if (freshComment) {
+        infosAdvEl.textContent = freshComment;
+        if (cdBox) { var html = renderCmdCustomDataHTML(cmd); cdBox.innerHTML = html; cdBox.style.display = html ? 'block' : 'none'; }
+      }
+    });
     infosAdvEl.setAttribute('data-cmd-id', cmd.id);
   }
   // Accordéon Habitudes (client + gros oeuvre)
