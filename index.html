@@ -2058,7 +2058,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:3;"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
-        <div class="form-group" id="intTypeGroup" style="flex:1;"><label class="form-label">Type</label><select class="form-select" id="intType" onchange="onTypeChange()"></select></div>
+        <div class="form-group" id="intTypeGroup" style="flex:1;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
       </div>
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
@@ -2257,7 +2257,7 @@ function getTypeBg(typeId) {
   var bg = TYPE_BG[typeId];
   if (bg && bg.color) return hexToRgba(bg.color, bg.opacity != null ? bg.opacity : 15);
   var c = TYPE_RAW[typeId];
-  return c ? c + '12' : '#88888812';
+  return c ? hexToRgba(c, 15) : 'rgba(136,136,136,0.15)';
 }
 
 function getMonday(d) { d = new Date(d); const day = d.getDay(); return new Date(d.setDate(d.getDate() - day + (day===0?-6:1))); }
@@ -3746,12 +3746,16 @@ function onTypeChange() {
   var typeId = document.getElementById('intType').value;
   if (!typeId) return;
   var t = settingsIntTypes.find(function(x) { return x.id === typeId; });
-  if (t && t.dureeDefaut) {
+  if (!t) return;
+  if (t.dureeDefaut) {
     var durField = document.getElementById('intDuration');
-    if (!durField.value || durField.value === '0') {
-      durField.value = fmtDurInput(t.dureeDefaut);
-      updateEndFromDuration();
-    }
+    durField.value = fmtDurInput(t.dureeDefaut);
+    updateEndFromDuration();
+  }
+  var colorBar = document.getElementById('intTypeColorBar');
+  if (colorBar) {
+    colorBar.style.background = getTypeBg(typeId);
+    colorBar.style.borderColor = t.color;
   }
 }
 
@@ -4325,7 +4329,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4628,7 +4632,7 @@ function openDetail(id){
   document.getElementById('detailTitle').textContent=int.title;
   document.getElementById('detailBody').innerHTML=`
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
-      <span style="padding:3px 10px;border-radius:12px;font-size:0.6rem;font-weight:700;background:${(TYPE_RAW[int.type]||'#888')}12;color:${TYPE_RAW[int.type]||'#888'}">${type.label}</span>
+      <span style="padding:3px 10px;border-radius:12px;font-size:0.6rem;font-weight:700;background:${getTypeBg(int.type)};color:${TYPE_RAW[int.type]||'#888'}">${type.label}</span>
       <span style="padding:3px 10px;border-radius:12px;font-size:0.6rem;font-weight:700;background:${statusColor}15;color:${statusColor};border:1px solid ${statusColor}30;">${statusLabel}</span>
       ${int.flags && int.flags.length > 0 ? int.flags.map(function(fid){ var f=settingsFlags.find(function(x){return x.id===fid;}); return f ? '<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:12px;font-size:0.6rem;font-weight:600;background:'+f.color+'15;color:'+f.color+';border:1px solid '+f.color+'30;"><span style="width:6px;height:6px;border-radius:50%;background:'+f.color+';"></span>'+f.label+'</span>' : ''; }).join('') : ''}
     </div>
@@ -4757,6 +4761,7 @@ function editIntervention(id){
   const i=interventions.find(x=>x.id===id);if(!i)return;editingId=id;closeDetail();resetSuppMode();populateCommandeSelect();populateGeosoliaSelect();
   document.getElementById('modalTitle').textContent='Modifier l\'intervention';
   document.getElementById('intType').value=i.type;document.getElementById('intStatus').value=i.status;
+  var _cb=document.getElementById('intTypeColorBar');if(_cb){var _tc=TYPE_RAW[i.type];_cb.style.background=getTypeBg(i.type);_cb.style.borderColor=_tc||'#888';}
   document.getElementById('intTitle').value=i.title;document.getElementById('intAddress').value=i.location;
   document.getElementById('intDate').value=i.date;document.getElementById('intStart').value=i.startTime;
   document.getElementById('intEnd').value=i.endTime;
