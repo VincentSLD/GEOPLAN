@@ -6,9 +6,10 @@ module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Forward-Accept');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const AKUITEO_URL = process.env.AKUITEO_BASE_URL || 'https://novamingenierie-test.myakuiteo.com/akuiteo/rest';
-  const AKUITEO_USER = process.env.AKUITEO_USER || 'API1';
-  const AKUITEO_PASS = process.env.AKUITEO_PASS || 'API1';
+  const AKUITEO_URL = process.env.AKUITEO_BASE_URL;
+  const AKUITEO_USER = process.env.AKUITEO_USER;
+  const AKUITEO_PASS = process.env.AKUITEO_PASS;
+  if (!AKUITEO_URL || !AKUITEO_USER || !AKUITEO_PASS) return res.status(500).json({ error: 'Variables AKUITEO_BASE_URL, AKUITEO_USER, AKUITEO_PASS manquantes' });
 
   const apiPath = req.query.path;
   if (!apiPath) return res.status(400).json({ error: 'Missing ?path= parameter' });

@@ -6,9 +6,12 @@ Le proxy écoute sur http://localhost:8888
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import requests
 import json
+import os
 
-AKUITEO_ROOT = "https://novamingenierie-test.myakuiteo.com/akuiteo/rest"
-AKUITEO_AUTH = ("API1", "API1")
+AKUITEO_ROOT = os.environ.get("AKUITEO_BASE_URL", "").rstrip("/")
+AKUITEO_AUTH = (os.environ.get("AKUITEO_USER", ""), os.environ.get("AKUITEO_PASS", ""))
+if not AKUITEO_ROOT or not AKUITEO_AUTH[0]:
+    raise SystemExit("Variables d'environnement AKUITEO_BASE_URL, AKUITEO_USER, AKUITEO_PASS requises")
 
 class ProxyHandler(BaseHTTPRequestHandler):
     def _cors_headers(self):
