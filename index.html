@@ -4984,7 +4984,9 @@ async function ensureCmdCustomData(cmd) {
       if (cd && Object.keys(cd).length > 0) {
         cmd.custom_data = cd;
         await sbAuth.from('commandes').update({ custom_data: cd }).eq('id', cmd.id);
-        console.log('[Commentaires] custom_data rechargée pour ' + cmd.ref + ', clés: ' + Object.keys(cd).join(', '));
+        var cdDebug = {};
+        Object.keys(cd).forEach(function(k) { cdDebug[k] = { name: cd[k] && cd[k].name, type: cd[k] && cd[k].type, value: cd[k] && cd[k].value }; });
+        console.log('[Commentaires] custom_data rechargée pour ' + cmd.ref + ':', JSON.stringify(cdDebug));
         getCmdCommentKey(cd);
       }
     }
