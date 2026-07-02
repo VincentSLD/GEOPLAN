@@ -3533,7 +3533,6 @@ async function init() {
       loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); }),
       loadDDCCache()
     ]).then(function() {
-      cleanOrphanCommandes();
       syncCustomDataSilent();
       autoLinkGeosoliaSilent();
     });
