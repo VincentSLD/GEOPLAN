@@ -10451,12 +10451,25 @@ function buildPlanningContext() {
     const d = new Date(mon); d.setDate(mon.getDate() + i);
     const ds = localDateStr(d);
     const dayInts = interventions.filter(x => x.date === ds).sort((a, b) => (a.startTime||'').localeCompare(b.startTime||''));
-    dayInts.forEach(int => {
+    dayInts.forEach((int, idx) => {
       const tech = TECHNICIANS.find(t => t.id === int.techId);
       const isBlocked = int.type && !int.commandeId;
       const intCoords = getInterventionCoords(int);
       const gpsStr = intCoords ? ` | GPS: ${intCoords.lat}, ${intCoords.lon}` : '';
-      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}, base: ${tech ? tech.base : '?'}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'}${gpsStr} | Client: ${int.client || '-'} | Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}, retour: ${int.travelFrom || 0}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
+      const isLastForTech = !dayInts.slice(idx + 1).some(x => x.techId === int.techId);
+      let trajetStr = '';
+      if (isBlocked || int.isRapport) {
+        trajetStr = 'Trajet: bureau (pas de déplacement)';
+      } else {
+        trajetStr = `Trajet aller: ${int.travelTo || 0}min${int.travelToKm ? ' ('+int.travelToKm+'km)' : ''}`;
+        if (isLastForTech && int.travelFrom) {
+          trajetStr += `, retour: ${int.travelFrom}min${int.travelFromKm ? ' ('+int.travelFromKm+'km)' : ''}`;
+        } else if (isLastForTech) {
+          trajetStr += ', retour: non calculé';
+        }
+      }
+      const durMin = int.startTime && int.endTime ? (timeToMin(int.endTime) - timeToMin(int.startTime)) : 0;
+      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} (${durMin}min) | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'}${gpsStr} | Client: ${int.client || '-'} | ${trajetStr} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
       if (i < 7) weekInts.push(line);
       else nextWeekInts.push(line);
     });
@@ -10475,13 +10488,21 @@ function buildPlanningContext() {
       const binomeStr = binome ? `Binôme rapport: ${binome.prenom} ${binome.nom} (techId:${binome.id})` : 'Binôme rapport: aucun';
       const joursFr = ['lundi','mardi','mercredi','jeudi','vendredi'];
       const daysInfo = joursFr.map(jour => {
-        const dep = getTechDepartCoords(techObj, getDateForDayName(jour, mon));
-        const arr = getTechArriveeCoords(techObj, getDateForDayName(jour, mon));
+        const dateStr = getDateForDayName(jour, mon);
+        const dep = getTechDepartCoords(techObj, dateStr);
+        const arr = getTechArriveeCoords(techObj, dateStr);
         const depLabel = getDepartLabel(t, jour);
         const arrLabel = getArriveeLabel(t, jour);
-        return `${jour.charAt(0).toUpperCase()+jour.slice(1)}: départ=${depLabel}${dep ? ' ['+dep.lat+','+dep.lon+']' : ''} → arrivée=${arrLabel}${arr ? ' ['+arr.lat+','+arr.lon+']' : ''}`;
+        const pj = t.planningJours && t.planningJours[jour] ? t.planningJours[jour] : null;
+        const gj = (typeof settingsGeneral !== 'undefined' && settingsGeneral.jours) ? settingsGeneral.jours[jour] : null;
+        const hDebut = (pj && pj.debut) || (gj && gj.debut) || t.heureDebut || '07:00';
+        const hFin = (pj && pj.fin) || (gj && gj.fin) || t.heureFin || '18:00';
+        const pDebut = (pj && pj.pauseDebut) || (gj && gj.pauseDebut) || '12:00';
+        const pFin = (pj && pj.pauseFin) || (gj && gj.pauseFin) || '13:00';
+        const workMin = (timeToMin(hFin) - timeToMin(hDebut)) - (timeToMin(pFin) - timeToMin(pDebut));
+        return `${jour.charAt(0).toUpperCase()+jour.slice(1)}: ${hDebut}-${hFin} (pause ${pDebut}-${pFin}, ${workMin}min dispo), départ=${depLabel}${dep ? ' ['+dep.lat+','+dep.lon+']' : ''} → arrivée=${arrLabel}${arr ? ' ['+arr.lat+','+arr.lon+']' : ''}`;
       }).join(' ; ');
-      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — ${domStr} | ${binomeStr} | Trajets: ${daysInfo} | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Horaires: ${t.heureDebut || '07:00'}-${t.heureFin || '18:00'} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
+      return `- [techId:${t.id}] ${t.prenom} ${t.nom} (${t.role}) — ${domStr} | ${binomeStr} | Planning: ${daysInfo} | Véhicule: ${t.vehicule || 'non renseigné'} | Habilitations: ${habs} | Compétences missions: ${comps} | Statut: ${t.statut || 'actif'} | Groupe: ${grp ? grp.nom : 'aucun'}`;
     }).join('\n');
   } else {
     teamDetail = TECHNICIANS.map(t => `- [techId:${t.id}] ${t.name} (${t.role}) — base: ${t.base}`).join('\n');
