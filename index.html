@@ -5061,6 +5061,21 @@ async function pushCommandeToAkuiteo(opts) {
     if (statusEl) { statusEl.textContent = '✗ Echec Supabase : ' + (e.message || e); statusEl.style.color = '#DC2626'; }
     return;
   }
+  // 1b) Sync commentaires → Geosolia (geosolia_projects.project_data.infoGeotechnicien)
+  var geosoliaId = commandeGeosoliaLinks[cmdId] || (function() {
+    var int = interventions.find(function(i) { return i.commandeId === cmdId && i.geosoliaId; });
+    return int ? int.geosoliaId : null;
+  })();
+  if (geosoliaId && geosoliaDataMap[geosoliaId]) {
+    var geoData = Object.assign({}, geosoliaDataMap[geosoliaId]);
+    geoData.infoGeotechnicien = newDesc || '';
+    geosoliaDataMap[geosoliaId] = geoData;
+    sbAuth.from('geosolia_projects').update({ project_data: geoData }).eq('id', geosoliaId)
+      .then(function(r) {
+        if (r.error) console.warn('[Sync Geosolia] Erreur:', r.error.message);
+        else console.log('[Sync Geosolia] infoGeotechnicien mis à jour pour', geosoliaId);
+      });
+  }
   // 2) Push custom data vers Akuiteo via batch-update
   var akId = cmd.ref || cmdId.replace('akc_', '').replace(/_/g, '-');
   var akCustomData = {
@@ -6517,15 +6532,19 @@ function onCommandeSelect() {
     cdBox.innerHTML = html;
     cdBox.style.display = html ? 'block' : 'none';
   }
-  // Infos ADV (commentaires données personnalisées Akuiteo)
+  // Infos ADV (commentaires synchronisés : Akuiteo ↔ GéoPlan ↔ Geosolia)
   if (infosAdvEl) {
-    // Toujours recharger les custom_data depuis Akuiteo
-    infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
+    // Fallback : Akuiteo custom_data → description → Geosolia infoGeotechnicien
+    var _geoId = commandeGeosoliaLinks[cmdId] || '';
+    var _geoComment = _geoId && geosoliaDataMap[_geoId] ? (geosoliaDataMap[_geoId].infoGeotechnicien || '') : '';
+    infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || _geoComment || '';
     ensureCmdCustomData(cmd).then(function() {
       var freshComment = getCmdComment(cmd);
       if (freshComment) {
         infosAdvEl.textContent = freshComment;
         if (cdBox) { var html = renderCmdCustomDataHTML(cmd); cdBox.innerHTML = html; cdBox.style.display = html ? 'block' : 'none'; }
+      } else if (_geoComment && !infosAdvEl.textContent) {
+        infosAdvEl.textContent = _geoComment;
       }
     });
     infosAdvEl.setAttribute('data-cmd-id', cmd.id);
