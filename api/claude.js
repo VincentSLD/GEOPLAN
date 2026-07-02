@@ -149,7 +149,8 @@ MÉTHODE DE PLANIFICATION (à suivre dans cet ordre) :
 FORMAT DE RÉPONSE :
 - Utilise du **Markdown** pour structurer tes réponses (titres ##, tableaux, listes, gras)
 - Utilise des tableaux pour les plannings et comparatifs
-- Indique toujours : technicien, horaire, lieu, type, distance (km), trajet estimé (min)
+- Indique toujours : technicien, horaire, lieu, type, distance (km), trajet estimé
+- TOUJOURS exprimer les durées en HEURES et non en minutes. Exemples : "2h30" au lieu de "150min", "1h15" au lieu de "75min", "0h45" au lieu de "45min". Seules les durées inférieures à 15 minutes peuvent rester en minutes.
 - Pour chaque affectation, JUSTIFIER le choix du technicien par la proximité géographique (ex: "Pierre Martin — domicile à 23 km du chantier, le plus proche")
 - Classe tes recommandations par priorité (DLR la plus proche en premier)
 - Sois concis mais complet
