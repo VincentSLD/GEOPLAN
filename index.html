@@ -4996,9 +4996,6 @@ async function ensureCmdCustomData(cmd) {
       if (cd && Object.keys(cd).length > 0) {
         cmd.custom_data = cd;
         await sbAuth.from('commandes').update({ custom_data: cd }).eq('id', cmd.id);
-        var cdDebug = {};
-        Object.keys(cd).forEach(function(k) { cdDebug[k] = { name: cd[k] && cd[k].name, type: cd[k] && cd[k].type, value: cd[k] && cd[k].value }; });
-        console.log('[Commentaires] custom_data rechargée pour ' + cmd.ref + ':', JSON.stringify(cdDebug));
         getCmdCommentKey(cd);
       }
     }
@@ -6526,7 +6523,6 @@ function onCommandeSelect() {
     infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
     ensureCmdCustomData(cmd).then(function() {
       var freshComment = getCmdComment(cmd);
-      console.log('[Commentaires] onCommandeSelect → clé=' + _cmdCommentCdKey + ', valeur="' + freshComment + '", cd[1-alpha20]=' + JSON.stringify(cmd.custom_data && cmd.custom_data['1-alpha20']));
       if (freshComment) {
         infosAdvEl.textContent = freshComment;
         if (cdBox) { var html = renderCmdCustomDataHTML(cmd); cdBox.innerHTML = html; cdBox.style.display = html ? 'block' : 'none'; }
