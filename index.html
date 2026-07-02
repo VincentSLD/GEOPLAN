@@ -10509,7 +10509,14 @@ function buildPlanningContext() {
         }
       }
       const durMin = int.startTime && int.endTime ? (timeToMin(int.endTime) - timeToMin(int.startTime)) : 0;
-      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} (${durMin}min) | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'}${gpsStr} | Client: ${int.client || '-'} | ${trajetStr} | Statut: ${int.status || '-'}${int.commandeId ? ' | CommandeId: '+int.commandeId : ''}${int.commandeRef ? ' | Réf: '+int.commandeRef : ''}${int.isRapport ? ' | RAPPORT' : ''}`;
+      let affaireStr = '';
+      if (int.commandeId) {
+        const cmd = commandesData.find(c => c.id === int.commandeId);
+        const affRef = int.affaireRef || (cmd && cmd._affaire ? cmd._affaire.ref : '');
+        const affNom = (cmd && cmd._affaire ? cmd._affaire.nom : '') || (affairesMap && int.affaireId && affairesMap[int.affaireId] ? affairesMap[int.affaireId].nom : '');
+        affaireStr = affRef ? ` | Affaire: ${affRef}${affNom ? ' '+affNom : ''}` : ` | Réf: ${int.commandeRef || int.commandeId}`;
+      }
+      const line = `[ID:${int.id}] ${ds} | ${int.startTime}-${int.endTime} (${durMin}min) | Tech: ${tech ? tech.name : '?'} (techId:${int.techId}) | ${int.title} [type:${int.type || '-'}]${isBlocked ? ' ⛔ TEMPS BLOQUÉ' : ''} | Lieu: ${int.location || '-'}${gpsStr} | Client: ${int.client || '-'} | ${trajetStr} | Statut: ${int.status || '-'}${affaireStr}${int.isRapport ? ' | RAPPORT' : ''}`;
       if (i < 7) weekInts.push(line);
       else nextWeekInts.push(line);
     });
@@ -10733,7 +10740,11 @@ ${nextWeekInts.length > 0 ? nextWeekInts.join('\n') : 'Aucune intervention plani
     var rapLines = unplannedRapports.map(function(r) {
       var tech = TECHNICIANS.find(function(t) { return t.id === r.techId; });
       var durLabel = r.duration ? fmtTravelTime(r.duration) : '?';
-      return `- [ID:${r.id}] 📝 ${r.title || 'Rapport'} | Tech: ${tech ? tech.name : '?'} (techId:${r.techId}) | Durée: ${durLabel} | Client: ${r.client || '-'}${r.commandeRef ? ' | Réf: '+r.commandeRef : ''}`;
+      var cmd = r.commandeId ? commandesData.find(function(c) { return c.id === r.commandeId; }) : null;
+      var rapAffRef = r.affaireRef || (cmd && cmd._affaire ? cmd._affaire.ref : '');
+      var rapAffNom = (cmd && cmd._affaire ? cmd._affaire.nom : '') || '';
+      var rapAffStr = rapAffRef ? ` | Affaire: ${rapAffRef}${rapAffNom ? ' '+rapAffNom : ''}` : '';
+      return `- [ID:${r.id}] 📝 ${r.title || 'Rapport'} | Tech: ${tech ? tech.name : '?'} (techId:${r.techId}) | Durée: ${durLabel} | Client: ${r.client || '-'}${rapAffStr}`;
     });
     ctx += `\n\nRAPPORTS À PLANIFIER (${rapLines.length} rapports sans date):
 Ces rapports sont liés à des interventions terrain déjà planifiées. Tu peux proposer de les planifier (action "move" avec une date) sur les créneaux disponibles, de préférence au bureau.
