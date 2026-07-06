@@ -1699,14 +1699,14 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     </div>
     <form id="login-form">
       <div class="login-field"><label>Email</label><input type="email" id="login-email" required></div>
-      <div class="login-field"><label>Mot de passe</label><input type="password" id="login-password" required></div>
+      <div class="login-field"><label>Mot de passe</label><input type="password" id="login-password" required autocomplete="current-password"></div>
       <button type="submit" id="login-submit" class="login-btn">Se connecter</button>
       <div id="login-error" class="login-error"></div>
     </form>
     <form id="signup-form" style="display:none;">
       <div class="login-field"><label>Nom complet</label><input type="text" id="signup-name" required></div>
       <div class="login-field"><label>Email</label><input type="email" id="signup-email" required></div>
-      <div class="login-field"><label>Mot de passe</label><input type="password" id="signup-password" required></div>
+      <div class="login-field"><label>Mot de passe</label><input type="password" id="signup-password" required autocomplete="new-password"></div>
       <button type="submit" id="signup-submit" class="login-btn">Créer mon compte</button>
       <div id="signup-error" class="login-error"></div>
       <div id="signup-success" class="login-success"></div>
@@ -7022,8 +7022,14 @@ async function loadClientsHabits() {
   try {
     var data = [];
     var off = 0;
+    var selectCols = 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, habitudes_admin_commerciales, salesman_name';
+    var r0 = await sbAuth.from('clients').select(selectCols).range(0, 0);
+    if (r0.error && r0.error.message && r0.error.message.indexOf('habitudes_admin_commerciales') !== -1) {
+      selectCols = 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, salesman_name';
+      console.info('[Clients] Colonne habitudes_admin_commerciales absente, ignoree');
+    }
     while (true) {
-      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, habitudes_admin_commerciales, salesman_name').range(off, off + 999);
+      var r = await sbAuth.from('clients').select(selectCols).range(off, off + 999);
       if (r.error) { console.warn('[Clients] Erreur:', r.error.message); break; }
       if (!r.data || r.data.length === 0) break;
       data = data.concat(r.data);
@@ -9148,7 +9154,7 @@ async function loadLuccaAbsences(filterTechId) {
     });
 
     luccaAbsencesLoaded = true;
-    console.log('[Lucca] ' + allData.length + ' absences chargées' + (filterLuccaId ? ' (filtre tech ' + filterLuccaId + ')' : '') + ', ' + Object.keys(luccaAbsences).length + ' entrées uniques');
+    console.log('[Lucca] ' + allData.length + ' absences chargées' + (filterTechId ? ' (filtre tech ' + filterTechId + ')' : '') + ', ' + Object.keys(luccaAbsences).length + ' entrées uniques');
   } catch(e) { console.warn('[Lucca] Erreur chargement absences:', e); }
 }
 
