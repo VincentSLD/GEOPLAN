@@ -2108,9 +2108,9 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div id="intGeosoliaInfo" style="display:none;margin:2px 0 3px;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
       <div id="intCustomData" style="display:none;"></div>
-      <div id="intArchitecteRow" style="display:none;margin:4px 0;padding:5px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.72rem;display:none;">
-        <span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-right:6px;">🏛 Architecte</span>
-        <span id="intArchitecteValue" style="font-weight:600;color:var(--text-primary);"></span>
+      <div id="intEntiteArchRow" style="display:none;margin:4px 0;padding:5px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.72rem;display:flex;gap:16px;flex-wrap:wrap;">
+        <span id="intEntiteBlock" style="display:none;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-right:6px;">🏢 Entité</span><span id="intEntiteValue" style="font-weight:700;"></span></span>
+        <span id="intArchitecteBlock" style="display:none;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-right:6px;">🏛 Architecte</span><span id="intArchitecteValue" style="font-weight:600;color:var(--text-primary);"></span></span>
       </div>
       <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
       <div id="habitudesAccordion" style="display:none;margin:8px 0;">
@@ -6858,8 +6858,8 @@ function onCommandeSelect() {
     if (typeGroup) typeGroup.style.display = '';
     var habBox = document.getElementById('habitudesAccordion');
     if (habBox) habBox.style.display = 'none';
-    var archiRow = document.getElementById('intArchitecteRow');
-    if (archiRow) archiRow.style.display = 'none';
+    var eaRow = document.getElementById('intEntiteArchRow');
+    if (eaRow) eaRow.style.display = 'none';
     return;
   }
   if (typeGroup) typeGroup.style.display = 'none';
@@ -7247,15 +7247,32 @@ function populateHabitudes(cmd) {
     apporteurBadge.textContent = '?';
     apporteurBadge.style.color = 'var(--text-muted)';
   }
-  // Afficher l'architecte dans la zone info
-  var archiRow = document.getElementById('intArchitecteRow');
-  if (archiRow) {
+  // Afficher entité + architecte dans la zone info
+  var eaRow = document.getElementById('intEntiteArchRow');
+  if (eaRow) {
+    var hasAnyInfo = false;
+    // Entité
+    var entiteBlock = document.getElementById('intEntiteBlock');
+    var societe = cmd.societe || '';
+    if (societe) {
+      var entiteCol = _SOC_COLORS[societe] || '#6B7280';
+      document.getElementById('intEntiteValue').textContent = societe;
+      document.getElementById('intEntiteValue').style.color = entiteCol;
+      entiteBlock.style.display = '';
+      hasAnyInfo = true;
+    } else {
+      entiteBlock.style.display = 'none';
+    }
+    // Architecte
+    var archiBlock = document.getElementById('intArchitecteBlock');
     if (archiName && archiName !== 'AUCUN / TIERS INCONNU OU INDÉFINI') {
       document.getElementById('intArchitecteValue').textContent = archiName;
-      archiRow.style.display = '';
+      archiBlock.style.display = '';
+      hasAnyInfo = true;
     } else {
-      archiRow.style.display = 'none';
+      archiBlock.style.display = 'none';
     }
+    eaRow.style.display = hasAnyInfo ? 'flex' : 'none';
   }
   box.style.display = 'block';
 }
