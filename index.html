@@ -4281,6 +4281,7 @@ async function handleDrop(e,tid,ds){
         if (_dropAction === 'cancel') { draggedId=null; return; }
         await applyRapportSlotAction(_dropRapport, _dropAction, i.duration);
       }
+      if (!checkDayOverload(tid, ds, (i.duration || 0) + (i.travelTo || 0) + (i.travelFrom || 0), draggedId)) { draggedId=null; return; }
       var linkedRapport = i.commandeId && !i.isRapport ? interventions.find(function(r){return r.commandeId===i.commandeId && r.isRapport;}) : null;
       var moveRapport = linkedRapport && linkedRapport.techId !== tid ? confirm('Un rapport est lié à cette intervention.\nDéplacer aussi le rapport vers ' + (TECHNICIANS.find(function(t){return t.id===tid;}) || {}).name + ' ?') : false;
       i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
@@ -4556,6 +4557,8 @@ function saveIntervention(){
     _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
     if (_rapportAction === 'cancel') return;
   }
+
+  if (!checkDayOverload(data.techId, data.date, (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0), editingId)) return;
 
   if(editingId){
     data.id = editingId;
@@ -5816,6 +5819,8 @@ function dropAPlanifier(e, techId, dateStr) {
     _planRapportAction = promptRapportSlotConflict(_planRapportConflict, _planDuration);
     if (_planRapportAction === 'cancel') { draggedCmdId = null; return; }
   }
+
+  if (!checkDayOverload(techId, dateStr, _planDuration, null)) { draggedCmdId = null; return; }
 
   // Create intervention from commande
   var geoId = _planGeoId;
@@ -8821,6 +8826,17 @@ function confirmIfFerie(dateStr) {
   var dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   var reason = jf ? ('jour férié : ' + jf) : 'week-end';
   return confirm('⚠ Le ' + dateLabel + ' est un ' + reason + '.\nCe jour est non travaillé.\n\nPlanifier quand même ?');
+}
+
+function checkDayOverload(techId, dateStr, addedMinutes, excludeId) {
+  var dayInts = interventions.filter(function(i) { return i.techId === techId && i.date === dateStr && (!excludeId || i.id !== excludeId); });
+  var totalMin = dayInts.reduce(function(s, i) { return s + (i.duration || 0) + (i.travelTo || 0) + (i.travelFrom || 0); }, 0);
+  totalMin += addedMinutes || 0;
+  if (totalMin > 510) {
+    var tech = TECHNICIANS.find(function(t) { return t.id === techId; });
+    return confirm('⚠ Charge journée pour ' + (tech ? tech.name : 'ce technicien') + ' le ' + new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit' }) + ' :\n\n' + fmtTravelTime(totalMin) + ' (dépassement des 8h30 autorisées)\n\nContinuer quand même ?');
+  }
+  return true;
 }
 
 function findRapportSlotConflict(techId, dateStr, excludeId) {
