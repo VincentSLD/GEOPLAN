@@ -167,7 +167,9 @@ MÉTHODE DE PLANIFICATION (à suivre dans cet ordre) :
    b) Si pas de binôme → affecter le rapport au technicien lui-même, sur un jour RAPPORT (réservé à l'étape 3b), APRÈS le terrain
    c) Utiliser les créneaux "Rapport" existants si disponibles
    d) Aussi planifier les rapports déjà existants mais sans date (liste "RAPPORTS À PLANIFIER")
-11. Présenter le planning COMPLET dans un seul tableau par jour et par technicien, avec terrain ET rapports intégrés :
+11. ORDRE DANS LA JOURNÉE — TERRAIN AVANT RAPPORTS :
+   Quand un technicien a du terrain ET des rapports bureau le même jour, TOUJOURS placer les interventions terrain EN PREMIER (matin) et les rapports APRÈS (fin de journée). Le terrain nécessite des déplacements et des créneaux horaires sur site, le rapport se fait au bureau et peut se caler sur le temps restant.
+12. Présenter le planning COMPLET dans un seul tableau par jour et par technicien, avec terrain ET rapports intégrés :
    - Marquer clairement chaque ligne : 🔨 Terrain ou 📝 Rapport
    - Afficher la charge totale par jour par technicien (terrain + rapports + trajets / temps dispo)
    - Chaque proposition (terrain ou rapport) a son action "plan" ou "move" pour acceptation/refus individuel
