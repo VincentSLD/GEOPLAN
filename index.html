@@ -2117,7 +2117,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <details style="margin-bottom:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
             <span style="font-size:0.85rem;">📘</span>
-            <span>Habitudes du client</span>
+            <span>Habitudes du client facturé</span>
             <span id="habClientName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
             <span id="habClientBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
           </summary>
@@ -7092,7 +7092,7 @@ function renderHabitudesDetailHTML(cmd) {
   var cTech = clientH ? _content(clientH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
   var cGeo = clientH ? _content(clientH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
   html += '<details style="margin-bottom:4px;"><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
-    '<span style="font-size:0.85rem;">📘</span><span>Habitudes du client</span>' +
+    '<span style="font-size:0.85rem;">📘</span><span>Habitudes du client facturé</span>' +
     '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (clientName ? '· ' + clientName : '') + '</span>' + cBadge +
     '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + cTech +
