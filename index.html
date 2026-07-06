@@ -2081,7 +2081,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       </div>
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
-        <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select></div>
+        <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select><div id="intMultiTechBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiTechToggle" onchange="toggleMultiTech()"> Appliquer à plusieurs techniciens</label><div id="intMultiTechList" style="display:none;margin-top:4px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"></div></div></div>
         <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
         <div class="form-group" style="flex:0 0 70px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
@@ -3814,6 +3814,48 @@ function getFilteredTechs() {
 function populateTechSelect() { document.getElementById('intTech').innerHTML=TECHNICIANS.map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }
 function populateTypeSelect() { var sel=document.getElementById('intType'); if(!sel)return; sel.innerHTML='<option value="">— Au choix —</option>'+settingsIntTypes.map(function(t){return '<option value="'+t.id+'">'+t.label+'</option>';}).join(''); }
 
+function toggleMultiTech() {
+  var on = document.getElementById('intMultiTechToggle').checked;
+  var list = document.getElementById('intMultiTechList');
+  var sel = document.getElementById('intTech');
+  if (on) {
+    var currentVal = parseInt(sel.value);
+    list.innerHTML = TECHNICIANS.map(function(t) {
+      return '<label style="display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:0.72rem;cursor:pointer;border-radius:4px;" onmouseover="this.style.background=\'var(--bg-card-hover)\'" onmouseout="this.style.background=\'\'">'
+        + '<input type="checkbox" class="multi-tech-cb" value="' + t.id + '"' + (t.id === currentVal ? ' checked' : '') + '>'
+        + '<span style="width:8px;height:8px;border-radius:50%;background:' + t.color + ';flex-shrink:0;"></span>'
+        + t.name + '</label>';
+    }).join('');
+    var allLabel = '<label style="display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:0.72rem;cursor:pointer;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:2px;">'
+      + '<input type="checkbox" id="multiTechAll" onchange="toggleMultiTechAll(this.checked)"> Tous les techniciens</label>';
+    list.innerHTML = allLabel + list.innerHTML;
+    list.style.display = 'block';
+    sel.style.display = 'none';
+  } else {
+    list.style.display = 'none';
+    sel.style.display = '';
+  }
+}
+function toggleMultiTechAll(checked) {
+  document.querySelectorAll('.multi-tech-cb').forEach(function(cb) { cb.checked = checked; });
+}
+function getMultiTechIds() {
+  if (!document.getElementById('intMultiTechToggle').checked) return null;
+  var ids = [];
+  document.querySelectorAll('.multi-tech-cb:checked').forEach(function(cb) { ids.push(parseInt(cb.value)); });
+  return ids.length > 0 ? ids : null;
+}
+function resetMultiTech() {
+  var toggle = document.getElementById('intMultiTechToggle');
+  if (toggle) { toggle.checked = false; }
+  var list = document.getElementById('intMultiTechList');
+  if (list) { list.style.display = 'none'; list.innerHTML = ''; }
+  var sel = document.getElementById('intTech');
+  if (sel) sel.style.display = '';
+  var block = document.getElementById('intMultiTechBlock');
+  if (block) block.style.display = 'none';
+}
+
 function onTypeChange() {
   var typeId = document.getElementById('intType').value;
   if (!typeId) return;
@@ -3828,6 +3870,10 @@ function onTypeChange() {
   if (colorBar) {
     colorBar.style.background = getTypeBg(typeId);
     colorBar.style.borderColor = t.color;
+  }
+  var mtBlock = document.getElementById('intMultiTechBlock');
+  if (mtBlock) {
+    if (typeId && !editingId) { mtBlock.style.display = ''; } else { resetMultiTech(); }
   }
 }
 
@@ -4423,7 +4469,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetMultiTech();resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4533,7 +4579,9 @@ function saveIntervention(){
   };
   // Vérifier champs obligatoires
   if (!data.date) { alert('La date est obligatoire'); return; }
-  if (!data.techId) { alert('Le géotechnicien est obligatoire'); return; }
+  var _pendingMulti = getMultiTechIds();
+  if (!data.techId && !_pendingMulti) { alert('Le géotechnicien est obligatoire'); return; }
+  if (_pendingMulti && _pendingMulti.length === 0) { alert('Cochez au moins un géotechnicien'); return; }
   // Vérifier si commande déjà planifiée → confirmation pour scinder (sauf si mode supplémentaire)
   var isSuppMode = document.getElementById('intSuppBanner').style.display !== 'none';
   if (!editingId && data.commandeId && !isSuppMode) {
@@ -4601,22 +4649,62 @@ function saveIntervention(){
     }
   }
 
-  // Vérifier compétence avant sauvegarde
-  var compWarn = checkCompetenceAlert(data);
-  if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
-
-  // Vérifier jour férié / absence avant sauvegarde
+  // Vérifier jour férié avant sauvegarde
   if (data.date && !confirmIfFerie(data.date)) return;
-  if (data.date && data.techId && !confirmIfAbsence(data.techId, data.date)) return;
 
-  var _rapportConflict = findRapportSlotConflict(data.techId, data.date, editingId);
-  var _rapportAction = null;
-  if (_rapportConflict) {
-    _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
-    if (_rapportAction === 'cancel') return;
+  var _rapportConflict = null, _rapportAction = null;
+  if (data.techId) {
+    var compWarn = checkCompetenceAlert(data);
+    if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
+    if (data.date && !confirmIfAbsence(data.techId, data.date)) return;
+    _rapportConflict = findRapportSlotConflict(data.techId, data.date, editingId);
+    if (_rapportConflict) {
+      _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
+      if (_rapportAction === 'cancel') return;
+    }
+    if (!checkDayOverload(data.techId, data.date, (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0), editingId)) return;
   }
 
-  if (!checkDayOverload(data.techId, data.date, (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0), editingId)) return;
+  // Multi-techniciens : créer un bloc par technicien coché
+  var multiTechIds = getMultiTechIds();
+  if (multiTechIds && !editingId && multiTechIds.length > 0) {
+    closeModal();
+    showLoader('Création de ' + multiTechIds.length + ' bloc(s)...');
+    (async function() {
+      var recEnabled = document.getElementById('intRecurrenceEnabled').checked;
+      var recDates = [];
+      if (recEnabled) {
+        var freq = document.getElementById('intRecurrenceFreq').value;
+        var endType = document.getElementById('intRecurrenceEndType').value;
+        var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : endType === 'count' ? document.getElementById('intRecurrenceCount').value : '52';
+        var customDays = document.getElementById('intRecurrenceCustomDays').value;
+        recDates = computeRecurrenceDates(data.date, freq, endType, endValue, customDays);
+        recDates.shift();
+      }
+      for (var ti = 0; ti < multiTechIds.length; ti++) {
+        var copy = Object.assign({}, data, { techId: multiTechIds[ti] });
+        delete copy.id;
+        var row = intToRow(copy);
+        row.created_by = currentAuthUser ? currentAuthUser.email : null;
+        delete row.id;
+        try {
+          var res = await sbAuth.from('geoplan_interventions').insert(row).select();
+          if (res.data && res.data[0]) { copy.id = res.data[0].id; interventions.push(copy); }
+          if (recDates.length > 0) {
+            var recRows = recDates.map(function(ds) {
+              var rc = Object.assign({}, copy, { date: ds, id: undefined, commandeId: null, commandeRef: null });
+              var rr = intToRow(rc); rr.created_by = currentAuthUser ? currentAuthUser.email : null; delete rr.id; return rr;
+            });
+            var rRes = await sbAuth.from('geoplan_interventions').insert(recRows).select();
+            if (rRes.data) rRes.data.forEach(function(r) { interventions.push(rowToInt(r)); });
+          }
+        } catch(e) { console.warn('[MultiTech] Erreur:', e); }
+      }
+      hideLoader();
+      renderCurrentView(); updateTodayCount(); populateSidebar(); computeAllTravel();
+    })();
+    return;
+  }
 
   if(editingId){
     data.id = editingId;
@@ -4880,6 +4968,7 @@ function editIntervention(id){
   populateFlagsCheckboxes(i.flags||[]);
   var _cmdForComment = i.commandeId ? commandesData.find(function(c){return c.id===i.commandeId;}) : null;
   document.getElementById('intInfosAdv').innerHTML = getCmdComment(_cmdForComment) || i.infosAdv || '';
+  resetMultiTech();
   resetRecurrenceUI();
   document.getElementById('intRecurrenceBlock').style.display = i.commandeId ? 'none' : '';
   document.getElementById('btnPlanifierSupp').style.display = (i.commandeId && !i.isRapport) ? '' : 'none';
