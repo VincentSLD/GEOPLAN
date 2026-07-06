@@ -2063,7 +2063,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     <div class="modal-body">
       <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
       <div class="form-row">
-        <div class="form-group" style="flex:1;"><label class="form-label">Commande liée</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
+        <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
         <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
         <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
           <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📁 Copier chemin serveur</button>
@@ -2073,10 +2073,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:3;"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
-        <div class="form-group" style="flex:1;"><label class="form-label">Client</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues"></div>
+        <div class="form-group" style="flex:1;"><label class="form-label">Client Facturé</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues"></div>
       </div>
       <div class="form-row">
-        <div class="form-group" style="flex:3;"><label class="form-label">Adresse du site</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
+        <div class="form-group" style="flex:3;"><label class="form-label">Adresse du client facturé</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
         <div class="form-group" id="intTypeGroup" style="flex:1;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
       </div>
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
