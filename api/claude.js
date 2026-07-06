@@ -6,16 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), { status: 500, headers: corsHeaders });
-
-  const { messages, context } = await req.json();
-
-  const systemPrompt = `Tu es l'assistant IA de GéoPlan', l'outil de planification d'interventions géotechniques du bureau d'études GPH.
+const SYSTEM_PROMPT_TEMPLATE = `Tu es l'assistant IA de GéoPlan', l'outil de planification d'interventions géotechniques du bureau d'études GPH.
 
 TON RÔLE :
 Tu es un expert en optimisation de tournées et en planification terrain. Tu aides les planificateurs à :
@@ -216,7 +207,25 @@ IMPORTANT :
 - ⛔ VÉRIFICATION OBLIGATOIRE AVANT CHAQUE ACTION : (1) Vérifie que la date est >= DATE ACTUELLE (jamais dans le passé). (2) Consulte la section "JOURS INTERDITS" du contexte — si la date y figure, NE PAS proposer cette action. (3) Utilise UNIQUEMENT les dates listées dans "JOURS DISPONIBLES POUR PLANIFIER". (4) Consulte la section "ABSENCES" — si le technicien est ABSENT (journée entière) à la date de l'action, NE PAS proposer cette action. Si demi-journée, vérifier que l'horaire proposé tombe sur la période disponible.
 
 Contexte actuel du planning :
-${context || 'Aucun contexte fourni.'}`;
+%%CONTEXT%%`;
+
+export default async function handler(req) {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ template: SYSTEM_PROMPT_TEMPLATE }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), { status: 500, headers: corsHeaders });
+
+  const { messages, context } = await req.json();
+
+  const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('%%CONTEXT%%', context || 'Aucun contexte fourni.');
 
   const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

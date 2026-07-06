@@ -1546,6 +1546,25 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 .ai-action-apply-all-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
 .ai-action-apply-all-btn:disabled { opacity:0.4; cursor:not-allowed; }
 .ai-action-progress { padding:6px 12px; font-size:0.68rem; color:var(--text-muted); font-weight:600; text-align:center; border-top:1px solid var(--border); }
+#ai-prompt-viewer { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); }
+#ai-prompt-viewer.open { display:flex; align-items:center; justify-content:center; }
+#ai-prompt-viewer .prompt-box { width:90vw; max-width:1000px; height:85vh; background:var(--bg-secondary); border-radius:14px; display:flex; flex-direction:column; box-shadow:0 12px 60px rgba(0,0,0,0.3); }
+#ai-prompt-viewer .prompt-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+#ai-prompt-viewer .prompt-header h3 { font-size:0.9rem; font-weight:800; color:var(--gph-dark); }
+#ai-prompt-viewer .prompt-header-btns { display:flex; gap:6px; }
+#ai-prompt-viewer .prompt-header-btns button { padding:6px 14px; border-radius:8px; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+.prompt-copy-btn { background:var(--gph-dark); color:var(--gph-yellow); border:none; }
+.prompt-copy-btn:hover { background:var(--gph-yellow); color:var(--gph-dark); }
+.prompt-copy-btn.copied { background:#16A34A; color:#fff; }
+.prompt-close-btn { background:none; border:1px solid var(--border); color:var(--text-secondary); }
+.prompt-close-btn:hover { background:var(--bg-primary); color:var(--text-primary); }
+#ai-prompt-viewer .prompt-tabs { display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
+#ai-prompt-viewer .prompt-tab { padding:8px 16px; border:none; background:none; font-size:0.72rem; font-weight:700; color:var(--text-muted); cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; transition:all 0.15s; }
+#ai-prompt-viewer .prompt-tab:hover { color:var(--text-primary); }
+#ai-prompt-viewer .prompt-tab.active { color:var(--gph-dark); border-bottom-color:var(--gph-yellow); }
+#ai-prompt-viewer .prompt-body { flex:1; overflow-y:auto; padding:0; }
+#ai-prompt-viewer pre { margin:0; padding:20px 24px; font-size:0.72rem; line-height:1.6; font-family:'DM Mono',monospace; white-space:pre-wrap; word-wrap:break-word; color:var(--text-primary); }
+#ai-prompt-viewer .prompt-stats { padding:8px 20px; border-top:1px solid var(--border); font-size:0.65rem; color:var(--text-muted); font-weight:600; flex-shrink:0; display:flex; gap:16px; }
 
 /* Settings */
 /* Settings inline view */
@@ -2193,6 +2212,9 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
   <div class="ai-header" id="aiHeader">
     <div class="ai-header-title"><div class="ai-header-icon">🤖</div><h3>Assistant IA</h3></div>
     <div class="ai-header-btns">
+      <button onclick="showAIPrompt()" title="Voir le prompt complet">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </button>
       <button onclick="resetAIConversation()" title="Nouvelle conversation">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
       </button>
@@ -2234,6 +2256,25 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 </div>
 
 </div><!-- .app -->
+
+<div id="ai-prompt-viewer" onclick="if(event.target===this)closeAIPrompt()">
+  <div class="prompt-box">
+    <div class="prompt-header">
+      <h3>Prompt complet de l'Assistant IA</h3>
+      <div class="prompt-header-btns">
+        <button class="prompt-copy-btn" id="promptCopyBtn" onclick="copyAIPrompt()">Copier le texte</button>
+        <button class="prompt-close-btn" onclick="closeAIPrompt()">Fermer</button>
+      </div>
+    </div>
+    <div class="prompt-tabs">
+      <button class="prompt-tab active" onclick="switchPromptTab('full', this)">Prompt complet</button>
+      <button class="prompt-tab" onclick="switchPromptTab('system', this)">Instructions (statique)</button>
+      <button class="prompt-tab" onclick="switchPromptTab('context', this)">Contexte dynamique</button>
+    </div>
+    <div class="prompt-body"><pre id="promptContent"></pre></div>
+    <div class="prompt-stats" id="promptStats"></div>
+  </div>
+</div>
 
 <script>
 // Technicians array — populated from settingsTeam after login
@@ -10628,6 +10669,80 @@ function resetAIConversation() {
   document.getElementById('aiInput').focus();
   if (_aiDetachedWindow && !_aiDetachedWindow.closed) getAIBroadcast().postMessage({ type: 'ai-reset' });
 }
+
+// ═══ VISIONNEUSE DU PROMPT IA ═══
+var _aiPromptTemplate = null;
+var _aiPromptContext = null;
+var _aiPromptCurrentTab = 'full';
+
+async function showAIPrompt() {
+  var viewer = document.getElementById('ai-prompt-viewer');
+  var pre = document.getElementById('promptContent');
+  var stats = document.getElementById('promptStats');
+  pre.textContent = 'Chargement du prompt...';
+  stats.textContent = '';
+  viewer.classList.add('open');
+
+  _aiPromptContext = buildPlanningContext();
+
+  if (!_aiPromptTemplate) {
+    try {
+      var r = await fetch('/api/claude');
+      var data = await r.json();
+      _aiPromptTemplate = data.template || '(erreur: template non disponible)';
+    } catch(e) {
+      _aiPromptTemplate = '(erreur de chargement: ' + e.message + ')';
+    }
+  }
+
+  _aiPromptCurrentTab = 'full';
+  document.querySelectorAll('#ai-prompt-viewer .prompt-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelector('#ai-prompt-viewer .prompt-tab').classList.add('active');
+  renderPromptTab();
+}
+
+function renderPromptTab() {
+  var pre = document.getElementById('promptContent');
+  var stats = document.getElementById('promptStats');
+  var text = '';
+  if (_aiPromptCurrentTab === 'full') {
+    text = (_aiPromptTemplate || '').replace('%%CONTEXT%%', _aiPromptContext || 'Aucun contexte fourni.');
+  } else if (_aiPromptCurrentTab === 'system') {
+    text = (_aiPromptTemplate || '').replace(/\nContexte actuel du planning :\n%%CONTEXT%%/, '');
+  } else {
+    text = _aiPromptContext || 'Aucun contexte disponible.';
+  }
+  pre.textContent = text;
+  var chars = text.length;
+  var words = text.split(/\s+/).filter(Boolean).length;
+  var lines = text.split('\n').length;
+  var tokens = Math.round(chars / 4);
+  stats.innerHTML = '<span>' + chars.toLocaleString('fr-FR') + ' caractères</span><span>' + words.toLocaleString('fr-FR') + ' mots</span><span>' + lines.toLocaleString('fr-FR') + ' lignes</span><span>~' + tokens.toLocaleString('fr-FR') + ' tokens estimés</span>';
+}
+
+function switchPromptTab(tab, btn) {
+  _aiPromptCurrentTab = tab;
+  document.querySelectorAll('#ai-prompt-viewer .prompt-tab').forEach(function(t) { t.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  renderPromptTab();
+  document.getElementById('promptCopyBtn').textContent = 'Copier le texte';
+  document.getElementById('promptCopyBtn').classList.remove('copied');
+}
+
+function copyAIPrompt() {
+  var text = document.getElementById('promptContent').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('promptCopyBtn');
+    btn.textContent = 'Copié !';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copier le texte'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function closeAIPrompt() {
+  document.getElementById('ai-prompt-viewer').classList.remove('open');
+}
+
 function toggleAIMaximize() {
   var panel = document.getElementById('ai-panel');
   panel.classList.toggle('ai-maximized');
