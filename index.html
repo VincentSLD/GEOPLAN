@@ -11178,195 +11178,14 @@ function detachAIPanel() {
     existingMsgs.push({ role: m.role, content: m.content });
   });
 
-  var w = window.open('', 'geoplan-ai-assistant', 'width=700,height=750,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
+  var popupUrl = new URL('ai-popup.html', window.location.href).href;
+  var w = window.open(popupUrl, 'geoplan-ai-assistant', 'width=700,height=750,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
   if (!w) { alert('Le navigateur a bloqué la popup. Autorisez les popups pour ce site.'); return; }
   _aiDetachedWindow = w;
 
-  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">';
-  html += '<title>Assistant IA — GéoPlan</title>';
-  html += '<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap" rel="stylesheet">';
-  html += '<style>';
-  html += ':root{--bg-primary:#f5f5f0;--bg-secondary:#ffffff;--bg-card:#ffffff;--border:#e0ddd5;--text-primary:#1a1a1a;--text-secondary:#4a4a4a;--text-muted:#8a8a80;--gph-primary:#1a1a1a;--gph-yellow:#f5c518;--gph-yellow-light:#fef9e7;--gph-dark:#111111;}';
-  html += '*{margin:0;padding:0;box-sizing:border-box;}';
-  html += 'body{font-family:"Bricolage Grotesque",sans-serif;background:var(--bg-primary);color:var(--text-primary);height:100vh;display:flex;flex-direction:column;overflow:hidden;}';
-  html += '.ai-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary);user-select:none;-webkit-app-region:drag;}';
-  html += '.ai-header-title{display:flex;align-items:center;gap:10px;}';
-  html += '.ai-header-title h3{font-size:0.9rem;font-weight:800;color:var(--gph-dark);}';
-  html += '.ai-header-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#f5c518,#e8b206);display:flex;align-items:center;justify-content:center;font-size:14px;}';
-  html += '.ai-header-btns{display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag;}';
-  html += '.ai-header-btns button{background:none;border:none;width:30px;height:30px;border-radius:6px;cursor:pointer;color:var(--text-muted);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}';
-  html += '.ai-header-btns button:hover{background:var(--bg-primary);color:var(--text-primary);}';
-  html += '.ai-quick-actions{padding:8px 24px 4px;display:flex;flex-wrap:wrap;gap:6px;}';
-  html += '.ai-quick-btn{padding:5px 12px;border:1px solid var(--border);border-radius:16px;background:var(--bg-card);font-size:0.68rem;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;font-family:inherit;}';
-  html += '.ai-quick-btn:hover{border-color:var(--gph-yellow);background:var(--gph-yellow-light);color:var(--gph-dark);}';
-  html += '.ai-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;}';
-  html += '.ai-msg{max-width:92%;padding:12px 16px;border-radius:14px;font-size:0.82rem;line-height:1.55;word-wrap:break-word;}';
-  html += '.ai-msg-user{white-space:pre-wrap;align-self:flex-end;background:var(--gph-dark);color:#fff;border-bottom-right-radius:4px;}';
-  html += '.ai-msg-ai{align-self:flex-start;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-bottom-left-radius:4px;}';
-  html += '.ai-msg-ai strong,.ai-msg-ai b{color:var(--gph-dark);}';
-  html += '.ai-msg-ai table{margin:8px 0;} .ai-msg-ai ul,.ai-msg-ai ol{margin:6px 0;padding-left:20px;} .ai-msg-ai h2,.ai-msg-ai h3,.ai-msg-ai h4{margin-top:10px;}';
-  html += '.ai-msg-system{align-self:center;background:var(--gph-yellow-light);color:var(--text-secondary);font-size:0.72rem;font-weight:600;border-radius:20px;padding:6px 16px;border:1px solid rgba(245,197,24,0.2);}';
-  html += '.ai-typing{align-self:flex-start;padding:12px 16px;font-size:0.8rem;color:var(--text-muted);font-style:italic;}';
-  html += '.ai-input-bar{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:var(--bg-secondary);}';
-  html += '.ai-input-bar textarea{flex:1;resize:none;border:2px solid var(--border);border-radius:10px;padding:10px 14px;font-size:0.82rem;font-family:inherit;color:var(--text-primary);outline:none;min-height:42px;max-height:120px;transition:border-color 0.2s;}';
-  html += '.ai-input-bar textarea:focus{border-color:var(--gph-yellow);}';
-  html += '.ai-input-bar textarea::placeholder{color:var(--text-muted);}';
-  html += '.ai-send-btn{width:42px;height:42px;border:none;border-radius:10px;background:var(--gph-dark);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}';
-  html += '.ai-send-btn:hover{background:var(--gph-yellow);color:var(--gph-dark);}';
-  html += '.ai-send-btn:disabled{opacity:0.4;cursor:not-allowed;}';
-  html += '.ai-action-block{margin:10px 0;border:2px solid var(--gph-yellow);border-radius:10px;overflow:hidden;background:var(--bg-card);}';
-  html += '.ai-action-header{padding:8px 12px;background:var(--gph-yellow-light);font-size:0.75rem;font-weight:800;color:var(--gph-dark);border-bottom:1px solid rgba(245,197,24,0.3);}';
-  html += '.ai-action-item{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--border);gap:8px;}';
-  html += '.ai-action-item.applied{background:#f0fdf4;}';
-  html += '.ai-action-item.rejected{background:#fef2f2;opacity:0.5;}';
-  html += '.ai-action-label{font-size:0.75rem;font-weight:500;color:var(--text-primary);flex:1;}';
-  html += '.ai-action-btns{display:flex;gap:4px;}';
-  html += '.ai-action-yes{padding:4px 12px;border:1px solid #16A34A;border-radius:6px;background:#f0fdf4;color:#16A34A;font-size:0.68rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;}';
-  html += '.ai-action-yes:hover{background:#16A34A;color:#fff;}';
-  html += '.ai-action-no{padding:4px 12px;border:1px solid #DC2626;border-radius:6px;background:#fef2f2;color:#DC2626;font-size:0.68rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;}';
-  html += '.ai-action-no:hover{background:#DC2626;color:#fff;}';
-  html += '.ai-action-result{font-size:0.65rem;font-weight:700;white-space:nowrap;}';
-  html += '.ai-action-apply-all-btn{display:block;width:100%;padding:8px;border:none;background:linear-gradient(135deg,var(--gph-primary),#333);color:var(--gph-yellow);font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.15s;}';
-  html += '.ai-action-apply-all-btn:hover{background:var(--gph-yellow);color:var(--gph-dark);}';
-  html += '.ai-action-progress{padding:6px 12px;font-size:0.68rem;color:var(--text-muted);font-weight:600;text-align:center;border-top:1px solid var(--border);}';
-  html += '.detached-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--gph-yellow-light);border:1px solid var(--gph-yellow);border-radius:12px;font-size:0.6rem;font-weight:700;color:var(--gph-dark);margin-left:8px;}';
-  html += '</style></head><body>';
-
-  html += '<div class="ai-header">';
-  html += '<div class="ai-header-title"><div class="ai-header-icon">🤖</div><h3>Assistant IA</h3><span class="detached-badge">⇱ Fenêtre détachée</span></div>';
-  html += '<div class="ai-header-btns">';
-  html += '<button onclick="doReset()" title="Nouvelle conversation"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>';
-  html += '<button onclick="doReattach()" title="Rattacher à GéoPlan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></button>';
-  html += '</div></div>';
-
-  html += '<div class="ai-quick-actions">';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'optimise\')">🗺️ Optimiser tournées</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'charge\')">⚖️ Charge de travail</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'suggestion\')">💡 Suggestions semaine</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'urgent\')">🚨 Caser une urgence</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'planifier\')">📅 Planifier semaine prochaine</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'planifierAvecRapports\')">📅📝 Planifier + Rapports</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'conflits\')">⚠️ Vérifier conflits</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'meteo\')">🌦️ Impact météo</button>';
-  html += '<button class="ai-quick-btn" onclick="doQuick(\'affecter\')">👤 Affecter intervention</button>';
-  html += '</div>';
-
-  html += '<div class="ai-messages" id="aiMessages">';
-  html += '<div class="ai-msg-system">Assistant IA propulsé par Claude — fenêtre détachée, connectée à GéoPlan</div>';
-  html += '</div>';
-
-  html += '<div class="ai-input-bar">';
-  html += '<textarea id="aiInput" placeholder="Ex: Optimise les tournées de demain en regroupant par zone..." rows="1"></textarea>';
-  html += '<button class="ai-send-btn" id="aiSendBtn" onclick="doSend()">➤</button>';
-  html += '</div>';
-
-  html += '<script>';
-  html += 'var bc = new BroadcastChannel("geoplan-ai");';
-  html += 'var sendBtn = null, inputEl = null, messagesEl = null;';
-  html += 'window.addEventListener("load", function() {';
-  html += '  sendBtn = document.getElementById("aiSendBtn");';
-  html += '  inputEl = document.getElementById("aiInput");';
-  html += '  messagesEl = document.getElementById("aiMessages");';
-  html += '  inputEl.addEventListener("keydown", function(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } });';
-  html += '  inputEl.addEventListener("input", function() { inputEl.style.height = "auto"; inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px"; });';
-  html += '  inputEl.focus();';
-  html += '});';
-
-  html += 'window.addEventListener("beforeunload", function() { bc.postMessage({type:"popup-closed"}); });';
-
-  html += 'bc.onmessage = function(ev) {';
-  html += '  var d = ev.data;';
-  html += '  if (d.type === "ai-user-echo") { appendMsg("user", d.text); }';
-  html += '  else if (d.type === "ai-typing-start") { showTyping(); }';
-  html += '  else if (d.type === "ai-typing-end") { hideTyping(); }';
-  html += '  else if (d.type === "ai-stream-html") { streamHtml(d.html); }';
-  html += '  else if (d.type === "ai-error") { hideTyping(); appendMsg("ai", "⚠️ " + d.text); enableInput(); }';
-  html += '  else if (d.type === "ai-stream-done") { enableInput(); }';
-  html += '  else if (d.type === "ai-reset") { messagesEl.innerHTML = \'<div class="ai-msg-system">Assistant IA propulsé par Claude — fenêtre détachée, connectée à GéoPlan</div>\'; enableInput(); }';
-  html += '  else if (d.type === "reattach") { window.close(); }';
-  html += '};';
-
-  html += 'var _typingEl = null;';
-  html += 'var _streamEl = null;';
-  html += 'function showTyping() { hideTyping(); _typingEl = document.createElement("div"); _typingEl.className = "ai-typing"; _typingEl.textContent = "Réflexion en cours..."; messagesEl.appendChild(_typingEl); messagesEl.scrollTop = messagesEl.scrollHeight; }';
-  html += 'function hideTyping() { if (_typingEl) { _typingEl.remove(); _typingEl = null; } }';
-  html += 'function streamHtml(h) {';
-  html += '  if (!_streamEl) { _streamEl = document.createElement("div"); _streamEl.className = "ai-msg ai-msg-ai"; messagesEl.appendChild(_streamEl); }';
-  html += '  _streamEl.innerHTML = h;';
-  html += '}';
-
-  html += 'function appendMsg(role, text) {';
-  html += '  var el = document.createElement("div");';
-  html += '  el.className = "ai-msg ai-msg-" + role;';
-  html += '  if (role === "ai") { el.innerHTML = text; } else { el.textContent = text; }';
-  html += '  messagesEl.appendChild(el);';
-  html += '  if (role === "user") el.scrollIntoView({behavior:"smooth", block:"start"});';
-  html += '}';
-
-  html += 'function enableInput() { sendBtn.disabled = false; inputEl.focus(); _streamEl = null; }';
-
-  html += 'function doSend() {';
-  html += '  var msg = inputEl.value.trim();';
-  html += '  if (!msg) return;';
-  html += '  inputEl.value = ""; inputEl.style.height = "auto";';
-  html += '  sendBtn.disabled = true;';
-  html += '  bc.postMessage({type:"send-message", text:msg});';
-  html += '}';
-
-  html += 'function doQuick(type) {';
-  html += '  bc.postMessage({type:"send-message", text:"__quick__:" + type});';
-  html += '  sendBtn.disabled = true;';
-  html += '}';
-
-  html += 'function doReset() { bc.postMessage({type:"reset"}); }';
-  html += 'function doReattach() { bc.postMessage({type:"popup-closed"}); window.close(); }';
-
-  html += 'function doAcceptAction(action, blockId, idx) {';
-  html += '  var itemEl = document.getElementById(blockId + "-item-" + idx);';
-  html += '  if (!itemEl || itemEl.classList.contains("applied") || itemEl.classList.contains("rejected")) return;';
-  html += '  itemEl.classList.add("applied");';
-  html += '  var btns = itemEl.querySelector(".ai-action-btns");';
-  html += '  if (btns) btns.innerHTML = \'<span class="ai-action-result" style="color:#16A34A;">✓ Accepté</span>\';';
-  html += '  bc.postMessage({type:"accept-action", action:action});';
-  html += '  updateProgress(blockId);';
-  html += '}';
-
-  html += 'function doRejectAction(blockId, idx) {';
-  html += '  var itemEl = document.getElementById(blockId + "-item-" + idx);';
-  html += '  if (!itemEl || itemEl.classList.contains("applied") || itemEl.classList.contains("rejected")) return;';
-  html += '  itemEl.classList.add("rejected");';
-  html += '  var btns = itemEl.querySelector(".ai-action-btns");';
-  html += '  if (btns) btns.innerHTML = \'<span class="ai-action-result" style="color:#DC2626;">✗ Refusé</span>\';';
-  html += '  updateProgress(blockId);';
-  html += '}';
-
-  html += 'function doAcceptAll(actions, blockId) {';
-  html += '  actions.forEach(function(a, j) {';
-  html += '    var itemEl = document.getElementById(blockId + "-item-" + j);';
-  html += '    if (itemEl && !itemEl.classList.contains("applied") && !itemEl.classList.contains("rejected")) {';
-  html += '      itemEl.classList.add("applied");';
-  html += '      var btns = itemEl.querySelector(".ai-action-btns");';
-  html += '      if (btns) btns.innerHTML = \'<span class="ai-action-result" style="color:#16A34A;">✓ Accepté</span>\';';
-  html += '    }';
-  html += '  });';
-  html += '  bc.postMessage({type:"accept-all-actions", actions:actions});';
-  html += '  updateProgress(blockId);';
-  html += '}';
-
-  html += 'function updateProgress(blockId) {';
-  html += '  var items = document.querySelectorAll("[id^=\\"" + blockId + "-item-\\"]");';
-  html += '  var done = 0; items.forEach(function(el) { if (el.classList.contains("applied") || el.classList.contains("rejected")) done++; });';
-  html += '  var prog = document.getElementById(blockId + "-progress");';
-  html += '  if (prog) prog.textContent = done + " / " + items.length + " traitée(s)";';
-  html += '}';
-
-  html += '<\\/script></body></html>';
-
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-
-  setTimeout(function() {
+  var _replayHandler = function(ev) {
+    if (ev.data.type !== 'popup-ready') return;
+    bc.removeEventListener('message', _replayHandler);
     existingMsgs.forEach(function(m) {
       if (m.role === 'user') {
         bc.postMessage({ type: 'ai-user-echo', text: m.content });
@@ -11375,7 +11194,8 @@ function detachAIPanel() {
         bc.postMessage({ type: 'ai-stream-done' });
       }
     });
-  }, 300);
+  };
+  bc.addEventListener('message', _replayHandler);
 }
 
 
