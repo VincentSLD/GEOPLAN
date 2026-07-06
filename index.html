@@ -4729,9 +4729,37 @@ function saveIntervention(){
     var techList = multiTechIds || [data.techId];
     var dateList = multiDates || [data.date];
     var totalCount = techList.length * dateList.length;
+    // Détecter les conflits Rapport pour toutes les combinaisons
+    var _batchRapportConflicts = [];
+    for (var _bd = 0; _bd < dateList.length; _bd++) {
+      for (var _bt = 0; _bt < techList.length; _bt++) {
+        var _brc = findRapportSlotConflict(techList[_bt], dateList[_bd], null);
+        if (_brc) _batchRapportConflicts.push(_brc);
+      }
+    }
+    var _batchRapportAction = null;
+    if (_batchRapportConflicts.length > 0) {
+      var _brt = settingsIntTypes.find(function(x) { return x.id === _batchRapportConflicts[0].type; });
+      var _brLabel = _brt ? _brt.label : 'Rapport';
+      var _brMsg = '📝 ' + _batchRapportConflicts.length + ' créneau(x) "' + _brLabel + '" trouvé(s) en conflit.\n\n';
+      _brMsg += '1 — Remplacer les créneaux Rapport\n';
+      _brMsg += '2 — Déduire le temps de chaque Rapport\n';
+      _brMsg += '3 — Ignorer (conserver les Rapports tels quels)\n';
+      _brMsg += '4 — Annuler\n\nTapez 1, 2, 3 ou 4 :';
+      var _brChoice = prompt(_brMsg, '2');
+      if (!_brChoice || _brChoice.trim() === '4') return;
+      if (_brChoice.trim() === '1') _batchRapportAction = 'replace';
+      else if (_brChoice.trim() === '2') _batchRapportAction = 'deduct';
+    }
     closeModal();
     showLoader('Création de ' + totalCount + ' intervention(s)...');
     (async function() {
+      // Appliquer les actions Rapport avant la création
+      if (_batchRapportAction && _batchRapportConflicts.length > 0) {
+        for (var _bri = 0; _bri < _batchRapportConflicts.length; _bri++) {
+          await applyRapportSlotAction(_batchRapportConflicts[_bri], _batchRapportAction, data.duration);
+        }
+      }
       var recEnabled = document.getElementById('intRecurrenceEnabled').checked;
       for (var di = 0; di < dateList.length; di++) {
         for (var ti = 0; ti < techList.length; ti++) {
