@@ -2126,6 +2126,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <div id="habClientTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
             <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
             <div id="habClientGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+            <div id="habClientAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
           </div>
         </details>
         <details>
@@ -2140,6 +2142,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <div id="habGoTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
             <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
             <div id="habGoGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+            <div id="habGoAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
           </div>
         </details>
         <details style="margin-top:4px;">
@@ -2154,6 +2158,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <div id="habArchiTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
             <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
             <div id="habArchiGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+            <div id="habArchiAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
           </div>
         </details>
         <details style="margin-top:4px;">
@@ -2168,6 +2174,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <div id="habApporteurTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
             <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
             <div id="habApporteurGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+            <div id="habApporteurAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
           </div>
         </details>
       </div>
@@ -7015,7 +7023,7 @@ async function loadClientsHabits() {
     var data = [];
     var off = 0;
     while (true) {
-      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, salesman_name').range(off, off + 999);
+      var r = await sbAuth.from('clients').select('name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, habitudes_admin_commerciales, salesman_name').range(off, off + 999);
       if (r.error) { console.warn('[Clients] Erreur:', r.error.message); break; }
       if (!r.data || r.data.length === 0) break;
       data = data.concat(r.data);
@@ -7078,7 +7086,7 @@ function renderHabitudesDetailHTML(cmd) {
   var clientH = findClientHabits(clientName);
   var goH = findClientHabits(goName);
   function _badge(h, name, isGo) {
-    if (h) { var has = !!(h.habitudes_techniques || h.habitudes_geotechniques); return has ? '<span style="color:#16A34A;font-size:0.6rem;">✓</span>' : '<span style="color:var(--text-muted);font-size:0.6rem;">∅</span>'; }
+    if (h) { var has = !!(h.habitudes_techniques || h.habitudes_geotechniques || h.habitudes_admin_commerciales); return has ? '<span style="color:#16A34A;font-size:0.6rem;">✓</span>' : '<span style="color:var(--text-muted);font-size:0.6rem;">∅</span>'; }
     return '<span style="color:var(--text-muted);font-size:0.6rem;">?</span>';
   }
   function _content(val, fallback) {
@@ -7091,23 +7099,27 @@ function renderHabitudesDetailHTML(cmd) {
   var cBadge = _badge(clientH, clientName, false);
   var cTech = clientH ? _content(clientH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
   var cGeo = clientH ? _content(clientH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  var cAdmin = clientH ? _content(clientH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —') : _content('', '');
   html += '<details style="margin-bottom:4px;"><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
     '<span style="font-size:0.85rem;">📘</span><span>Habitudes du client facturé</span>' +
     '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (clientName ? '· ' + clientName : '') + '</span>' + cBadge +
     '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + cTech +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + cGeo +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>' + cAdmin +
     '</div></details>';
   // GO
   var gBadge = _badge(goH, goName, true);
   var gTech = goH ? _content(goH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', goName ? '— GO introuvable dans la base clients —' : '— pas de gros oeuvre renseigné sur la commande —');
   var gGeo = goH ? _content(goH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  var gAdmin = goH ? _content(goH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —') : _content('', '');
   html += '<details><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
     '<span style="font-size:0.85rem;">🏗</span><span>Habitudes du gros oeuvre</span>' +
     '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (goName ? '· ' + goName : '— non renseigné —') + '</span>' + gBadge +
     '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + gTech +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + gGeo +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>' + gAdmin +
     '</div></details>';
   // Architecte
   var archiName = cmd._architecte || '';
@@ -7115,12 +7127,14 @@ function renderHabitudesDetailHTML(cmd) {
   var aBadge = _badge(archiH, archiName, false);
   var aTech = archiH ? _content(archiH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', archiName ? '— architecte introuvable dans la base clients —' : '— pas d\'architecte renseigné —');
   var aGeo = archiH ? _content(archiH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  var aAdmin = archiH ? _content(archiH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —') : _content('', '');
   html += '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
     '<span style="font-size:0.85rem;">🏛</span><span>Habitudes de l\'architecte</span>' +
     '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (archiName ? '· ' + archiName : '— non renseigné —') + '</span>' + aBadge +
     '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + aTech +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + aGeo +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>' + aAdmin +
     '</div></details>';
   // Apporteur d'affaire
   var apporteurName = cmd._apporteur || '';
@@ -7128,12 +7142,14 @@ function renderHabitudesDetailHTML(cmd) {
   var apBadge = _badge(apporteurH, apporteurName, false);
   var apTech = apporteurH ? _content(apporteurH.habitudes_techniques, '— aucune habitude technique renseignée —') : _content('', apporteurName ? '— apporteur introuvable dans la base clients —' : '— pas d\'apporteur renseigné —');
   var apGeo = apporteurH ? _content(apporteurH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —') : _content('', '');
+  var apAdmin = apporteurH ? _content(apporteurH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —') : _content('', '');
   html += '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">' +
     '<span style="font-size:0.85rem;">🤝</span><span>Habitudes de l\'apporteur d\'affaire</span>' +
     '<span style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;">' + (apporteurName ? '· ' + apporteurName : '— non renseigné —') + '</span>' + apBadge +
     '</summary><div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">' +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>' + apTech +
     '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>' + apGeo +
+    '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>' + apAdmin +
     '</div></details>';
   html += '</div>';
   return html;
@@ -7153,15 +7169,18 @@ function populateHabitudes(cmd) {
   var clientTechEl = document.getElementById('habClientTech');
   var clientGeoEl = document.getElementById('habClientGeo');
   var clientBadge = document.getElementById('habClientBadge');
+  var clientAdminEl = document.getElementById('habClientAdmin');
   if (clientH) {
     _renderHabitsContent(clientTechEl, clientH.habitudes_techniques, '— aucune habitude technique renseignée —');
     _renderHabitsContent(clientGeoEl, clientH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
-    var hasAny = !!(clientH.habitudes_techniques || clientH.habitudes_geotechniques);
+    _renderHabitsContent(clientAdminEl, clientH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —');
+    var hasAny = !!(clientH.habitudes_techniques || clientH.habitudes_geotechniques || clientH.habitudes_admin_commerciales);
     clientBadge.textContent = hasAny ? '✓' : '∅';
     clientBadge.style.color = hasAny ? '#16A34A' : 'var(--text-muted)';
   } else {
     _renderHabitsContent(clientTechEl, '', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
     _renderHabitsContent(clientGeoEl, '', '');
+    _renderHabitsContent(clientAdminEl, '', '');
     clientBadge.textContent = '?';
     clientBadge.style.color = 'var(--text-muted)';
   }
@@ -7169,15 +7188,18 @@ function populateHabitudes(cmd) {
   var goTechEl = document.getElementById('habGoTech');
   var goGeoEl = document.getElementById('habGoGeo');
   var goBadge = document.getElementById('habGoBadge');
+  var goAdminEl = document.getElementById('habGoAdmin');
   if (goH) {
     _renderHabitsContent(goTechEl, goH.habitudes_techniques, '— aucune habitude technique renseignée —');
     _renderHabitsContent(goGeoEl, goH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
-    var hasAnyGo = !!(goH.habitudes_techniques || goH.habitudes_geotechniques);
+    _renderHabitsContent(goAdminEl, goH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —');
+    var hasAnyGo = !!(goH.habitudes_techniques || goH.habitudes_geotechniques || goH.habitudes_admin_commerciales);
     goBadge.textContent = hasAnyGo ? '✓' : '∅';
     goBadge.style.color = hasAnyGo ? '#16A34A' : 'var(--text-muted)';
   } else {
     _renderHabitsContent(goTechEl, '', goName ? '— GO introuvable dans la base clients —' : '— pas de gros oeuvre renseigné sur la commande —');
     _renderHabitsContent(goGeoEl, '', '');
+    _renderHabitsContent(goAdminEl, '', '');
     goBadge.textContent = '?';
     goBadge.style.color = 'var(--text-muted)';
   }
@@ -7187,16 +7209,19 @@ function populateHabitudes(cmd) {
   document.getElementById('habArchiName').textContent = archiName ? '· ' + archiName : '— non renseigné —';
   var archiTechEl = document.getElementById('habArchiTech');
   var archiGeoEl = document.getElementById('habArchiGeo');
+  var archiAdminEl = document.getElementById('habArchiAdmin');
   var archiBadge = document.getElementById('habArchiBadge');
   if (archiH) {
     _renderHabitsContent(archiTechEl, archiH.habitudes_techniques, '— aucune habitude technique renseignée —');
     _renderHabitsContent(archiGeoEl, archiH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
-    var hasArchi = !!(archiH.habitudes_techniques || archiH.habitudes_geotechniques);
+    _renderHabitsContent(archiAdminEl, archiH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —');
+    var hasArchi = !!(archiH.habitudes_techniques || archiH.habitudes_geotechniques || archiH.habitudes_admin_commerciales);
     archiBadge.textContent = hasArchi ? '✓' : '∅';
     archiBadge.style.color = hasArchi ? '#16A34A' : 'var(--text-muted)';
   } else {
     _renderHabitsContent(archiTechEl, '', archiName ? '— architecte introuvable dans la base clients —' : '— pas d\'architecte renseigné —');
     _renderHabitsContent(archiGeoEl, '', '');
+    _renderHabitsContent(archiAdminEl, '', '');
     archiBadge.textContent = '?';
     archiBadge.style.color = 'var(--text-muted)';
   }
@@ -7206,16 +7231,19 @@ function populateHabitudes(cmd) {
   document.getElementById('habApporteurName').textContent = apporteurName ? '· ' + apporteurName : '— non renseigné —';
   var apporteurTechEl = document.getElementById('habApporteurTech');
   var apporteurGeoEl = document.getElementById('habApporteurGeo');
+  var apporteurAdminEl = document.getElementById('habApporteurAdmin');
   var apporteurBadge = document.getElementById('habApporteurBadge');
   if (apporteurH) {
     _renderHabitsContent(apporteurTechEl, apporteurH.habitudes_techniques, '— aucune habitude technique renseignée —');
     _renderHabitsContent(apporteurGeoEl, apporteurH.habitudes_geotechniques, '— aucune habitude géotechnique renseignée —');
-    var hasApporteur = !!(apporteurH.habitudes_techniques || apporteurH.habitudes_geotechniques);
+    _renderHabitsContent(apporteurAdminEl, apporteurH.habitudes_admin_commerciales, '— aucune habitude admin/commerciale renseignée —');
+    var hasApporteur = !!(apporteurH.habitudes_techniques || apporteurH.habitudes_geotechniques || apporteurH.habitudes_admin_commerciales);
     apporteurBadge.textContent = hasApporteur ? '✓' : '∅';
     apporteurBadge.style.color = hasApporteur ? '#16A34A' : 'var(--text-muted)';
   } else {
     _renderHabitsContent(apporteurTechEl, '', apporteurName ? '— apporteur introuvable dans la base clients —' : '— pas d\'apporteur renseigné —');
     _renderHabitsContent(apporteurGeoEl, '', '');
+    _renderHabitsContent(apporteurAdminEl, '', '');
     apporteurBadge.textContent = '?';
     apporteurBadge.style.color = 'var(--text-muted)';
   }
