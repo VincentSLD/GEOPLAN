@@ -2354,8 +2354,10 @@ async function deleteInterventionFromSupabase(id) {
   } catch(e) { console.warn('[Interventions] Erreur delete:', e); }
 }
 
+var _realtimeIntChannel = null;
 function subscribeRealtimeInterventions() {
-  sbAuth.channel('geoplan-sync')
+  if (_realtimeIntChannel) { sbAuth.removeChannel(_realtimeIntChannel); _realtimeIntChannel = null; }
+  _realtimeIntChannel = sbAuth.channel('geoplan-sync-' + Date.now())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'geoplan_interventions' }, function(payload) {
       var myEmail = currentAuthUser ? currentAuthUser.email : null;
       if (payload.eventType === 'INSERT') {
@@ -2388,8 +2390,10 @@ function subscribeRealtimeInterventions() {
     });
 }
 
+var _realtimeCmdChannel = null;
 function subscribeRealtimeCommandes() {
-  sbAuth.channel('geoplan-commandes-sync')
+  if (_realtimeCmdChannel) { sbAuth.removeChannel(_realtimeCmdChannel); _realtimeCmdChannel = null; }
+  _realtimeCmdChannel = sbAuth.channel('geoplan-cmd-sync-' + Date.now())
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'commandes' }, function(payload) {
       if (!payload.new) return;
       var cmd = commandesData.find(function(c) { return c.id === payload.new.id; });
@@ -3511,19 +3515,21 @@ async function init() {
     mobileMyTechId = earlyTechId;
     document.body.classList.add('mob-active');
 
-    // Charger interventions filtrées par tech_id
-    await loadInterventionsFromSupabase(earlyTechId);
+    // Charger interventions + collabs en parallèle
+    await Promise.all([
+      loadInterventionsFromSupabase(earlyTechId),
+      (async function() { if (luccaCollabs.length === 0) { try { var r = await sbAuth.from('collaborateurs_lucca').select('*').order('nom'); luccaCollabs = r.data || []; autoMatchTeamLuccaIds(); } catch(e) {} } })()
+    ]);
 
-    // Charger Lucca collabs (léger) + absences du tech uniquement
-    await loadLuccaCollabs(earlyTechId);
-
-    // Render mobile immédiatement
+    // Render mobile immédiatement AVANT absences
     renderMobileHeader();
     renderMobileView();
     computeAllTravel();
     subscribeRealtimeInterventions();
     subscribeRealtimeCommandes();
     hideLoader();
+    // Absences en arrière-plan
+    loadLuccaAbsences(earlyTechId).then(function() { updateTeamAbsenceStatuses(); renderMobileView(); });
 
     // Charger commandes/géosolia en tâche de fond pour le détail
     Promise.all([
@@ -3537,23 +3543,27 @@ async function init() {
     });
   } else {
     // === MODE DESKTOP NORMAL ===
-    await loadInterventionsFromSupabase();
-    await migrateInterventionsToSupabase();
-    syncCommandeGeosoliaFromInterventions();
-    await loadLuccaCollabs();
+    // Charger interventions + collaborateurs en parallèle (sans absences pour ne pas saturer le pool)
+    var [_intRes, _collabRes] = await Promise.all([
+      loadInterventionsFromSupabase().then(function() { return migrateInterventionsToSupabase(); }).then(function() { syncCommandeGeosoliaFromInterventions(); }),
+      (async function() { if (luccaCollabs.length === 0) { try { var r = await sbAuth.from('collaborateurs_lucca').select('*').order('nom'); luccaCollabs = r.data || []; autoMatchTeamLuccaIds(); } catch(e) { console.warn('[Lucca] Erreur collabs:', e); } } })()
+    ]);
+    // Rendu immédiat AVANT le chargement des absences
     renderCurrentView(); updateTodayCount(); computeAllTravel();
     subscribeRealtimeInterventions();
     subscribeRealtimeCommandes();
     hideLoader();
     initMobileMode();
-    loadClientsHabits();
+    // Charger absences + commandes + géosolia en tâche de fond (après le rendu)
     Promise.all([
+      loadLuccaAbsences().then(function() { updateTeamAbsenceStatuses(); renderCurrentView(); }),
       loadCommandesFromSupabase().then(function() { populateCommandeSelect(); }),
       loadGeosoliaProjects().then(function() { fixRapportDurations(); autoCreateMissingRapports(); }),
       loadDDCCache()
     ]).then(function() {
       syncCustomDataSilent();
       autoLinkGeosoliaSilent();
+      loadClientsHabits();
     });
   }
 }
@@ -8700,25 +8710,27 @@ async function loadLuccaAbsences(filterTechId) {
     var fromStr = localDateStr(from);
     var toStr = localDateStr(to);
 
-    // En mode mobile, ne charger que les absences du tech connecté
-    var filterLuccaId = null;
+    // Filtrer par IDs Lucca de l'équipe uniquement (réduit drastiquement le résultat)
+    var teamLuccaIds = [];
     if (filterTechId) {
       var st = settingsTeam.find(function(t) { return t.id === filterTechId; });
-      if (st && st.luccaId) filterLuccaId = st.luccaId;
+      if (st && st.luccaId) teamLuccaIds = [st.luccaId];
+    } else {
+      teamLuccaIds = settingsTeam.filter(function(t) { return t.luccaId; }).map(function(t) { return t.luccaId; });
     }
+    if (teamLuccaIds.length === 0) { luccaAbsencesLoaded = true; return; }
 
-    // Supabase default limit is 1000 rows — we need all absences
     var allData = [], pageSize = 1000, offset = 0, hasMore = true;
     while (hasMore) {
       var query = sbAuth.from('absences_lucca')
         .select('lucca_id, date_absence, periode, type_absence')
         .eq('actif', true)
+        .in('lucca_id', teamLuccaIds)
         .gte('date_absence', fromStr)
         .lte('date_absence', toStr);
-      if (filterLuccaId) query = query.eq('lucca_id', filterLuccaId);
       query = query.range(offset, offset + pageSize - 1);
       var result = await query;
-      if (result.error) { console.error('[Lucca] Erreur requête absences_lucca:', result.error); return; }
+      if (result.error) { console.error('[Lucca] Erreur requête absences_lucca:', result.error); break; }
       allData = allData.concat(result.data || []);
       hasMore = (result.data || []).length === pageSize;
       offset += pageSize;
