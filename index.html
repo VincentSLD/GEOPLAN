@@ -2082,7 +2082,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
       <div class="form-row">
         <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select><div id="intMultiTechBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiTechToggle" onchange="toggleMultiTech()"> Appliquer à plusieurs techniciens</label><div id="intMultiTechList" style="display:none;margin-top:4px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"></div></div></div>
-        <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"></div>
+        <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"><div id="intMultiDateBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiDateToggle" onchange="toggleMultiDate()"> Plusieurs dates</label><div id="intMultiDateList" style="display:none;margin-top:4px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"><div id="intMultiDateItems"></div><div style="display:flex;gap:4px;margin-top:4px;"><input type="date" id="intMultiDateInput" class="form-input" style="flex:1;font-size:0.72rem;padding:2px 4px;"><button type="button" onclick="addMultiDate()" style="padding:2px 8px;font-size:0.72rem;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;">+</button></div></div></div></div>
         <div class="form-group" style="flex:0 0 70px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
@@ -3856,6 +3856,57 @@ function resetMultiTech() {
   if (block) block.style.display = 'none';
 }
 
+function toggleMultiDate() {
+  var on = document.getElementById('intMultiDateToggle').checked;
+  var list = document.getElementById('intMultiDateList');
+  if (on) {
+    var mainDate = document.getElementById('intDate').value;
+    document.getElementById('intMultiDateItems').innerHTML = '';
+    if (mainDate) addMultiDateValue(mainDate);
+    list.style.display = 'block';
+  } else {
+    list.style.display = 'none';
+  }
+}
+function addMultiDate() {
+  var inp = document.getElementById('intMultiDateInput');
+  if (!inp.value) return;
+  addMultiDateValue(inp.value);
+  inp.value = '';
+}
+function addMultiDateValue(dateStr) {
+  var container = document.getElementById('intMultiDateItems');
+  var existing = container.querySelectorAll('.multi-date-tag');
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getAttribute('data-date') === dateStr) return;
+  }
+  var d = new Date(dateStr);
+  var label = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  var tag = document.createElement('div');
+  tag.className = 'multi-date-tag';
+  tag.setAttribute('data-date', dateStr);
+  tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:2px 6px;margin:2px;font-size:0.68rem;font-weight:600;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;';
+  tag.innerHTML = label + ' <span onclick="this.parentElement.remove()" style="cursor:pointer;color:#DC2626;font-weight:800;font-size:0.75rem;">&times;</span>';
+  container.appendChild(tag);
+}
+function getMultiDates() {
+  if (!document.getElementById('intMultiDateToggle').checked) return null;
+  var tags = document.getElementById('intMultiDateItems').querySelectorAll('.multi-date-tag');
+  var dates = [];
+  for (var i = 0; i < tags.length; i++) dates.push(tags[i].getAttribute('data-date'));
+  return dates.length > 0 ? dates : null;
+}
+function resetMultiDate() {
+  var toggle = document.getElementById('intMultiDateToggle');
+  if (toggle) toggle.checked = false;
+  var list = document.getElementById('intMultiDateList');
+  if (list) list.style.display = 'none';
+  var items = document.getElementById('intMultiDateItems');
+  if (items) items.innerHTML = '';
+  var block = document.getElementById('intMultiDateBlock');
+  if (block) block.style.display = 'none';
+}
+
 function onTypeChange() {
   var typeId = document.getElementById('intType').value;
   if (!typeId) return;
@@ -3874,6 +3925,10 @@ function onTypeChange() {
   var mtBlock = document.getElementById('intMultiTechBlock');
   if (mtBlock) {
     if (typeId && !editingId) { mtBlock.style.display = ''; } else { resetMultiTech(); }
+  }
+  var mdBlock = document.getElementById('intMultiDateBlock');
+  if (mdBlock) {
+    if (typeId && !editingId) { mdBlock.style.display = ''; } else { resetMultiDate(); }
   }
 }
 
@@ -4469,7 +4524,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetMultiTech();resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetMultiTech();resetMultiDate();resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -4578,7 +4633,9 @@ function saveIntervention(){
     infosAdv: document.getElementById('intInfosAdv').innerHTML || '',
   };
   // Vérifier champs obligatoires
-  if (!data.date) { alert('La date est obligatoire'); return; }
+  var _pendingMultiDates = getMultiDates();
+  if (!data.date && !_pendingMultiDates) { alert('La date est obligatoire'); return; }
+  if (_pendingMultiDates && _pendingMultiDates.length === 0) { alert('Sélectionnez au moins une date'); return; }
   var _pendingMulti = getMultiTechIds();
   if (!data.techId && !_pendingMulti) { alert('Le géotechnicien est obligatoire'); return; }
   if (_pendingMulti && _pendingMulti.length === 0) { alert('Cochez au moins un géotechnicien'); return; }
@@ -4649,11 +4706,11 @@ function saveIntervention(){
     }
   }
 
-  // Vérifier jour férié avant sauvegarde
-  if (data.date && !confirmIfFerie(data.date)) return;
+  // Vérifier jour férié avant sauvegarde (sauf multi-dates)
+  if (!_pendingMultiDates && data.date && !confirmIfFerie(data.date)) return;
 
   var _rapportConflict = null, _rapportAction = null;
-  if (data.techId) {
+  if (data.techId && !_pendingMultiDates) {
     var compWarn = checkCompetenceAlert(data);
     if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
     if (data.date && !confirmIfAbsence(data.techId, data.date)) return;
@@ -4665,40 +4722,45 @@ function saveIntervention(){
     if (!checkDayOverload(data.techId, data.date, (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0), editingId)) return;
   }
 
-  // Multi-techniciens : créer un bloc par technicien coché
+  // Multi-dates et/ou multi-techniciens : créer un bloc par combinaison
   var multiTechIds = getMultiTechIds();
-  if (multiTechIds && !editingId && multiTechIds.length > 0) {
+  var multiDates = _pendingMultiDates;
+  if (!editingId && (multiTechIds || multiDates)) {
+    var techList = multiTechIds || [data.techId];
+    var dateList = multiDates || [data.date];
+    var totalCount = techList.length * dateList.length;
     closeModal();
-    showLoader('Création de ' + multiTechIds.length + ' bloc(s)...');
+    showLoader('Création de ' + totalCount + ' intervention(s)...');
     (async function() {
       var recEnabled = document.getElementById('intRecurrenceEnabled').checked;
-      var recDates = [];
-      if (recEnabled) {
-        var freq = document.getElementById('intRecurrenceFreq').value;
-        var endType = document.getElementById('intRecurrenceEndType').value;
-        var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : endType === 'count' ? document.getElementById('intRecurrenceCount').value : '52';
-        var customDays = document.getElementById('intRecurrenceCustomDays').value;
-        recDates = computeRecurrenceDates(data.date, freq, endType, endValue, customDays);
-        recDates.shift();
-      }
-      for (var ti = 0; ti < multiTechIds.length; ti++) {
-        var copy = Object.assign({}, data, { techId: multiTechIds[ti] });
-        delete copy.id;
-        var row = intToRow(copy);
-        row.created_by = currentAuthUser ? currentAuthUser.email : null;
-        delete row.id;
-        try {
-          var res = await sbAuth.from('geoplan_interventions').insert(row).select();
-          if (res.data && res.data[0]) { copy.id = res.data[0].id; interventions.push(copy); }
-          if (recDates.length > 0) {
-            var recRows = recDates.map(function(ds) {
-              var rc = Object.assign({}, copy, { date: ds, id: undefined, commandeId: null, commandeRef: null });
-              var rr = intToRow(rc); rr.created_by = currentAuthUser ? currentAuthUser.email : null; delete rr.id; return rr;
-            });
-            var rRes = await sbAuth.from('geoplan_interventions').insert(recRows).select();
-            if (rRes.data) rRes.data.forEach(function(r) { interventions.push(rowToInt(r)); });
-          }
-        } catch(e) { console.warn('[MultiTech] Erreur:', e); }
+      for (var di = 0; di < dateList.length; di++) {
+        for (var ti = 0; ti < techList.length; ti++) {
+          var copy = Object.assign({}, data, { techId: techList[ti], date: dateList[di] });
+          delete copy.id;
+          var row = intToRow(copy);
+          row.created_by = currentAuthUser ? currentAuthUser.email : null;
+          delete row.id;
+          try {
+            var res = await sbAuth.from('geoplan_interventions').insert(row).select();
+            if (res.data && res.data[0]) { copy.id = res.data[0].id; interventions.push(copy); }
+            if (recEnabled) {
+              var freq = document.getElementById('intRecurrenceFreq').value;
+              var endType = document.getElementById('intRecurrenceEndType').value;
+              var endValue = endType === 'date' ? document.getElementById('intRecurrenceEndDate').value : endType === 'count' ? document.getElementById('intRecurrenceCount').value : '52';
+              var customDays = document.getElementById('intRecurrenceCustomDays').value;
+              var recDates = computeRecurrenceDates(dateList[di], freq, endType, endValue, customDays);
+              recDates.shift();
+              if (recDates.length > 0) {
+                var recRows = recDates.map(function(ds) {
+                  var rc = Object.assign({}, copy, { date: ds, id: undefined, commandeId: null, commandeRef: null });
+                  var rr = intToRow(rc); rr.created_by = currentAuthUser ? currentAuthUser.email : null; delete rr.id; return rr;
+                });
+                var rRes = await sbAuth.from('geoplan_interventions').insert(recRows).select();
+                if (rRes.data) rRes.data.forEach(function(r) { interventions.push(rowToInt(r)); });
+              }
+            }
+          } catch(e) { console.warn('[MultiBatch] Erreur:', e); }
+        }
       }
       hideLoader();
       renderCurrentView(); updateTodayCount(); populateSidebar(); computeAllTravel();
@@ -4969,6 +5031,7 @@ function editIntervention(id){
   var _cmdForComment = i.commandeId ? commandesData.find(function(c){return c.id===i.commandeId;}) : null;
   document.getElementById('intInfosAdv').innerHTML = getCmdComment(_cmdForComment) || i.infosAdv || '';
   resetMultiTech();
+  resetMultiDate();
   resetRecurrenceUI();
   document.getElementById('intRecurrenceBlock').style.display = i.commandeId ? 'none' : '';
   document.getElementById('btnPlanifierSupp').style.display = (i.commandeId && !i.isRapport) ? '' : 'none';
