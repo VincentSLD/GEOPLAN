@@ -6315,27 +6315,27 @@ async function initCommandes() {
 var affairesMap = {};
 var marchesMap = {};
 
-async function loadAffairesMarches() {
-  // Charger affaires
-  var allAffaires = [], off = 0;
+async function _paginateAll(table, selectCols, filters) {
+  var data = [], off = 0;
   while (true) {
-    var r = await sbAuth.from('affaires').select('id, ref, nom, marche_id, client_id, client_name, date_debut, date_fin, montant, statut, agence, responsable_id, code_projet, responsable, adresse, ville, code_postal, lat, lng, architecte, apporteur_affaire').range(off, off + 999);
+    var q = sbAuth.from(table).select(selectCols);
+    if (filters) filters(q);
+    q = q.range(off, off + 999);
+    var r = await q;
     if (r.error || !r.data || r.data.length === 0) break;
-    allAffaires = allAffaires.concat(r.data);
+    data = data.concat(r.data);
     if (r.data.length < 1000) break;
     off += 1000;
   }
-  allAffaires.forEach(function(a) { affairesMap[a.id] = a; });
+  return data;
+}
 
-  // Charger marchés
-  var allMarches = [], off2 = 0;
-  while (true) {
-    var r2 = await sbAuth.from('marches').select('id, ref, nom, client_id, client_name, date_debut, date_fin, montant, statut, agence, adresse, ville, code_postal, lat, lng, responsable_id').range(off2, off2 + 999);
-    if (r2.error || !r2.data || r2.data.length === 0) break;
-    allMarches = allMarches.concat(r2.data);
-    if (r2.data.length < 1000) break;
-    off2 += 1000;
-  }
+async function loadAffairesMarches() {
+  var [allAffaires, allMarches] = await Promise.all([
+    _paginateAll('affaires', 'id, ref, nom, marche_id, client_id, client_name, date_debut, date_fin, montant, statut, agence, responsable_id, code_projet, responsable, adresse, ville, code_postal, lat, lng, architecte, apporteur_affaire'),
+    _paginateAll('marches', 'id, ref, nom, client_id, client_name, date_debut, date_fin, montant, statut, agence, adresse, ville, code_postal, lat, lng, responsable_id')
+  ]);
+  allAffaires.forEach(function(a) { affairesMap[a.id] = a; });
   allMarches.forEach(function(m) { marchesMap[m.id] = m; });
   console.log('[Commandes] ' + allAffaires.length + ' affaires, ' + allMarches.length + ' marchés chargés');
 }
@@ -6351,30 +6351,34 @@ async function loadCommandesFromSupabase() {
     // Appliquer filtres admin
     var g = settingsGeneral;
     var exclure = (g.akuiteoExclure || []).map(function(s) { return s.toLowerCase().trim(); });
-    var statuts = (g.akuiteoStatuts || []).map(function(s) { return s.toLowerCase().trim(); });
+    var statutsRaw = (g.akuiteoStatuts || []).map(function(s) { return s.trim(); });
+    var statuts = statutsRaw.map(function(s) { return s.toLowerCase(); });
     var societes = (g.akuiteoSocietes || []).map(function(s) { return s.trim(); });
     var filtCategories = g.akuiteoCategories || [];
     var filtTypes = g.akuiteoTypes || [];
     var filtCdStatuts = g.akuiteoStatutsCustom || [];
 
-    // Pagination pour dépasser la limite Supabase de 1000 lignes
+    // Pagination avec filtres Supabase pour réduire le volume transféré
     var data = [], off = 0;
+    var t0 = performance.now();
     while (true) {
-      var r = await sbAuth.from('commandes').select(cols).order('date', { ascending: false }).range(off, off + 999);
+      var q = sbAuth.from('commandes').select(cols).order('date', { ascending: false });
+      if (societes.length > 0) q = q.in('societe', societes);
+      if (statuts.length > 0) q = q.in('statut', statuts);
+      q = q.range(off, off + 999);
+      var r = await q;
       if (r.error) { console.error('[Commandes] Erreur Supabase:', r.error); return; }
       if (!r.data || r.data.length === 0) break;
       data = data.concat(r.data);
       if (r.data.length < 1000) break;
       off += 1000;
     }
+    console.log('[Commandes] ' + data.length + ' commandes chargees en ' + Math.round(performance.now() - t0) + 'ms');
 
-    // Filtrer côté client
+    // Filtrer côté client (custom_data non filtrable côté Supabase)
     commandesData = data.filter(function(c) {
       var s = (c.statut || '').toLowerCase();
       if (exclure.length > 0 && exclure.indexOf(s) >= 0) return false;
-      if (statuts.length > 0 && statuts.indexOf(s) < 0) return false;
-      if (societes.length > 0 && societes.indexOf(c.societe || '') < 0) return false;
-      // Custom data filters — parser si stocké en string JSON
       var cd = c.custom_data;
       if (typeof cd === 'string') {
         try { cd = JSON.parse(cd); c.custom_data = cd; } catch(e) { cd = null; }
