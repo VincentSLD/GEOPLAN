@@ -274,6 +274,10 @@ export default async function handler(req) {
             const evt = JSON.parse(data);
             if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
               await writer.write(encoder.encode('data: ' + JSON.stringify({ text: evt.delta.text }) + '\n\n'));
+            } else if (evt.type === 'message_start' && evt.message && evt.message.usage) {
+              await writer.write(encoder.encode('data: ' + JSON.stringify({ usage_start: { input_tokens: evt.message.usage.input_tokens } }) + '\n\n'));
+            } else if (evt.type === 'message_delta' && evt.usage) {
+              await writer.write(encoder.encode('data: ' + JSON.stringify({ usage_end: { output_tokens: evt.usage.output_tokens } }) + '\n\n'));
             }
           } catch (e) {}
         }

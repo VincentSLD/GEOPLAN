@@ -80,6 +80,10 @@ body{font-family:"Bricolage Grotesque",sans-serif;background:var(--bg-primary);c
 <div class="ai-input-bar">
   <textarea id="aiInput" placeholder="Ex: Optimise les tournées de demain en regroupant par zone..." rows="1"></textarea>
   <button class="ai-send-btn" id="aiSendBtn" onclick="doSend()">➤</button>
+  <div id="aiCostBar" style="width:100%;display:none;justify-content:space-between;align-items:center;font-size:0.62rem;color:var(--text-muted);font-weight:600;padding:0 2px;order:1;">
+    <span id="aiCostTokens"></span>
+    <span id="aiCostPrice"></span>
+  </div>
 </div>
 
 <script>
@@ -113,8 +117,10 @@ bc.onmessage = function(ev) {
   else if (d.type === "ai-stream-html") { streamHtml(d.html); }
   else if (d.type === "ai-error") { hideTyping(); appendMsg("ai", "⚠️ " + d.text); enableInput(); }
   else if (d.type === "ai-stream-done") { enableInput(); }
+  else if (d.type === "ai-cost") { updateCostBar(d.input, d.output); }
   else if (d.type === "ai-reset") {
     messagesEl.innerHTML = '<div class="ai-msg-system">Assistant IA propulsé par Claude — fenêtre détachée, connectée à GéoPlan</div>';
+    updateCostBar(0, 0);
     enableInput();
   }
   else if (d.type === "reattach") { window.close(); }
@@ -215,6 +221,16 @@ function updateProgress(blockId) {
   items.forEach(function(el) { if (el.classList.contains("applied") || el.classList.contains("rejected")) done++; });
   var prog = document.getElementById(blockId + "-progress");
   if (prog) prog.textContent = done + " / " + items.length + " traitée(s)";
+}
+
+function updateCostBar(inp, out) {
+  var bar = document.getElementById("aiCostBar");
+  if (!bar) return;
+  if (!inp && !out) { bar.style.display = "none"; return; }
+  bar.style.display = "flex";
+  document.getElementById("aiCostTokens").textContent = (inp/1000).toFixed(1) + "k in / " + (out/1000).toFixed(1) + "k out";
+  var cost = (inp * 3.0 + out * 15.0) / 1e6;
+  document.getElementById("aiCostPrice").textContent = "~" + cost.toFixed(4) + " $";
 }
 </script>
 </body>
