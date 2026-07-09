@@ -12153,7 +12153,10 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
 
 document.getElementById('toggle-signup').addEventListener('click', toggleAuthMode);
 
-sbAuth.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT') showLogin(); });
+sbAuth.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') showLogin();
+  if (event === 'SIGNED_IN' && session?.user && !currentAuthUser) { showApp(session.user); }
+});
 
 // ═══ AUTO-LOGIN ═══
 (async () => {
