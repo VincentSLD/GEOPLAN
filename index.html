@@ -1703,21 +1703,6 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <svg width="18" height="18" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
       Se connecter avec Microsoft
     </button>
-    <form id="login-form">
-      <div class="login-field"><label>Email</label><input type="email" id="login-email" required></div>
-      <div class="login-field"><label>Mot de passe</label><input type="password" id="login-password" required autocomplete="current-password"></div>
-      <button type="submit" id="login-submit" class="login-btn">Se connecter</button>
-      <div id="login-error" class="login-error"></div>
-    </form>
-    <form id="signup-form" style="display:none;">
-      <div class="login-field"><label>Nom complet</label><input type="text" id="signup-name" required></div>
-      <div class="login-field"><label>Email</label><input type="email" id="signup-email" required></div>
-      <div class="login-field"><label>Mot de passe</label><input type="password" id="signup-password" required autocomplete="new-password"></div>
-      <button type="submit" id="signup-submit" class="login-btn">Créer mon compte</button>
-      <div id="signup-error" class="login-error"></div>
-      <div id="signup-success" class="login-success"></div>
-    </form>
-    <div class="login-footer" id="toggle-signup">Pas encore de compte ? <b>S'inscrire</b></div>
   </div>
 </div>
 
@@ -12171,17 +12156,6 @@ async function exportConnexionsLogCSV() {
   URL.revokeObjectURL(url);
 }
 
-function toggleAuthMode() {
-  const lf = document.getElementById('login-form'), sf = document.getElementById('signup-form'), tg = document.getElementById('toggle-signup');
-  const isLogin = lf.style.display !== 'none';
-  lf.style.display = isLogin ? 'none' : 'block';
-  sf.style.display = isLogin ? 'block' : 'none';
-  tg.innerHTML = isLogin ? 'Déjà un compte ? <b>Se connecter</b>' : 'Pas encore de compte ? <b>S\'inscrire</b>';
-  document.getElementById('login-error').textContent = '';
-  document.getElementById('signup-error').textContent = '';
-  document.getElementById('signup-success').textContent = '';
-}
-
 async function signInWithMicrosoft() {
   const btn = document.getElementById('msLoginBtn');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
@@ -12190,47 +12164,6 @@ async function signInWithMicrosoft() {
     if (error) throw error;
   } catch (e) { if (btn) { btn.disabled = false; btn.style.opacity = '1'; } alert('Connexion Microsoft indisponible : ' + (e.message || e)); }
 }
-
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errorEl = document.getElementById('login-error');
-  const btn = document.getElementById('login-submit');
-  errorEl.textContent = ''; btn.disabled = true; btn.textContent = 'Connexion...';
-  try {
-    const { data, error } = await sbAuth.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    const hasAccess = await checkGeocartoAccess(data.user.id);
-    if (!hasAccess) { await sbAuth.auth.signOut(); throw new Error('Votre accès n\'a pas encore été approuvé par un administrateur.'); }
-    showApp(data.user);
-  } catch (err) {
-    errorEl.textContent = err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : err.message || 'Erreur de connexion.';
-  } finally { btn.disabled = false; btn.textContent = 'Se connecter'; }
-});
-
-document.getElementById('signup-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const password = document.getElementById('signup-password').value;
-  const errorEl = document.getElementById('signup-error'), successEl = document.getElementById('signup-success');
-  const btn = document.getElementById('signup-submit');
-  errorEl.textContent = ''; successEl.textContent = ''; btn.disabled = true; btn.textContent = 'Création...';
-  try {
-    const { data, error } = await sbAuth.auth.signUp({ email, password, options: { data: { full_name: name } } });
-    if (error) throw error;
-    const userId = data.user.id;
-    const notifyRes = await fetch('https://geocarto.vercel.app/api/notify-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, user_email: email, user_name: name }) });
-    if (!notifyRes.ok) console.warn('Notification admin échouée:', notifyRes.status);
-    successEl.textContent = 'Compte créé ! Un administrateur a été notifié. Vous recevrez l\'accès sous peu.';
-    await sbAuth.auth.signOut();
-  } catch (err) {
-    errorEl.textContent = err.message === 'User already registered' ? 'Un compte existe déjà avec cet email.' : err.message || 'Erreur lors de la création.';
-  } finally { btn.disabled = false; btn.textContent = 'Créer mon compte'; }
-});
-
-document.getElementById('toggle-signup').addEventListener('click', toggleAuthMode);
 
 sbAuth.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_OUT') showLogin();
