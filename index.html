@@ -1755,6 +1755,26 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
   <div class="global-loader-msg" id="globalLoaderMsg">Chargement...</div>
 </div>
 
+<!-- MON ESPACE -->
+<div id="monEspaceOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10000;cursor:pointer;" onclick="closeMonEspace()"></div>
+<div id="monEspacePanel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;padding:24px;width:380px;max-height:80vh;overflow-y:auto;z-index:10001;box-shadow:0 16px 64px rgba(0,0,0,0.3);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <h3 style="margin:0;font-size:1rem;font-weight:800;">Mon Espace</h3>
+    <button onclick="closeMonEspace()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">&times;</button>
+  </div>
+  <div id="monEspaceUser" style="margin-bottom:16px;padding:10px 12px;background:#f9fafb;border-radius:8px;font-size:0.78rem;"></div>
+  <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px;letter-spacing:0.04em;">Préférences</div>
+  <div style="margin-bottom:12px;">
+    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px;">Groupe / Équipe par défaut</label>
+    <select id="monEspaceGroupeDefaut" onchange="saveMonEspacePrefs()" style="width:100%;height:32px;border:1px solid #ddd;border-radius:6px;padding:0 8px;font-size:0.78rem;font-family:inherit;">
+      <option value="">Tous les groupes</option>
+    </select>
+  </div>
+  <div style="text-align:right;margin-top:16px;">
+    <span id="monEspaceSaveStatus" style="font-size:0.7rem;color:#16A34A;font-weight:600;"></span>
+  </div>
+</div>
+
 <div class="app" style="display:none;width:100%;height:100vh;">
 
 <!-- Mobile technician view -->
@@ -1880,7 +1900,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="topbar-separator"></div>
       <div id="auth-user-bar-inline" class="auth-inline">
         <button class="admin-btn" id="admin-btn-inline" style="display:none;" onclick="openAdminPanel()">Admin <span class="admin-badge" id="admin-badge-inline"></span></button>
-        <div class="auth-avatar" id="auth-avatar-inline"></div>
+        <div class="auth-avatar" id="auth-avatar-inline" onclick="openMonEspace()" style="cursor:pointer;" title="Mon Espace"></div>
         <button class="auth-logout" onclick="authLogout()">Déconnexion</button>
       </div>
     </div>
@@ -12268,6 +12288,50 @@ async function checkGeocartoAccess(userId) {
   return data?.approved === true;
 }
 
+// ═══ Mon Espace (préférences utilisateur) ═══
+function _monEspaceKey() {
+  if (!currentAuthUser || !currentAuthUser.email) return null;
+  return 'geoplan_userprefs_' + currentAuthUser.email.toLowerCase().trim();
+}
+function loadMonEspacePrefs() {
+  var key = _monEspaceKey();
+  if (!key) return {};
+  try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { return {}; }
+}
+function saveMonEspacePrefs() {
+  var key = _monEspaceKey();
+  if (!key) return;
+  var prefs = loadMonEspacePrefs();
+  var sel = document.getElementById('monEspaceGroupeDefaut');
+  prefs.defaultGroupId = sel ? (sel.value ? parseInt(sel.value) : null) : null;
+  localStorage.setItem(key, JSON.stringify(prefs));
+  var st = document.getElementById('monEspaceSaveStatus');
+  if (st) { st.textContent = '✓ Enregistré'; setTimeout(function() { st.textContent = ''; }, 2000); }
+}
+function applyMonEspacePrefs() {
+  var prefs = loadMonEspacePrefs();
+  if (prefs.defaultGroupId) {
+    selectedGroupId = prefs.defaultGroupId;
+  }
+}
+function openMonEspace() {
+  if (!currentAuthUser) return;
+  var email = currentAuthUser.email || '';
+  var name = currentAuthUser.user_metadata?.full_name || email.split('@')[0];
+  document.getElementById('monEspaceUser').innerHTML = '<div style="font-weight:700;">' + name + '</div><div style="color:#888;font-size:0.7rem;">' + email + '</div>';
+  var sel = document.getElementById('monEspaceGroupeDefaut');
+  var grps = typeof settingsGroups !== 'undefined' ? settingsGroups : [];
+  sel.innerHTML = '<option value="">Tous les groupes</option>' + grps.map(function(g) { return '<option value="' + g.id + '">' + g.nom + '</option>'; }).join('');
+  var prefs = loadMonEspacePrefs();
+  if (prefs.defaultGroupId) sel.value = prefs.defaultGroupId;
+  document.getElementById('monEspaceOverlay').style.display = 'block';
+  document.getElementById('monEspacePanel').style.display = 'block';
+}
+function closeMonEspace() {
+  document.getElementById('monEspaceOverlay').style.display = 'none';
+  document.getElementById('monEspacePanel').style.display = 'none';
+}
+
 function showApp(user) {
   currentAuthUser = user;
   document.getElementById('login-screen').classList.add('hidden');
@@ -12282,7 +12346,7 @@ function showApp(user) {
   try { sbAuth.from('connexions_log').insert({ user_id: user.id, email: user.email || null, nom: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : null), app: 'geoplan' }).then(() => {}, () => {}); } catch (e) {}
   // Sync settings from Supabase before init
   showLoader('Synchronisation des paramètres...');
-  loadAllSettingsFromSupabase().then(() => init());
+  loadAllSettingsFromSupabase().then(() => { applyMonEspacePrefs(); init(); });
 }
 
 function showLogin() {
