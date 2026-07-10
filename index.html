@@ -2106,12 +2106,14 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
               <div class="int-info-item" id="intInfoArchi" style="display:none;"><div class="int-info-label">Architecte</div><div class="int-info-value" id="intInfoArchiVal" style="font-size:0.78rem;color:var(--text-secondary);font-weight:500;">—</div></div>
               <div class="int-info-item" id="intInfoGO" style="display:none;"><div class="int-info-label">Gros Oeuvre</div><div class="int-info-value" id="intInfoGOVal" style="font-size:0.78rem;color:var(--text-secondary);font-weight:500;">—</div></div>
             </div>
-            <div class="int-info-item" id="intInfoMission" style="flex:0 0 180px;display:none;align-self:flex-start;"><div class="int-info-label">Type de mission</div><div class="int-info-value" id="intInfoMissionVal" style="font-size:0.78rem;"></div></div>
+            <div style="flex:0 0 180px;display:flex;flex-direction:column;gap:2px;">
+              <div class="int-info-item" id="intInfoMission" style="display:none;"><div class="int-info-label">Type de mission</div><div class="int-info-value" id="intInfoMissionVal" style="font-size:0.78rem;"></div></div>
+              <div style="display:flex;gap:6px;" id="intInfoDates">
+                <div class="int-info-item" id="intInfoDLR" style="flex:1;display:none;"><div class="int-info-label">DLR</div><div class="int-info-value"><input type="date" id="cdDlrInput" onchange="onCmdFieldChange('dlr')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.78rem;font-family:inherit;background:#fff;"></div></div>
+                <div class="int-info-item" id="intInfoDLC" style="flex:1;display:none;"><div class="int-info-label">DLC</div><div class="int-info-value"><input type="date" id="cdDlcInput" onchange="onCmdFieldChange('dlc')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.78rem;font-family:inherit;background:#fff;"></div></div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:4px;" id="intInfoDates">
-          <div class="int-info-item" id="intInfoDLR" style="flex:0 0 130px;display:none;"><div class="int-info-label">DLR</div><div class="int-info-value"><input type="date" id="cdDlrInput" onchange="onCmdFieldChange('dlr')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.78rem;font-family:inherit;background:#fff;"></div></div>
-          <div class="int-info-item" id="intInfoDLC" style="flex:0 0 130px;display:none;"><div class="int-info-label">DLC</div><div class="int-info-value"><input type="date" id="cdDlcInput" onchange="onCmdFieldChange('dlc')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.78rem;font-family:inherit;background:#fff;"></div></div>
         </div>
         <div id="cdTempsPasseRow" style="display:none;margin-bottom:4px;padding:4px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;font-size:0.72rem;">
           <label style="display:flex;align-items:center;gap:8px;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Temps passé</span><input type="number" id="cdTempsPasseInput" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="width:70px;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;"><span style="font-size:0.7rem;color:var(--text-muted);">h</span></label>
