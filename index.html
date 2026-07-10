@@ -2558,7 +2558,8 @@ function subscribeRealtimeCommandes() {
       if (payload.new.description !== undefined) cmd.description = payload.new.description;
       var infosAdvEl = document.getElementById('intInfosAdv');
       if (infosAdvEl && infosAdvEl.getAttribute('data-cmd-id') === cmd.id && document.activeElement !== infosAdvEl) {
-        infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || '';
+        var freshCmt = getCmdComment(cmd) || cmd.description || '';
+        if (freshCmt) infosAdvEl.textContent = freshCmt;
       }
       console.log('[Realtime] MAJ commande ' + cmd.id);
     })
