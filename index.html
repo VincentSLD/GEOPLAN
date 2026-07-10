@@ -7736,7 +7736,7 @@ function renderGeosoliaEnquete(prog) {
   // Ligne 3 : Programme de reconnaissance
   var hasProg = prog.programPenetros || prog.programTarieres || prog.programRecoFondation || prog.programSondagePelle || Object.keys(prog.sondageCounts).length > 0;
   if (hasProg) {
-    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation</strong>';
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation minimum</strong>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (prog.programPenetros) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#eff6ff;border:1px solid #2563EB30;color:#2563EB;">' + prog.programPenetros + ' Pénétro.</span>';
     if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
@@ -8042,7 +8042,7 @@ function onGeosoliaSelect() {
   // Afficher uniquement le programme d'investigation
   var hasProg = prog.programPenetros || prog.programTarieres || prog.programRecoFondation || prog.programSondagePelle || Object.keys(prog.sondageCounts).length > 0;
   if (hasProg) {
-    var html = '<strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation</strong>';
+    var html = '<strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation minimum</strong>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (prog.programPenetros) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#eff6ff;border:1px solid #2563EB30;color:#2563EB;">' + prog.programPenetros + ' Pénétro.</span>';
     if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
