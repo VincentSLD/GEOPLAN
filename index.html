@@ -584,6 +584,17 @@ body::before {
 }
 .modal-close:hover { background: rgba(220,38,38,0.08); color: #DC2626; border-color: rgba(220,38,38,0.3); }
 .modal-body { padding: 8px 16px; }
+.int-section { margin-bottom:6px; padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border); border-radius:var(--radius-xs); }
+.int-section-title { font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:4px; }
+.int-info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:2px 12px; }
+.int-info-item { padding:2px 0; }
+.int-info-label { font-size:0.55rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); }
+.int-info-value { font-size:0.78rem; font-weight:600; color:var(--text-primary); }
+.int-entite-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 14px; border-radius:6px; font-size:0.82rem; font-weight:800; letter-spacing:0.04em; }
+.int-accordion-more summary { cursor:pointer; font-size:0.7rem; font-weight:700; color:var(--text-muted); padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border); border-radius:4px; list-style:none; display:flex; align-items:center; gap:6px; }
+.int-accordion-more summary:hover { color:var(--text-primary); border-color:var(--gph-yellow); }
+.int-accordion-more[open] summary { border-radius:4px 4px 0 0; border-bottom:none; }
+.int-accordion-more .int-accordion-content { border:1px solid var(--border); border-top:none; border-radius:0 0 4px 4px; padding:8px 10px; background:#fff; }
 .form-group { margin-bottom: 3px; }
 .form-label {
   display: block;
@@ -2073,63 +2084,61 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
-      <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
-      <div class="form-row">
+      <!-- ═══ SECTION 1 : COMMANDE (sélection) ═══ -->
+      <div class="form-row" style="margin-bottom:4px;">
         <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
-        <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
-        <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
-          <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📁 Copier chemin serveur</button>
-          <button type="button" id="btnCreateDDC" onclick="showCreateDDCDialog()" style="display:none;padding:4px 8px;border:1px solid #0891B2;border-radius:var(--radius-xs);background:#f0fdfa;font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;color:#0891B2;" title="Créer une intervention DDC dans EXEPLAN">⚡ DDC EXEPLAN</button>
-          <span id="ddcExistsBadge" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">✓ DDC créée</span>
+        <div class="form-group" id="intTypeGroup" style="flex:0 0 160px;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
+      </div>
+
+      <!-- ═══ SECTION 2 : INFOS IMPORTANTES (haut, bien visible) ═══ -->
+      <div id="intInfoHeader" style="display:none;">
+        <div id="intEntiteBanner" style="margin-bottom:4px;text-align:center;display:none;">
+          <span id="intEntiteBadge" class="int-entite-badge"></span>
+        </div>
+        <div class="int-section" id="intInfoSection">
+          <div class="int-info-grid">
+            <div class="int-info-item" id="intInfoStatut" style="display:none;"><div class="int-info-label">Statut</div><div class="int-info-value" id="intInfoStatutVal"></div></div>
+            <div class="int-info-item" id="intInfoAffaire" style="display:none;"><div class="int-info-label">N° Affaire</div><div class="int-info-value" id="intInfoAffaireVal"></div></div>
+            <div class="int-info-item"><div class="int-info-label">Client Facturé</div><div class="int-info-value"><input class="form-input" id="intClient" placeholder="Ex: Bouygues" style="font-size:0.78rem;font-weight:600;padding:1px 4px;height:24px;"></div></div>
+          </div>
+          <div class="int-info-grid" style="margin-top:2px;">
+            <div class="int-info-item" id="intInfoApporteur" style="display:none;"><div class="int-info-label">Apporteur d'affaire</div><div class="int-info-value" id="intInfoApporteurVal"></div></div>
+            <div class="int-info-item" id="intInfoGO" style="display:none;"><div class="int-info-label">Gros Oeuvre</div><div class="int-info-value" id="intInfoGOVal"></div></div>
+            <div class="int-info-item" id="intInfoArchi" style="display:none;"><div class="int-info-label">Architecte</div><div class="int-info-value" id="intInfoArchiVal"></div></div>
+          </div>
+          <div class="int-info-grid" style="margin-top:2px;">
+            <div class="int-info-item" id="intInfoMission" style="display:none;"><div class="int-info-label">Type de mission</div><div class="int-info-value" id="intInfoMissionVal"></div></div>
+            <div class="int-info-item" id="intInfoCategorie" style="display:none;"><div class="int-info-label">Catégorie</div><div class="int-info-value" id="intInfoCategorieVal"></div></div>
+          </div>
+        </div>
+        <div class="int-info-grid" style="margin-bottom:4px;" id="intInfoDates">
+          <div class="int-info-item" id="intInfoDLR" style="display:none;"><div class="int-info-label">DLR</div><div class="int-info-value" id="intInfoDLRVal"></div></div>
+          <div class="int-info-item" id="intInfoDLC" style="display:none;"><div class="int-info-label">DLC</div><div class="int-info-value" id="intInfoDLCVal"></div></div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:3;"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
-        <div class="form-group" style="flex:1;"><label class="form-label">Client Facturé</label><input class="form-input" id="intClient" placeholder="Ex: Bouygues"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:3;"><label class="form-label">Adresse du client facturé</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
-        <div class="form-group" id="intTypeGroup" style="flex:1;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
-      </div>
-      <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
+      <!-- Adresse toujours visible -->
+      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Adresse du client facturé</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
+
+      <!-- ═══ SECTION 3 : PLANNING (éditable) ═══ -->
+      <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
       <div class="form-row">
         <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select><div id="intMultiTechBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiTechToggle" onchange="toggleMultiTech()"> Appliquer à plusieurs techniciens</label><div id="intMultiTechList" style="display:none;margin-top:4px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"></div></div></div>
         <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"><div id="intMultiDateBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiDateToggle" onchange="toggleMultiDate()"> Plusieurs dates</label><div id="intMultiDateList" style="display:none;margin-top:4px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"><div id="intMultiDateItems"></div><div style="display:flex;gap:4px;margin-top:4px;"><input type="date" id="intMultiDateInput" class="form-input" style="flex:1;font-size:0.72rem;padding:2px 4px;"><button type="button" onclick="addMultiDate()" style="padding:2px 8px;font-size:0.72rem;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;">+</button></div></div></div></div>
         <div class="form-group" style="flex:0 0 70px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
-      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px;"></div>
       <select class="form-select" id="intStatus" style="display:none;"></select>
-      <div id="intRecurrenceBlock" style="margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
-        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">
-          <input type="checkbox" id="intRecurrenceEnabled" onchange="toggleRecurrenceUI()"> Récurrence
-        </label>
-        <div id="intRecurrenceOptions" style="display:none;margin-top:8px;">
-          <div class="form-row" style="gap:8px;">
-            <div class="form-group" style="flex:1;"><label class="form-label">Fréquence</label><select class="form-select" id="intRecurrenceFreq" onchange="onRecurrenceFreqChange();updateRecurrencePreview()"><option value="weekly">Toutes les semaines</option><option value="biweekly">Toutes les 2 semaines</option><option value="monthly">Tous les mois (même jour)</option><option value="custom">Personnalisé</option></select></div>
-            <div class="form-group" id="intRecurrenceCustomGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Tous les N jours</label><input class="form-input" id="intRecurrenceCustomDays" type="number" min="1" max="365" value="7" onchange="updateRecurrencePreview()"></div>
-          </div>
-          <div class="form-row" style="gap:8px;margin-top:6px;">
-            <div class="form-group" style="flex:1;"><label class="form-label">Fin de récurrence</label><select class="form-select" id="intRecurrenceEndType" onchange="toggleRecurrenceEndUI();updateRecurrencePreview()"><option value="none">Pas de fin (52 max)</option><option value="date">Jusqu'à une date</option><option value="count">Nombre d'occurrences</option></select></div>
-            <div class="form-group" id="intRecurrenceEndDateGroup" style="flex:1;"><label class="form-label">Date de fin</label><input class="form-input" id="intRecurrenceEndDate" type="date" onchange="updateRecurrencePreview()"></div>
-            <div class="form-group" id="intRecurrenceCountGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Occurrences</label><input class="form-input" id="intRecurrenceCount" type="number" min="2" max="52" value="4" onchange="updateRecurrencePreview()"></div>
-          </div>
-          <div id="intRecurrencePreview" style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;"></div>
-        </div>
-      </div>
-      <div id="intGeosoliaInfo" style="display:none;margin:2px 0 3px;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
-      <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
-      <div id="intCustomData" style="display:none;"></div>
-      <div id="intEntiteArchRow" style="display:none;margin:4px 0;padding:5px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.72rem;display:flex;gap:16px;flex-wrap:wrap;">
-        <span id="intEntiteBlock" style="display:none;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-right:6px;">🏢 Entité</span><span id="intEntiteValue" style="font-weight:700;"></span></span>
-        <span id="intArchitecteBlock" style="display:none;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-right:6px;">🏛 Architecte</span><span id="intArchitecteValue" style="font-weight:600;color:var(--text-primary);"></span></span>
-      </div>
+
+      <!-- ═══ SECTION 4 : IMPORTANCE MOYENNE ═══ -->
+      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0;"></div>
+      <div id="intGeosoliaInfo" style="display:none;margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+
+      <!-- ═══ SECTION 5 : HABITUDES ═══ -->
       <div id="habitudesAccordion" style="display:none;margin:8px 0;">
         <details style="margin-bottom:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">📘</span>
-            <span>Habitudes du client facturé</span>
+            <span style="font-size:0.85rem;">📘</span><span>Habitudes du client facturé</span>
             <span id="habClientName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
             <span id="habClientBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
           </summary>
@@ -2144,8 +2153,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         </details>
         <details>
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🏗</span>
-            <span>Habitudes du gros oeuvre</span>
+            <span style="font-size:0.85rem;">🏗</span><span>Habitudes du gros oeuvre</span>
             <span id="habGoName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
             <span id="habGoBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
           </summary>
@@ -2160,8 +2168,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         </details>
         <details style="margin-top:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🏛</span>
-            <span>Habitudes de l'architecte</span>
+            <span style="font-size:0.85rem;">🏛</span><span>Habitudes de l'architecte</span>
             <span id="habArchiName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
             <span id="habArchiBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
           </summary>
@@ -2176,8 +2183,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         </details>
         <details style="margin-top:4px;">
           <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🤝</span>
-            <span>Habitudes de l'apporteur d'affaire</span>
+            <span style="font-size:0.85rem;">🤝</span><span>Habitudes de l'apporteur d'affaire</span>
             <span id="habApporteurName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
             <span id="habApporteurBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
           </summary>
@@ -2191,6 +2197,42 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           </div>
         </details>
       </div>
+
+      <!-- ═══ SECTION 6 : ACCORDÉON "PLUS" ═══ -->
+      <details class="int-accordion-more" style="margin-top:6px;">
+        <summary>📋 Plus d'informations</summary>
+        <div class="int-accordion-content">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
+            <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
+              <button type="button" id="btnCopyServer" onclick="copyServerPath()" style="display:none;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--bg-primary);font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;" title="Copier le chemin du dossier serveur">📁 Copier chemin serveur</button>
+              <button type="button" id="btnCreateDDC" onclick="showCreateDDCDialog()" style="display:none;padding:4px 8px;border:1px solid #0891B2;border-radius:var(--radius-xs);background:#f0fdfa;font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;color:#0891B2;" title="Créer une intervention DDC dans EXEPLAN">⚡ DDC EXEPLAN</button>
+              <span id="ddcExistsBadge" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">✓ DDC créée</span>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
+          <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
+          <div id="intCustomData" style="display:none;"></div>
+          <textarea class="form-textarea" id="intNotes" placeholder="Notes..." style="display:none;"></textarea>
+          <div id="intRecurrenceBlock" style="margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);">
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">
+              <input type="checkbox" id="intRecurrenceEnabled" onchange="toggleRecurrenceUI()"> Récurrence
+            </label>
+            <div id="intRecurrenceOptions" style="display:none;margin-top:8px;">
+              <div class="form-row" style="gap:8px;">
+                <div class="form-group" style="flex:1;"><label class="form-label">Fréquence</label><select class="form-select" id="intRecurrenceFreq" onchange="onRecurrenceFreqChange();updateRecurrencePreview()"><option value="weekly">Toutes les semaines</option><option value="biweekly">Toutes les 2 semaines</option><option value="monthly">Tous les mois (même jour)</option><option value="custom">Personnalisé</option></select></div>
+                <div class="form-group" id="intRecurrenceCustomGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Tous les N jours</label><input class="form-input" id="intRecurrenceCustomDays" type="number" min="1" max="365" value="7" onchange="updateRecurrencePreview()"></div>
+              </div>
+              <div class="form-row" style="gap:8px;margin-top:6px;">
+                <div class="form-group" style="flex:1;"><label class="form-label">Fin de récurrence</label><select class="form-select" id="intRecurrenceEndType" onchange="toggleRecurrenceEndUI();updateRecurrencePreview()"><option value="none">Pas de fin (52 max)</option><option value="date">Jusqu'à une date</option><option value="count">Nombre d'occurrences</option></select></div>
+                <div class="form-group" id="intRecurrenceEndDateGroup" style="flex:1;"><label class="form-label">Date de fin</label><input class="form-input" id="intRecurrenceEndDate" type="date" onchange="updateRecurrencePreview()"></div>
+                <div class="form-group" id="intRecurrenceCountGroup" style="flex:0 0 110px;display:none;"><label class="form-label">Occurrences</label><input class="form-input" id="intRecurrenceCount" type="number" min="2" max="52" value="4" onchange="updateRecurrencePreview()"></div>
+              </div>
+              <div id="intRecurrencePreview" style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;"></div>
+            </div>
+          </div>
+        </div>
+      </details>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
@@ -4580,7 +4622,7 @@ function updateSiblingDurTotals(){
   if(durEl&&durEl.readOnly)durEl.value=fmtDurInput(total);
 }
 function resetSuppMode(){document.getElementById('intCommande').disabled=false;document.getElementById('intGeosolia').disabled=false;_suppGeosoliaId=null;document.querySelectorAll('[data-supp-locked]').forEach(function(el){el.classList.remove('supp-locked');el.removeAttribute('data-supp-locked');});document.querySelectorAll('.supp-highlight').forEach(function(el){el.classList.remove('supp-highlight');});var durEl=document.getElementById('intDuration');if(durEl){durEl.readOnly=false;durEl.style.opacity='';durEl.title='';}var b=document.getElementById('intSuppBanner');if(b){b.style.display='none';b.innerHTML='';}}
-function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetMultiTech();resetMultiDate();resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
+function openModal(){editingId=null;resetSuppMode();document.getElementById('btnPlanifierSupp').style.display='none';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';populateCommandeSelect();populateGeosoliaSelect();document.getElementById('modalTitle').textContent='Nouvelle intervention';document.getElementById('intDate').value='';document.getElementById('intStart').value='';document.getElementById('intDuration').value='';document.getElementById('intEnd').value='';document.getElementById('intTravel').value='';document.getElementById('intTravelReturn').value='';document.getElementById('intType').selectedIndex=0;document.getElementById('intStatus').selectedIndex=0;document.getElementById('intCommande').value='';document.getElementById('intGeosolia').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';var infoDiv=document.getElementById('intGeosoliaInfo');if(infoDiv)infoDiv.style.display='none';['intTitle','intAddress','intClient','intNotes'].forEach(function(id){document.getElementById(id).value='';});populateFlagsCheckboxes([]);document.getElementById('intInfosAdv').innerHTML='';document.getElementById('intInfosAdv').removeAttribute('data-cmd-id');var _cdBox=document.getElementById('intCustomData');if(_cdBox){_cdBox.innerHTML='';_cdBox.style.display='none';}document.getElementById('intTech').selectedIndex=-1;resetMultiTech();resetMultiDate();resetRecurrenceUI();document.getElementById('intRecurrenceBlock').style.display='';var _tg=document.getElementById('intTypeGroup');if(_tg)_tg.style.display='';var _cb2=document.getElementById('intTypeColorBar');if(_cb2){_cb2.style.background='transparent';_cb2.style.borderColor='#888';}_updateInfoHeader(null);document.getElementById('modalOverlay').classList.add('active');if(!_intAddrInitialized){setupAddressAutocompleteSimple('intAddress');_intAddrInitialized=true;}}
 // ===== RÉCURRENCE =====
 function toggleRecurrenceUI() {
   var opts = document.getElementById('intRecurrenceOptions');
@@ -5108,7 +5150,7 @@ function editIntervention(id){
   document.getElementById('intTravel').value=i.travelTo;document.getElementById('intTravelReturn').value=i.travelFrom;
   document.getElementById('intClient').value=i.client;document.getElementById('intNotes').value=i.notes;
   if(i.commandeId){document.getElementById('intCommande').value=i.commandeId;onCommandeSelect();}
-  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';}
+  else{document.getElementById('intCommande').value='';document.getElementById('intAffaire').value='';document.getElementById('intMarche').value='';document.getElementById('btnCopyServer').style.display='none';document.getElementById('btnCreateDDC').style.display='none';document.getElementById('ddcExistsBadge').style.display='none';_updateInfoHeader(null);}
   document.getElementById('intGeosolia').value=i.geosoliaId||'';
   onGeosoliaSelect();
   populateFlagsCheckboxes(i.flags||[]);
@@ -6861,6 +6903,77 @@ function linkEtudeToIntervention(ref, nom, client) {
   document.getElementById('intClient').value = client;
 }
 
+function _showInfoField(id, val) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = val ? '' : 'none';
+  var valEl = document.getElementById(id + 'Val');
+  if (valEl) valEl.textContent = val || '';
+}
+function _fmtDateFr(raw) {
+  if (!raw) return '';
+  var d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw).substring(0, 10);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function _updateInfoHeader(cmd) {
+  var header = document.getElementById('intInfoHeader');
+  if (!cmd) {
+    if (header) header.style.display = 'none';
+    return;
+  }
+  if (header) header.style.display = '';
+  var cd = cmd.custom_data || {};
+  var _cdVal = function(key) { var r = cd[key]; return r && typeof r === 'object' ? (r.value || '') : (r || ''); };
+  // Entité
+  var soc = cmd.societe || '';
+  var entBanner = document.getElementById('intEntiteBanner');
+  var entBadge = document.getElementById('intEntiteBadge');
+  if (soc && entBanner && entBadge) {
+    var socColors = typeof _SOC_COLORS !== 'undefined' ? _SOC_COLORS : {};
+    var sc = socColors[soc] || { bg: '#f5f5f0', text: '#1a1a1a' };
+    entBadge.textContent = soc;
+    entBadge.style.background = sc.bg || '#f5f5f0';
+    entBadge.style.color = sc.text || '#1a1a1a';
+    entBanner.style.display = '';
+  } else if (entBanner) { entBanner.style.display = 'none'; }
+  // Statut
+  var statut = _cdVal('1-alpha17');
+  _showInfoField('intInfoStatut', statut);
+  if (statut) {
+    var sCol = statut === 'Terminée' ? '#16A34A' : statut === 'En attente' ? '#D97706' : statut === 'En cours' ? '#2563EB' : 'var(--text-primary)';
+    var sEl = document.getElementById('intInfoStatutVal');
+    if (sEl) sEl.style.color = sCol;
+  }
+  // Affaire
+  var affRef = cmd._affaire ? cmd._affaire.ref : '';
+  _showInfoField('intInfoAffaire', affRef);
+  // Apporteur, GO, Architecte
+  _showInfoField('intInfoApporteur', cmd._apporteur || _cdVal('1-alpha10'));
+  _showInfoField('intInfoGO', _cdVal('1-alpha12'));
+  _showInfoField('intInfoArchi', cmd._architecte || _cdVal('1-alpha09'));
+  // Type de mission, Catégorie
+  _showInfoField('intInfoMission', _cdVal('1-alpha06'));
+  _showInfoField('intInfoCategorie', _cdVal('1-alpha05'));
+  // DLR, DLC
+  var dlr = _fmtDateFr(_cdVal('1-date01'));
+  var dlc = _fmtDateFr(_cdVal('1-date02'));
+  _showInfoField('intInfoDLR', dlr);
+  _showInfoField('intInfoDLC', dlc);
+  if (dlr) {
+    var dlrEl = document.getElementById('intInfoDLRVal');
+    var dlrDate = new Date(_cdVal('1-date01'));
+    if (dlrEl && !isNaN(dlrDate.getTime()) && dlrDate < new Date()) dlrEl.style.color = '#DC2626';
+    else if (dlrEl) dlrEl.style.color = '';
+  }
+  if (dlc) {
+    var dlcEl = document.getElementById('intInfoDLCVal');
+    var dlcDate = new Date(_cdVal('1-date02'));
+    if (dlcEl && !isNaN(dlcDate.getTime()) && dlcDate < new Date()) dlcEl.style.color = '#DC2626';
+    else if (dlcEl) dlcEl.style.color = '';
+  }
+}
+
 function onCommandeSelect() {
   var sel = document.getElementById('intCommande');
   var cmdId = sel.value;
@@ -6878,8 +6991,7 @@ function onCommandeSelect() {
     if (typeGroup) typeGroup.style.display = '';
     var habBox = document.getElementById('habitudesAccordion');
     if (habBox) habBox.style.display = 'none';
-    var eaRow = document.getElementById('intEntiteArchRow');
-    if (eaRow) eaRow.style.display = 'none';
+    _updateInfoHeader(null);
     return;
   }
   if (typeGroup) typeGroup.style.display = 'none';
@@ -6887,14 +6999,16 @@ function onCommandeSelect() {
   if (!cmd) return;
   document.getElementById('intTitle').value = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.description || cmd.ref || '';
   document.getElementById('intClient').value = cmd.client_name || '';
-  if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
   document.getElementById('intAffaire').value = cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom || '').substring(0, 40)) : '';
   document.getElementById('intMarche').value = cmd._marche ? (cmd._marche.ref + ' — ' + (cmd._marche.nom || '').substring(0, 40)) : '';
   var _showServer = (cmd._affaire && cmd._affaire.ref) ? '' : 'none';
   document.getElementById('btnCopyServer').style.display = _showServer;
   document.getElementById('btnCreateDDC').style.display = cmdId ? '' : 'none';
   checkExistingDDC(cmdId);
-  // Bloc données personnalisées
+  // Info header (entité, statut, affaire, acteurs, mission, DLR/DLC)
+  _updateInfoHeader(cmd);
+  if (cmd._adresse) document.getElementById('intAddress').value = cmd._adresse;
+  // Bloc données personnalisées (dans l'accordéon)
   if (cdBox) {
     var html = renderCmdCustomDataHTML(cmd);
     cdBox.innerHTML = html;
@@ -6902,7 +7016,6 @@ function onCommandeSelect() {
   }
   // Infos ADV (commentaires synchronisés : Akuiteo ↔ GéoPlan ↔ Geosolia)
   if (infosAdvEl) {
-    // Fallback : Akuiteo custom_data → description → Geosolia infoGeotechnicien
     var _geoId = commandeGeosoliaLinks[cmdId] || '';
     var _geoComment = _geoId && geosoliaDataMap[_geoId] ? (geosoliaDataMap[_geoId].infoGeotechnicien || '') : '';
     infosAdvEl.textContent = getCmdComment(cmd) || cmd.description || _geoComment || '';
@@ -6911,13 +7024,14 @@ function onCommandeSelect() {
       if (freshComment) {
         infosAdvEl.textContent = freshComment;
         if (cdBox) { var html = renderCmdCustomDataHTML(cmd); cdBox.innerHTML = html; cdBox.style.display = html ? 'block' : 'none'; }
+        _updateInfoHeader(cmd);
       } else if (_geoComment && !infosAdvEl.textContent) {
         infosAdvEl.textContent = _geoComment;
       }
     });
     infosAdvEl.setAttribute('data-cmd-id', cmd.id);
   }
-  // Accordéon Habitudes (client + gros oeuvre)
+  // Accordéon Habitudes (client + gros oeuvre + architecte + apporteur)
   populateHabitudes(cmd);
   // Auto-remplir durée si vide
   var durInput = document.getElementById('intDuration');
@@ -7546,7 +7660,7 @@ function renderGeosoliaEnquete(prog) {
   // Ligne 3 : Programme de reconnaissance
   var hasProg = prog.programPenetros || prog.programTarieres || prog.programRecoFondation || prog.programSondagePelle || Object.keys(prog.sondageCounts).length > 0;
   if (hasProg) {
-    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme de reconnaissance</strong>';
+    html += '<div style="margin-bottom:8px;"><strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation</strong>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (prog.programPenetros) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#eff6ff;border:1px solid #2563EB30;color:#2563EB;">' + prog.programPenetros + ' Pénétro.</span>';
     if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
