@@ -2116,8 +2116,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <label style="display:flex;align-items:center;gap:8px;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Temps passé</span><input type="number" id="cdTempsPasseInput" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="width:70px;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;"><span style="font-size:0.7rem;color:var(--text-muted);">h</span></label>
         </div>
       </div>
-      <!-- Lieu (adresse d'intervention) toujours visible -->
-      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Lieu</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div></div>
+      <!-- Lieu d'intervention toujours visible -->
+      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Lieu d'intervention</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div></div>
 
       <!-- ═══ SECTION 3 : PLANNING (éditable) ═══ -->
       <div class="form-row">
@@ -2131,68 +2131,73 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <!-- ═══ SECTION 4 : IMPORTANCE MOYENNE ═══ -->
       <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0;"></div>
       <div id="intGeosoliaInfo" style="display:none;margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
-      <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
+      <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:120px;max-height:200px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
 
       <!-- ═══ SECTION 5 : HABITUDES ═══ -->
       <div id="habitudesAccordion" style="display:none;margin:8px 0;">
-        <details style="margin-bottom:4px;">
-          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">📘</span><span>Habitudes du client facturé</span>
-            <span id="habClientName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
-            <span id="habClientBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
-          </summary>
-          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
-            <div id="habClientTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
-            <div id="habClientGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
-            <div id="habClientAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-          </div>
-        </details>
-        <details>
-          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🏗</span><span>Habitudes du gros oeuvre</span>
-            <span id="habGoName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
-            <span id="habGoBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
-          </summary>
-          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
-            <div id="habGoTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
-            <div id="habGoGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
-            <div id="habGoAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-          </div>
-        </details>
-        <details style="margin-top:4px;">
-          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🏛</span><span>Habitudes de l'architecte</span>
-            <span id="habArchiName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
-            <span id="habArchiBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
-          </summary>
-          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
-            <div id="habArchiTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
-            <div id="habArchiGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
-            <div id="habArchiAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-          </div>
-        </details>
-        <details style="margin-top:4px;">
-          <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.85rem;">🤝</span><span>Habitudes de l'apporteur d'affaire</span>
-            <span id="habApporteurName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
-            <span id="habApporteurBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
-          </summary>
-          <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
-            <div id="habApporteurTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
-            <div id="habApporteurGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
-            <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
-            <div id="habApporteurAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+        <details id="habParentDetails" class="int-accordion-more">
+          <summary><span id="habParentBadge" style="display:none;width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;"></span> Habitudes Clients</summary>
+          <div class="int-accordion-content" style="padding:6px 8px;">
+            <details id="habClientDetails" style="margin-bottom:4px;">
+              <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:0.85rem;">📘</span><span>Client facturé</span>
+                <span id="habClientName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+                <span id="habClientBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+              </summary>
+              <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+                <div id="habClientTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+                <div id="habClientGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+                <div id="habClientAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+              </div>
+            </details>
+            <details id="habGoDetails" style="margin-bottom:4px;">
+              <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:0.85rem;">🏗</span><span>Gros oeuvre</span>
+                <span id="habGoName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+                <span id="habGoBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+              </summary>
+              <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+                <div id="habGoTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+                <div id="habGoGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+                <div id="habGoAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+              </div>
+            </details>
+            <details id="habArchiDetails" style="margin-bottom:4px;">
+              <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:0.85rem;">🏛</span><span>Architecte</span>
+                <span id="habArchiName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+                <span id="habArchiBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+              </summary>
+              <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+                <div id="habArchiTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+                <div id="habArchiGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+                <div id="habArchiAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+              </div>
+            </details>
+            <details id="habApporteurDetails" style="margin-bottom:4px;">
+              <summary style="cursor:pointer;font-size:0.7rem;font-weight:700;color:var(--gph-dark);padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;list-style:none;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:0.85rem;">🤝</span><span>Apporteur d'affaire</span>
+                <span id="habApporteurName" style="font-weight:400;color:var(--text-muted);font-size:0.66rem;flex:1;"></span>
+                <span id="habApporteurBadge" style="font-size:0.6rem;color:var(--text-muted);"></span>
+              </summary>
+              <div style="padding:8px 12px;font-size:0.72rem;border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;background:#fff;">
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">Habitudes techniques</div>
+                <div id="habApporteurTech" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes géotechniques</div>
+                <div id="habApporteurGeo" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+                <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin:8px 0 3px;border-top:1px dashed var(--border);padding-top:6px;">Habitudes administratives et commerciales</div>
+                <div id="habApporteurAdmin" style="white-space:pre-wrap;color:var(--text-secondary);min-height:18px;"></div>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -7292,6 +7297,31 @@ function renderHabitudesDetailHTML(cmd) {
   return html;
 }
 
+function _styleHabAccordion(detailsId, hasContent) {
+  var el = document.getElementById(detailsId);
+  if (!el) return;
+  var summary = el.querySelector('summary');
+  if (!summary) return;
+  if (hasContent) {
+    summary.style.borderLeft = '3px solid #16A34A';
+    summary.style.background = '#f0fdf4';
+  } else {
+    summary.style.borderLeft = '';
+    summary.style.background = 'var(--bg-primary)';
+  }
+  _updateHabParentBadge();
+}
+function _updateHabParentBadge() {
+  var ids = ['habClientDetails', 'habGoDetails', 'habArchiDetails', 'habApporteurDetails'];
+  var anyHas = ids.some(function(id) { var el = document.getElementById(id); return el && el.querySelector('summary') && el.querySelector('summary').style.borderLeft; });
+  var badge = document.getElementById('habParentBadge');
+  if (badge) badge.style.display = anyHas ? 'inline-block' : 'none';
+  var parent = document.getElementById('habParentDetails');
+  if (parent) {
+    var ps = parent.querySelector('summary');
+    if (ps) { ps.style.borderLeft = anyHas ? '3px solid #16A34A' : ''; ps.style.background = anyHas ? '#f0fdf4' : ''; }
+  }
+}
 function populateHabitudes(cmd) {
   var box = document.getElementById('habitudesAccordion');
   if (!box) return;
@@ -7314,12 +7344,14 @@ function populateHabitudes(cmd) {
     var hasAny = !!(clientH.habitudes_techniques || clientH.habitudes_geotechniques || clientH.habitudes_admin_commerciales);
     clientBadge.textContent = hasAny ? '✓' : '∅';
     clientBadge.style.color = hasAny ? '#16A34A' : 'var(--text-muted)';
+    _styleHabAccordion('habClientDetails', hasAny);
   } else {
     _renderHabitsContent(clientTechEl, '', clientName ? '— client introuvable dans la base —' : '— pas de client lié —');
     _renderHabitsContent(clientGeoEl, '', '');
     _renderHabitsContent(clientAdminEl, '', '');
     clientBadge.textContent = '?';
     clientBadge.style.color = 'var(--text-muted)';
+    _styleHabAccordion('habClientDetails', false);
   }
   // Badges + contenus GO
   var goTechEl = document.getElementById('habGoTech');
@@ -7333,12 +7365,14 @@ function populateHabitudes(cmd) {
     var hasAnyGo = !!(goH.habitudes_techniques || goH.habitudes_geotechniques || goH.habitudes_admin_commerciales);
     goBadge.textContent = hasAnyGo ? '✓' : '∅';
     goBadge.style.color = hasAnyGo ? '#16A34A' : 'var(--text-muted)';
+    _styleHabAccordion('habGoDetails', hasAnyGo);
   } else {
     _renderHabitsContent(goTechEl, '', goName ? '— GO introuvable dans la base clients —' : '— pas de gros oeuvre renseigné sur la commande —');
     _renderHabitsContent(goGeoEl, '', '');
     _renderHabitsContent(goAdminEl, '', '');
     goBadge.textContent = '?';
     goBadge.style.color = 'var(--text-muted)';
+    _styleHabAccordion('habGoDetails', false);
   }
   // Architecte
   var archiName = cmd._architecte || '';
@@ -7355,12 +7389,14 @@ function populateHabitudes(cmd) {
     var hasArchi = !!(archiH.habitudes_techniques || archiH.habitudes_geotechniques || archiH.habitudes_admin_commerciales);
     archiBadge.textContent = hasArchi ? '✓' : '∅';
     archiBadge.style.color = hasArchi ? '#16A34A' : 'var(--text-muted)';
+    _styleHabAccordion('habArchiDetails', hasArchi);
   } else {
     _renderHabitsContent(archiTechEl, '', archiName ? '— architecte introuvable dans la base clients —' : '— pas d\'architecte renseigné —');
     _renderHabitsContent(archiGeoEl, '', '');
     _renderHabitsContent(archiAdminEl, '', '');
     archiBadge.textContent = '?';
     archiBadge.style.color = 'var(--text-muted)';
+    _styleHabAccordion('habArchiDetails', false);
   }
   // Apporteur d'affaire
   var apporteurName = cmd._apporteur || '';
@@ -7377,12 +7413,14 @@ function populateHabitudes(cmd) {
     var hasApporteur = !!(apporteurH.habitudes_techniques || apporteurH.habitudes_geotechniques || apporteurH.habitudes_admin_commerciales);
     apporteurBadge.textContent = hasApporteur ? '✓' : '∅';
     apporteurBadge.style.color = hasApporteur ? '#16A34A' : 'var(--text-muted)';
+    _styleHabAccordion('habApporteurDetails', hasApporteur);
   } else {
     _renderHabitsContent(apporteurTechEl, '', apporteurName ? '— apporteur introuvable dans la base clients —' : '— pas d\'apporteur renseigné —');
     _renderHabitsContent(apporteurGeoEl, '', '');
     _renderHabitsContent(apporteurAdminEl, '', '');
     apporteurBadge.textContent = '?';
     apporteurBadge.style.color = 'var(--text-muted)';
+    _styleHabAccordion('habApporteurDetails', false);
   }
   // Afficher entité + architecte dans la zone info
   var eaRow = document.getElementById('intEntiteArchRow');
