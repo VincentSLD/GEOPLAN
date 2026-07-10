@@ -2084,7 +2084,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
   <div class="modal">
     <div class="modal-header">
       <h2 id="modalTitle">Nouvelle intervention</h2>
-      <button type="button" id="intLockBtn" onclick="toggleModalLock()" title="Déverrouiller pour modifier" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.85rem;display:none;margin-left:auto;margin-right:8px;">🔒</button>
+      <span id="intEntiteBadge" class="int-entite-badge" style="display:none;margin-left:auto;margin-right:8px;"></span>
+      <button type="button" id="intLockBtn" onclick="toggleModalLock()" title="Déverrouiller pour modifier" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.85rem;display:none;margin-right:8px;">🔒</button>
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
@@ -2093,9 +2094,6 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 
       <!-- ═══ SECTION 2 : INFOS IMPORTANTES (haut, bien visible) ═══ -->
       <div id="intInfoHeader" style="display:none;">
-        <div id="intEntiteBanner" style="margin-bottom:4px;text-align:center;display:none;">
-          <span id="intEntiteBadge" class="int-entite-badge"></span>
-        </div>
         <div class="int-section" id="intInfoSection">
           <div style="display:flex;gap:10px;align-items:flex-end;">
             <div class="int-info-item" id="intInfoAffaire" style="flex:0 0 130px;display:none;"><div class="int-info-label">N° Affaire</div><div class="int-info-value" id="intInfoAffaireVal" style="font-size:0.78rem;"></div></div>
@@ -6983,23 +6981,24 @@ function _updateInfoHeader(cmd) {
   if (!cmd) {
     if (header) header.style.display = 'none';
     if (addrClientGrp) addrClientGrp.style.display = 'none';
+    var _eb = document.getElementById('intEntiteBadge');
+    if (_eb) _eb.style.display = 'none';
     return;
   }
   if (header) header.style.display = '';
   var cd = cmd.custom_data || {};
   var _cdVal = function(key) { var r = cd[key]; return r && typeof r === 'object' ? (r.value || '') : (r || ''); };
-  // Entité
+  // Entité (badge dans le header de la modale)
   var soc = cmd.societe || '';
-  var entBanner = document.getElementById('intEntiteBanner');
   var entBadge = document.getElementById('intEntiteBadge');
-  if (soc && entBanner && entBadge) {
+  if (soc && entBadge) {
     var socColors = typeof _SOC_COLORS !== 'undefined' ? _SOC_COLORS : {};
     var sc = socColors[soc] || { bg: '#f5f5f0', text: '#1a1a1a' };
     entBadge.textContent = soc;
     entBadge.style.background = sc.bg || '#f5f5f0';
     entBadge.style.color = sc.text || '#1a1a1a';
-    entBanner.style.display = '';
-  } else if (entBanner) { entBanner.style.display = 'none'; }
+    entBadge.style.display = '';
+  } else if (entBadge) { entBadge.style.display = 'none'; }
   // Statut (select éditable)
   var statutVal = _cdVal('1-alpha17');
   var statutSel = document.getElementById('cdStatutSelect');
