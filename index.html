@@ -2109,9 +2109,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <div class="int-info-item" id="intInfoCategorie" style="display:none;"><div class="int-info-label">Catégorie</div><div class="int-info-value" id="intInfoCategorieVal"></div></div>
           </div>
         </div>
-        <div class="int-info-grid" style="margin-bottom:4px;" id="intInfoDates">
-          <div class="int-info-item" id="intInfoDLR" style="display:none;"><div class="int-info-label">DLR</div><div class="int-info-value"><input type="date" id="cdDlrInput" onchange="onCmdFieldChange('dlr')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.75rem;font-family:inherit;background:#fff;"></div></div>
-          <div class="int-info-item" id="intInfoDLC" style="display:none;"><div class="int-info-label">DLC</div><div class="int-info-value"><input type="date" id="cdDlcInput" onchange="onCmdFieldChange('dlc')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.75rem;font-family:inherit;background:#fff;"></div></div>
+        <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:4px;" id="intInfoDates">
+          <div class="int-info-item" id="intInfoDLR" style="flex:0 0 130px;display:none;"><div class="int-info-label">DLR</div><div class="int-info-value"><input type="date" id="cdDlrInput" onchange="onCmdFieldChange('dlr')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.75rem;font-family:inherit;background:#fff;"></div></div>
+          <div class="int-info-item" id="intInfoDLC" style="flex:0 0 130px;display:none;"><div class="int-info-label">DLC</div><div class="int-info-value"><input type="date" id="cdDlcInput" onchange="onCmdFieldChange('dlc')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.75rem;font-family:inherit;background:#fff;"></div></div>
+          <div id="intGpsBlock" style="display:none;flex:1;padding-bottom:2px;"><span id="intGpsTag" style="font-size:0.65rem;font-weight:600;color:#16A34A;background:#f0fdf4;border:1px solid #16A34A30;border-radius:6px;padding:3px 10px;cursor:pointer;white-space:nowrap;" onclick="copyGpsCoords()" title="Cliquer pour copier les coordonnées GPS"></span></div>
         </div>
         <div id="cdTempsPasseRow" style="display:none;margin-bottom:4px;padding:4px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;font-size:0.72rem;">
           <label style="display:flex;align-items:center;gap:8px;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Temps passé</span><input type="number" id="cdTempsPasseInput" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="width:70px;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;"><span style="font-size:0.7rem;color:var(--text-muted);">h</span></label>
@@ -2119,10 +2120,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       </div>
       <!-- Lieu d'intervention toujours visible -->
       <div class="form-group" style="margin-bottom:4px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <label class="form-label" style="margin:0;">Lieu d'intervention</label>
-          <span id="intGpsTag" style="display:none;font-size:0.6rem;font-weight:600;color:#16A34A;background:#f0fdf4;border:1px solid #16A34A30;border-radius:6px;padding:1px 6px;cursor:pointer;" onclick="copyGpsCoords()" title="Cliquer pour copier les coordonnées GPS"></span>
-        </div>
+        <label class="form-label">Lieu d'intervention</label>
         <div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div>
       </div>
 
@@ -7068,8 +7066,8 @@ function onCommandeSelect() {
     if (typeGroup) typeGroup.style.display = '';
     var habBox = document.getElementById('habitudesAccordion');
     if (habBox) habBox.style.display = 'none';
-    var gpsTag = document.getElementById('intGpsTag');
-    if (gpsTag) gpsTag.style.display = 'none';
+    var gpsBlock = document.getElementById('intGpsBlock');
+    if (gpsBlock) gpsBlock.style.display = 'none';
     _updateInfoHeader(null);
     return;
   }
@@ -7988,11 +7986,12 @@ function copyGpsCoords() {
 function onGeosoliaSelect() {
   var geoId = document.getElementById('intGeosolia').value;
   var infoDiv = document.getElementById('intGeosoliaInfo');
+  var gpsBlock = document.getElementById('intGpsBlock');
   var gpsTag = document.getElementById('intGpsTag');
-  if (!geoId) { infoDiv.style.display = 'none'; if (gpsTag) gpsTag.style.display = 'none'; return; }
+  if (!geoId) { infoDiv.style.display = 'none'; if (gpsBlock) gpsBlock.style.display = 'none'; return; }
 
   var prog = getGeosoliaProgram(geoId);
-  if (!prog) { infoDiv.style.display = 'none'; if (gpsTag) gpsTag.style.display = 'none'; return; }
+  if (!prog) { infoDiv.style.display = 'none'; if (gpsBlock) gpsBlock.style.display = 'none'; return; }
 
   // Lieu Géosolia → remplace le champ Lieu
   var addrField = document.getElementById('intAddress');
@@ -8000,15 +7999,15 @@ function onGeosoliaSelect() {
     addrField.value = prog.address;
   }
 
-  // Afficher GPS si disponible
-  if (gpsTag) {
+  // Afficher GPS si disponible (à droite des dates DLR/DLC)
+  if (gpsBlock && gpsTag) {
     if (prog.lat && prog.lng) {
       gpsTag.textContent = '📍 GPS: ' + Number(prog.lat).toFixed(6) + ', ' + Number(prog.lng).toFixed(6);
       gpsTag.setAttribute('data-lat', prog.lat);
       gpsTag.setAttribute('data-lng', prog.lng);
-      gpsTag.style.display = '';
+      gpsBlock.style.display = '';
     } else {
-      gpsTag.style.display = 'none';
+      gpsBlock.style.display = 'none';
     }
   }
 
