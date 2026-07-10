@@ -1720,7 +1720,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 <!-- AUTH USER BAR (moved into topbar-right) -->
 
 <!-- ADMIN PANEL -->
-<div id="admin-overlay" onclick="closeAdminPanel()"></div>
+<div id="admin-overlay"></div>
 <div id="admin-panel">
   <div class="admin-title">Gestion des utilisateurs</div>
   <div id="admin-list"></div>
@@ -1835,7 +1835,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
   <div class="sidebar-groups" id="sidebarGroups"></div>
 </aside>
 
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <div class="main">
   <button class="sidebar-open-btn" onclick="toggleSidebarCollapse()" title="Ouvrir le menu">☰</button>
@@ -2084,11 +2084,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="modal-close" onclick="closeModal()">×</button>
     </div>
     <div class="modal-body">
-      <!-- ═══ SECTION 1 : COMMANDE (sélection) ═══ -->
-      <div class="form-row" style="margin-bottom:4px;">
-        <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
-        <div class="form-group" id="intTypeGroup" style="flex:0 0 160px;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
-      </div>
+      <!-- ═══ SECTION 1 : SUIVI COMMANDE (tout en haut) ═══ -->
+      <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
 
       <!-- ═══ SECTION 2 : INFOS IMPORTANTES (haut, bien visible) ═══ -->
       <div id="intInfoHeader" style="display:none;">
@@ -2116,21 +2113,20 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <div class="int-info-item" id="intInfoDLC" style="display:none;"><div class="int-info-label">DLC</div><div class="int-info-value" id="intInfoDLCVal"></div></div>
         </div>
       </div>
-      <!-- Adresse toujours visible -->
-      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Adresse du client facturé</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Commencez à taper..." autocomplete="off"></div></div>
+      <!-- Lieu (adresse d'intervention) toujours visible -->
+      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Lieu</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div></div>
 
       <!-- ═══ SECTION 3 : PLANNING (éditable) ═══ -->
-      <div id="intSuppBanner" style="display:none;margin-bottom:6px;padding:8px 10px;background:#fef9e7;border:1.5px solid var(--gph-yellow);border-radius:8px;font-size:0.7rem;"></div>
       <div class="form-row">
         <div class="form-group" style="flex:1;"><label class="form-label">Géotechnicien <span style="color:#DC2626;">*</span></label><select class="form-select" id="intTech"></select><div id="intMultiTechBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiTechToggle" onchange="toggleMultiTech()"> Appliquer à plusieurs techniciens</label><div id="intMultiTechList" style="display:none;margin-top:4px;max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"></div></div></div>
-        <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"><div id="intMultiDateBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiDateToggle" onchange="toggleMultiDate()"> Plusieurs dates</label><div id="intMultiDateList" style="display:none;margin-top:4px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"><div id="intMultiDateItems"></div><div style="display:flex;gap:4px;margin-top:4px;"><input type="date" id="intMultiDateInput" class="form-input" style="flex:1;font-size:0.72rem;padding:2px 4px;"><button type="button" onclick="addMultiDate()" style="padding:2px 8px;font-size:0.72rem;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;">+</button></div></div></div></div>
+        <div class="form-group" style="flex:0 0 130px;"><label class="form-label">Date Interv. <span style="color:#DC2626;">*</span></label><input class="form-input" id="intDate" type="date" required onchange="updateRecurrencePreview()"><div id="intMultiDateBlock" style="display:none;margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:0.7rem;font-weight:600;cursor:pointer;color:var(--text-secondary);"><input type="checkbox" id="intMultiDateToggle" onchange="toggleMultiDate()"> Plusieurs dates</label><div id="intMultiDateList" style="display:none;margin-top:4px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--bg-primary);"><div id="intMultiDateItems"></div><div style="display:flex;gap:4px;margin-top:4px;"><input type="date" id="intMultiDateInput" class="form-input" style="flex:1;font-size:0.72rem;padding:2px 4px;"><button type="button" onclick="addMultiDate()" style="padding:2px 8px;font-size:0.72rem;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);cursor:pointer;">+</button></div></div></div></div>
         <div class="form-group" style="flex:0 0 70px;"><label class="form-label">Durée</label><input class="form-input" id="intDuration" type="text" onchange="updateEndFromDuration();updateSiblingDurTotals();" placeholder="2h30" style="font-family:'DM Mono',monospace;"></div>
       </div>
       <input type="hidden" id="intEnd"><input type="hidden" id="intStart"><input type="hidden" id="intTravel" value="0"><input type="hidden" id="intTravelReturn" value="0">
       <select class="form-select" id="intStatus" style="display:none;"></select>
 
       <!-- ═══ SECTION 4 : IMPORTANCE MOYENNE ═══ -->
-      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:3px;margin:4px 0;"></div>
+      <div id="intFlagsContainer" style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0;"></div>
       <div id="intGeosoliaInfo" style="display:none;margin:4px 0;padding:6px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:0.68rem;"></div>
       <div class="form-group"><label class="form-label">Commentaires <small id="intInfosAdvStatus" style="color:var(--text-muted);font-weight:400;margin-left:6px;">(données personnalisées Akuiteo)</small></label><div id="intInfosAdv" contenteditable="true" oninput="onCmdDescriptionChange(event)" style="min-height:28px;max-height:60px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:4px 8px;font-size:0.75rem;font-family:inherit;outline:none;background:#fff;white-space:pre-wrap;" onpaste="event.preventDefault();document.execCommand('insertText',false,event.clipboardData.getData('text/plain'))"></div></div>
 
@@ -2202,6 +2198,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <details class="int-accordion-more" style="margin-top:6px;">
         <summary>📋 Plus d'informations</summary>
         <div class="int-accordion-content">
+          <div class="form-row" style="margin-bottom:4px;">
+            <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
+            <div class="form-group" id="intTypeGroup" style="flex:0 0 160px;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
+          </div>
           <div class="form-row">
             <div class="form-group" style="flex:1;"><label class="form-label">Projet Géosolia</label><select class="form-select" id="intGeosolia" onchange="onGeosoliaSelect()"><option value="">— Aucun projet —</option></select></div>
             <div class="form-group" style="flex:0 0 auto;align-self:flex-end;">
@@ -2210,6 +2210,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
               <span id="ddcExistsBadge" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">✓ DDC créée</span>
             </div>
           </div>
+          <div class="form-group" id="intAdresseClientGroup" style="display:none;"><label class="form-label">Adresse du client facturé</label><div id="intAdresseClient" style="font-size:0.72rem;color:var(--text-secondary);padding:2px 4px;"></div></div>
           <div class="form-group"><label class="form-label">Intitulé</label><input class="form-input" id="intTitle" placeholder="Ex: Sondage carotté G2 AVP — Lot 3"></div>
           <div style="display:none;"><input id="intAffaire"><input id="intMarche"></div>
           <div id="intCustomData" style="display:none;"></div>
@@ -2243,7 +2244,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 </div>
 
 <!-- ÉTUDES OVERLAY -->
-<div class="etudes-overlay" id="etudesOverlay" onclick="if(event.target===this)closeEtudes()">
+<div class="etudes-overlay" id="etudesOverlay">
   <div class="etudes-panel">
     <div class="etudes-header">
       <h2>Études — Commandes en cours</h2>
@@ -2279,7 +2280,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 <div class="etudes-toast" id="etudesToast" style="display:none;"></div>
 
 <!-- ═══ OVERLAY CARTE FLOTTE (Webfleet) ═══ -->
-<div class="fleet-overlay" id="fleetOverlay" onclick="if(event.target===this)closeFleet()">
+<div class="fleet-overlay" id="fleetOverlay">
   <div class="fleet-panel">
     <div class="fleet-header">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -2355,7 +2356,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 
 </div><!-- .app -->
 
-<div id="ai-prompt-viewer" onclick="if(event.target===this)closeAIPrompt()">
+<div id="ai-prompt-viewer">
   <div class="prompt-box">
     <div class="prompt-header">
       <h3>Prompt complet de l'Assistant IA</h3>
@@ -3196,7 +3197,7 @@ function editTravelLieu(intId, type) {
   var overlay = document.createElement('div');
   overlay.id = 'travelLieuOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9998;';
-  overlay.onclick = function() { closeTravelLieuPopup(); };
+  // overlay reste visible au clic exterieur
   document.body.appendChild(overlay);
   document.body.appendChild(popup);
 
@@ -5296,7 +5297,7 @@ function deleteRecurrenceGroup(id) {
 function openFilterModal(){alert('Module de filtres avancés — à venir\n\nFiltrage par : type, technicien, client, statut, distance trajet');}
 
 document.addEventListener('click',e=>{const p=document.getElementById('detailPanel');if(p.classList.contains('open')&&!p.contains(e.target)&&!e.target.closest('.intervention,.list-item,.day-block,.mob-card'))closeDetail();});
-document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+// Modal reste visible au clic exterieur
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDetail();}});
 
 // ═══ AKUITEO API ═══
@@ -6568,7 +6569,6 @@ function toggleDeleteMode() {
   }
   document.getElementById('deleteModeOk').onclick = validate;
   inp.onkeydown = function(e) { if (e.key === 'Enter') validate(); if (e.key === 'Escape') overlay.remove(); };
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 }
 
 function updateDeleteModeUI() {
@@ -6918,8 +6918,10 @@ function _fmtDateFr(raw) {
 }
 function _updateInfoHeader(cmd) {
   var header = document.getElementById('intInfoHeader');
+  var addrClientGrp = document.getElementById('intAdresseClientGroup');
   if (!cmd) {
     if (header) header.style.display = 'none';
+    if (addrClientGrp) addrClientGrp.style.display = 'none';
     return;
   }
   if (header) header.style.display = '';
@@ -6971,6 +6973,17 @@ function _updateInfoHeader(cmd) {
     var dlcDate = new Date(_cdVal('1-date02'));
     if (dlcEl && !isNaN(dlcDate.getTime()) && dlcDate < new Date()) dlcEl.style.color = '#DC2626';
     else if (dlcEl) dlcEl.style.color = '';
+  }
+  // Adresse du client facturé (dans l'accordéon)
+  if (addrClientGrp) {
+    var addrVal = cmd._adresse || '';
+    var addrDiv = document.getElementById('intAdresseClient');
+    if (addrVal) {
+      if (addrDiv) addrDiv.textContent = addrVal;
+      addrClientGrp.style.display = '';
+    } else {
+      addrClientGrp.style.display = 'none';
+    }
   }
 }
 
@@ -7702,9 +7715,9 @@ function populateFlagsCheckboxes(selectedFlags) {
   var sel = selectedFlags || [];
   c.innerHTML = settingsFlags.map(function(f) {
     var checked = sel.indexOf(f.id) >= 0;
-    return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:0.62rem;cursor:pointer;padding:2px 6px;border-radius:6px;border:1px solid ' + (checked ? f.color : f.color + '30') + ';background:' + (checked ? f.color + '20' : 'transparent') + ';color:' + (checked ? 'var(--text-primary)' : '#1a1a1a') + ';opacity:' + (checked ? '1' : '0.8') + ';white-space:nowrap;transition:all 0.15s;">' +
+    return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;cursor:pointer;padding:4px 10px;border-radius:8px;border:1.5px solid ' + (checked ? f.color : f.color + '30') + ';background:' + (checked ? f.color + '20' : 'transparent') + ';color:' + (checked ? 'var(--text-primary)' : '#1a1a1a') + ';opacity:' + (checked ? '1' : '0.8') + ';white-space:nowrap;transition:all 0.15s;">' +
       '<input type="checkbox" class="flag-check" value="' + f.id + '" ' + (checked ? 'checked' : '') + ' style="display:none;">' +
-      '<span style="width:7px;height:7px;border-radius:50%;background:' + f.color + ';flex-shrink:0;opacity:' + (checked ? '1' : '0.4') + ';"></span>' + f.label + '</label>';
+      '<span style="width:10px;height:10px;border-radius:50%;background:' + f.color + ';flex-shrink:0;opacity:' + (checked ? '1' : '0.4') + ';"></span>' + f.label + '</label>';
   }).join('');
   // Toggle style on click
   c.querySelectorAll('label').forEach(function(lbl) {
@@ -9146,7 +9159,6 @@ function openSettingsWithPassword() {
   }
   document.getElementById('pwdDialogOk').onclick = validate;
   inp.onkeydown = function(e) { if (e.key === 'Enter') validate(); if (e.key === 'Escape') overlay.remove(); };
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 }
 
 function openSettings() {
