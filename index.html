@@ -4581,29 +4581,31 @@ function dropToAPlanifier(e) {
   var int = interventions.find(function(i){return i.id===draggedId;});
   draggedId = null;
   if (!int) return;
-  if (!confirm('Retirer cette intervention du planning et remettre la commande en « A planifier » ?')) return;
   var remainingTerrain = int.commandeId && !int.isRapport ? interventions.filter(function(i) { return i.commandeId === int.commandeId && !i.isRapport && i.id !== int.id; }).length : 0;
   var linkedRapport = (remainingTerrain === 0 && int.commandeId && !int.isRapport) ? interventions.find(function(i){return i.commandeId===int.commandeId && i.isRapport;}) : null;
   var needStatut = int.commandeId && remainingTerrain === 0;
-  interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
-  (async function(){
-    await deleteInterventionFromSupabase(int.id);
-    if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
-    if (needStatut) {
-      await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
-      var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
-      if (cmd) {
-        cmd.planification = 'A planifier';
-        var newCd = Object.assign({}, cmd.custom_data || {});
-        if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
-        newCd['1-alpha17'].value = 'A planifier';
-        await sbAuth.from('commandes').update({ custom_data: newCd }).eq('id', cmd.id);
-        cmd.custom_data = newCd;
-        pushCommandeToAkuiteo({ cmdId: cmd.id });
+  askUnplanStatut(needStatut ? int.commandeId : null, function(statut) {
+    if (statut === false) return;
+    interventions = interventions.filter(function(i){return i.id!==int.id && (!linkedRapport || i.id!==linkedRapport.id);});
+    (async function(){
+      await deleteInterventionFromSupabase(int.id);
+      if (linkedRapport) await deleteInterventionFromSupabase(linkedRapport.id);
+      if (needStatut && statut) {
+        await sbAuth.from('commandes').update({planification:'A planifier'}).eq('id',int.commandeId);
+        var cmd = commandesData.find(function(c){return c.id===int.commandeId;});
+        if (cmd) {
+          cmd.planification = 'A planifier';
+          var newCd = Object.assign({}, cmd.custom_data || {});
+          if (!newCd['1-alpha17']) newCd['1-alpha17'] = { name: 'Statut de la commande', type: 'ALPHANUMERIC' };
+          newCd['1-alpha17'].value = statut;
+          await sbAuth.from('commandes').update({ custom_data: newCd }).eq('id', cmd.id);
+          cmd.custom_data = newCd;
+          pushCommandeToAkuiteo({ cmdId: cmd.id });
+        }
       }
-    }
-    renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
-  })();
+      renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    })();
+  });
 }
 
 // ===== MODAL =====
