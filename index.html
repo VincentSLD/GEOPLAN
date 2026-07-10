@@ -4287,7 +4287,10 @@ function renderSplitSummary(int) {
 }
 
 var _SOC_COLORS = {
-  'GPH 85-44':'#2563EB', 'GPH 64-79':'#16A34A', 'REGAR':'#D97706', 'GRAVITY':'#7C3AED'
+  'GPH 85-44': { color:'#2563EB', bg:'#eff6ff', text:'#1e40af' },
+  'GPH 64-79': { color:'#16A34A', bg:'#f0fdf4', text:'#166534' },
+  'REGAR':     { color:'#D97706', bg:'#fffbeb', text:'#92400e' },
+  'GRAVITY':   { color:'#7C3AED', bg:'#f5f3ff', text:'#5b21b6' }
 };
 function getIntSocieteBadge(int) {
   if (!int.commandeId) return '';
@@ -4295,7 +4298,8 @@ function getIntSocieteBadge(int) {
   if (!cmd || !cmd.societe) return '';
   var s = cmd.societe;
   var short = s.replace(/\s+/g, '').substring(0, 8);
-  var col = _SOC_COLORS[s] || '#6B7280';
+  var sc = _SOC_COLORS[s];
+  var col = sc ? sc.color : '#6B7280';
   return '<div style="font-size:0.5rem;font-weight:800;color:' + col + ';letter-spacing:0.02em;margin-top:1px;opacity:0.85;">🏢 ' + short + '</div>';
 }
 
@@ -4521,7 +4525,7 @@ function renderList() {
     if(!di.length) html+=`<div style="padding:16px;color:var(--text-muted);font-size:0.8rem;font-style:italic;">Aucune intervention planifiée</div>`;
     di.forEach(int=>{
       const tp=TYPES[int.type], tech=TECHNICIANS.find(t=>t.id===int.techId), _cs=getIntStatusFromCmd(int);
-      html+=`<div class="list-item" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="list-item-time">${int.startTime} – ${int.endTime}${getSplitBadge(int)}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}${(function(){var _c=commandesData.find(function(c){return c.id===int.commandeId;});return _c&&_c.societe?' · <span style="font-weight:700;color:'+(_SOC_COLORS[_c.societe]||'#6B7280')+';">'+_c.societe+'</span>':'';}())}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
+      html+=`<div class="list-item" ondblclick="event.stopPropagation();editIntervention(${int.id})" onmouseenter="_tlShowBarTooltip(${int.id},event)" onmousemove="_tlMoveBarTooltip(event)" onmouseleave="_tlHideBarTooltip()"><div class="list-item-time">${int.startTime} – ${int.endTime}${getSplitBadge(int)}</div><div class="list-item-type" style="background:${TYPE_RAW[int.type]}"></div><div class="list-item-info"><div class="list-item-title">${int.title}</div><div class="list-item-sub">📍 ${int.location} · 🏢 ${int.client}${(function(){var _c=commandesData.find(function(c){return c.id===int.commandeId;});return _c&&_c.societe?' · <span style="font-weight:700;color:'+((_SOC_COLORS[_c.societe]||{}).color||'#6B7280')+';">'+_c.societe+'</span>':'';}())}</div></div><div class="list-item-tech"><div class="mini-avatar" style="background:${tech.color}">${tech.initials}</div>${tech.name}</div>${!int.isRapport ? '<span data-weather-int="'+int.id+'" data-weather-size="sm">'+weatherBadgeHTML(getWeatherForInt(int))+'</span>' : ''}<div class="list-item-travel">🚗 ${int.travelTo+int.travelFrom}'</div><span style="padding:3px 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:${_cs.color}15;color:${_cs.color};border:1px solid ${_cs.color}30;">${_cs.label||'—'}</span></div>`;
     });
     html+=`</div>`;
   }
@@ -6133,7 +6137,7 @@ function renderAPlanifier() {
     html += '</div></div>';
     html += '<div class="aplan-card-info">';
     if (cp || ville) html += '📍 ' + cp + ' ' + ville + ' · ';
-    html += '🏢 ' + (cmd.client_name || '—') + (cmd.societe ? ' · <span style="font-size:0.55rem;font-weight:800;color:' + (_SOC_COLORS[cmd.societe] || '#6B7280') + ';">' + cmd.societe + '</span>' : '');
+    html += '🏢 ' + (cmd.client_name || '—') + (cmd.societe ? ' · <span style="font-size:0.55rem;font-weight:800;color:' + ((_SOC_COLORS[cmd.societe] || {}).color || '#6B7280') + ';">' + cmd.societe + '</span>' : '');
     html += '</div>';
     html += '<div class="aplan-card-info">';
     if (cdType) html += cdType + ' · ';
@@ -7469,7 +7473,8 @@ function populateHabitudes(cmd) {
     var entiteBlock = document.getElementById('intEntiteBlock');
     var societe = cmd.societe || '';
     if (societe) {
-      var entiteCol = _SOC_COLORS[societe] || '#6B7280';
+      var entiteSc = _SOC_COLORS[societe];
+      var entiteCol = entiteSc ? entiteSc.color : '#6B7280';
       document.getElementById('intEntiteValue').textContent = societe;
       document.getElementById('intEntiteValue').style.color = entiteCol;
       entiteBlock.style.display = '';
