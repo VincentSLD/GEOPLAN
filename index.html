@@ -2094,7 +2094,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         </div>
         <div class="int-section" id="intInfoSection">
           <div class="int-info-grid">
-            <div class="int-info-item" id="intInfoStatut" style="display:none;"><div class="int-info-label">Statut</div><div class="int-info-value" id="intInfoStatutVal"></div></div>
+            <div class="int-info-item" id="intInfoStatut" style="display:none;"><div class="int-info-label">Statut</div><div class="int-info-value"><select id="cdStatutSelect" onchange="_cdToggleTempsPasse(); onCmdFieldChange('statut')" style="width:100%;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:0.72rem;font-family:inherit;background:#fff;font-weight:600;"></select></div></div>
             <div class="int-info-item" id="intInfoAffaire" style="display:none;"><div class="int-info-label">N° Affaire</div><div class="int-info-value" id="intInfoAffaireVal"></div></div>
             <div class="int-info-item"><div class="int-info-label">Client Facturé</div><div class="int-info-value"><input class="form-input" id="intClient" placeholder="Ex: Bouygues" style="font-size:0.78rem;font-weight:600;padding:1px 4px;height:24px;"></div></div>
           </div>
@@ -2109,8 +2109,11 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           </div>
         </div>
         <div class="int-info-grid" style="margin-bottom:4px;" id="intInfoDates">
-          <div class="int-info-item" id="intInfoDLR" style="display:none;"><div class="int-info-label">DLR</div><div class="int-info-value" id="intInfoDLRVal"></div></div>
-          <div class="int-info-item" id="intInfoDLC" style="display:none;"><div class="int-info-label">DLC</div><div class="int-info-value" id="intInfoDLCVal"></div></div>
+          <div class="int-info-item" id="intInfoDLR" style="display:none;"><div class="int-info-label">DLR</div><div class="int-info-value"><input type="date" id="cdDlrInput" onchange="onCmdFieldChange('dlr')" style="width:100%;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:0.72rem;font-family:inherit;background:#fff;"></div></div>
+          <div class="int-info-item" id="intInfoDLC" style="display:none;"><div class="int-info-label">DLC</div><div class="int-info-value"><input type="date" id="cdDlcInput" onchange="onCmdFieldChange('dlc')" style="width:100%;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 4px;font-size:0.72rem;font-family:inherit;background:#fff;"></div></div>
+        </div>
+        <div id="cdTempsPasseRow" style="display:none;margin-bottom:4px;padding:4px 8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;font-size:0.72rem;">
+          <label style="display:flex;align-items:center;gap:8px;"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Temps passé</span><input type="number" id="cdTempsPasseInput" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="width:70px;height:24px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;"><span style="font-size:0.7rem;color:var(--text-muted);">h</span></label>
         </div>
       </div>
       <!-- Lieu (adresse d'intervention) toujours visible -->
@@ -6939,13 +6942,26 @@ function _updateInfoHeader(cmd) {
     entBadge.style.color = sc.text || '#1a1a1a';
     entBanner.style.display = '';
   } else if (entBanner) { entBanner.style.display = 'none'; }
-  // Statut
-  var statut = _cdVal('1-alpha17');
-  _showInfoField('intInfoStatut', statut);
-  if (statut) {
-    var sCol = statut === 'Terminée' ? '#16A34A' : statut === 'En attente' ? '#D97706' : statut === 'En cours' ? '#2563EB' : 'var(--text-primary)';
-    var sEl = document.getElementById('intInfoStatutVal');
-    if (sEl) sEl.style.color = sCol;
+  // Statut (select éditable)
+  var statutVal = _cdVal('1-alpha17');
+  var statutSel = document.getElementById('cdStatutSelect');
+  if (statutSel) {
+    statutSel.innerHTML = ['', 'A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'].map(function(v) {
+      var sel = (statutVal || '') === v ? ' selected' : '';
+      return '<option value="' + v.replace(/"/g,'&quot;') + '"' + sel + '>' + (v || '— Non renseigné —') + '</option>';
+    }).join('');
+    var sCol = statutVal === 'Terminée' ? '#16A34A' : statutVal === 'En attente' ? '#D97706' : statutVal === 'En cours' ? '#2563EB' : '';
+    statutSel.style.color = sCol || '';
+  }
+  var statutItem = document.getElementById('intInfoStatut');
+  if (statutItem) statutItem.style.display = '';
+  // Temps passé
+  var tpRow = document.getElementById('cdTempsPasseRow');
+  var tpInput = document.getElementById('cdTempsPasseInput');
+  if (tpRow && tpInput) {
+    tpInput.setAttribute('data-cmd-id', cmd.id);
+    tpInput.value = getTempsPasse(cmd.id);
+    tpRow.style.display = (statutVal === 'Terminée') ? '' : 'none';
   }
   // Affaire
   var affRef = cmd._affaire ? cmd._affaire.ref : '';
@@ -6957,23 +6973,27 @@ function _updateInfoHeader(cmd) {
   // Type de mission, Catégorie
   _showInfoField('intInfoMission', _cdVal('1-alpha06'));
   _showInfoField('intInfoCategorie', _cdVal('1-alpha05'));
-  // DLR, DLC
-  var dlr = _fmtDateFr(_cdVal('1-date01'));
-  var dlc = _fmtDateFr(_cdVal('1-date02'));
-  _showInfoField('intInfoDLR', dlr);
-  _showInfoField('intInfoDLC', dlc);
-  if (dlr) {
-    var dlrEl = document.getElementById('intInfoDLRVal');
-    var dlrDate = new Date(_cdVal('1-date01'));
-    if (dlrEl && !isNaN(dlrDate.getTime()) && dlrDate < new Date()) dlrEl.style.color = '#DC2626';
-    else if (dlrEl) dlrEl.style.color = '';
+  // DLR, DLC (inputs date éditables)
+  var dlrRaw = _cdVal('1-date01');
+  var dlcRaw = _cdVal('1-date02');
+  var dlrInput = document.getElementById('cdDlrInput');
+  var dlcInput = document.getElementById('cdDlcInput');
+  if (dlrInput) {
+    var dvr = '';
+    if (dlrRaw) { var ddr = new Date(dlrRaw); if (!isNaN(ddr.getTime())) { dvr = ddr.getFullYear() + '-' + String(ddr.getMonth()+1).padStart(2,'0') + '-' + String(ddr.getDate()).padStart(2,'0'); } else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlrRaw))) { dvr = String(dlrRaw).substring(0, 10); } }
+    dlrInput.value = dvr;
+    if (dvr && new Date(dvr) < new Date()) dlrInput.style.color = '#DC2626'; else dlrInput.style.color = '';
   }
-  if (dlc) {
-    var dlcEl = document.getElementById('intInfoDLCVal');
-    var dlcDate = new Date(_cdVal('1-date02'));
-    if (dlcEl && !isNaN(dlcDate.getTime()) && dlcDate < new Date()) dlcEl.style.color = '#DC2626';
-    else if (dlcEl) dlcEl.style.color = '';
+  var dlrItem = document.getElementById('intInfoDLR');
+  if (dlrItem) dlrItem.style.display = '';
+  if (dlcInput) {
+    var dvc = '';
+    if (dlcRaw) { var ddc = new Date(dlcRaw); if (!isNaN(ddc.getTime())) { dvc = ddc.getFullYear() + '-' + String(ddc.getMonth()+1).padStart(2,'0') + '-' + String(ddc.getDate()).padStart(2,'0'); } else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlcRaw))) { dvc = String(dlcRaw).substring(0, 10); } }
+    dlcInput.value = dvc;
+    if (dvc && new Date(dvc) < new Date()) dlcInput.style.color = '#DC2626'; else dlcInput.style.color = '';
   }
+  var dlcItem = document.getElementById('intInfoDLC');
+  if (dlcItem) dlcItem.style.display = '';
   // Adresse du client facturé (dans l'accordéon)
   if (addrClientGrp) {
     var addrVal = cmd._adresse || '';
@@ -7088,7 +7108,7 @@ function _cdToggleTempsPasse() {
   var sel = document.getElementById('cdStatutSelect');
   var row = document.getElementById('cdTempsPasseRow');
   if (!sel || !row) return;
-  row.style.display = (sel.value === 'Terminée') ? 'flex' : 'none';
+  row.style.display = (sel.value === 'Terminée') ? '' : 'none';
 }
 
 function renderCmdCustomDataHTML(cmd) {
@@ -7100,59 +7120,23 @@ function renderCmdCustomDataHTML(cmd) {
     var sf = parseFloat(cmd.surface_facturee);
     if (!isNaN(sf)) rows += _cdRow('Surface facturée', sf.toLocaleString('fr-FR') + ' m²');
   }
-  // Champs toujours affichés meme si vides
-  var ALWAYS_SHOW_KEYS = ['1-alpha10', '1-alpha12'];
-  // Champs lecture seule
+  // Champs déjà affichés dans l'en-tête → exclus ici
+  var HEADER_KEYS = ['1-alpha05', '1-alpha06', '1-alpha09', '1-alpha10', '1-alpha12', '1-alpha17', '1-date01', '1-date02'];
+  // Champs lecture seule (uniquement ceux pas dans l'en-tête)
   Object.keys(CMD_CUSTOM_DATA_LABELS).forEach(function(key) {
-    if (key === '1-alpha17' || key === '1-date01' || key === '1-date02') return; // editables, traités plus loin
-    if (_cmdCommentCdKey && key === _cmdCommentCdKey) return; // commentaires affichés dans le champ dédié
+    if (HEADER_KEYS.indexOf(key) >= 0) return;
+    if (_cmdCommentCdKey && key === _cmdCommentCdKey) return;
     var raw = cd[key];
     var rawVal = raw && typeof raw === 'object' ? ((raw.value !== undefined) ? raw.value : (raw.val !== undefined ? raw.val : '')) : raw;
     var isEmpty = rawVal === null || rawVal === undefined || rawVal === '';
-    var alwaysShow = ALWAYS_SHOW_KEYS.indexOf(key) >= 0;
-    if (isEmpty && !alwaysShow) return;
-    var display = isEmpty ? '<span style="color:var(--text-muted);font-style:italic;">— non renseigné —</span>' : rawVal;
-    if (!isEmpty && typeof display === 'string' && /^\d{4}-\d{2}-\d{2}/.test(display)) {
+    if (isEmpty) return;
+    var display = rawVal;
+    if (typeof display === 'string' && /^\d{4}-\d{2}-\d{2}/.test(display)) {
       var d = new Date(display);
       display = isNaN(d.getTime()) ? display : d.toLocaleDateString('fr-FR');
     }
     rows += _cdRow(CMD_CUSTOM_DATA_LABELS[key], String(display));
   });
-  // Statut (toujours present, editable)
-  var statutVal = cd['1-alpha17'] && cd['1-alpha17'].value || '';
-  rows += _cdEditableRow('Statut', '<select id="cdStatutSelect" onchange="_cdToggleTempsPasse(); onCmdFieldChange(\'statut\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">' +
-    ['', 'A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'].map(function(v){
-      var sel = (statutVal || '') === v ? ' selected' : '';
-      return '<option value="' + v.replace(/"/g,'&quot;') + '"' + sel + '>' + (v || '— Non renseigné —') + '</option>';
-    }).join('') + '</select>');
-  // Temps passé (visible uniquement si statut = Terminée)
-  var tpVal = getTempsPasse(cmd.id);
-  var tpDisplay = (statutVal === 'Terminée') ? 'flex' : 'none';
-  rows += '<div id="cdTempsPasseRow" style="display:' + tpDisplay + ';gap:8px;padding:3px 0;border-bottom:1px dashed var(--border);font-size:0.72rem;align-items:center;">' +
-    '<span style="flex:0 0 130px;color:var(--text-muted);text-transform:uppercase;font-size:0.6rem;letter-spacing:0.02em;">Temps passé</span>' +
-    '<span style="flex:1;display:flex;gap:4px;align-items:center;">' +
-      '<input type="number" id="cdTempsPasseInput" data-cmd-id="' + cmd.id + '" value="' + tpVal + '" step="0.25" min="0" placeholder="0" oninput="onTempsPasseChange(event)" style="flex:1;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">' +
-      '<span style="font-size:0.7rem;color:var(--text-muted);">h</span>' +
-    '</span>' +
-  '</div>';
-  // DLR (toujours présente, editable)
-  var dlrRaw = cd['1-date01'] && cd['1-date01'].value || '';
-  var dvr = '';
-  if (dlrRaw) {
-    var ddr = new Date(dlrRaw);
-    if (!isNaN(ddr.getTime())) { dvr = ddr.getFullYear() + '-' + String(ddr.getMonth()+1).padStart(2,'0') + '-' + String(ddr.getDate()).padStart(2,'0'); }
-    else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlrRaw))) { dvr = String(dlrRaw).substring(0, 10); }
-  }
-  rows += _cdEditableRow('DLR', '<input type="date" id="cdDlrInput" value="' + dvr + '" onchange="onCmdFieldChange(\'dlr\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">');
-  // DLC (toujours présente, editable)
-  var dlcRaw = cd['1-date02'] && cd['1-date02'].value || '';
-  var dv = '';
-  if (dlcRaw) {
-    var dd = new Date(dlcRaw);
-    if (!isNaN(dd.getTime())) { dv = dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-' + String(dd.getDate()).padStart(2,'0'); }
-    else if (/^\d{4}-\d{2}-\d{2}/.test(String(dlcRaw))) { dv = String(dlcRaw).substring(0, 10); }
-  }
-  rows += _cdEditableRow('DLC', '<input type="date" id="cdDlcInput" value="' + dv + '" onchange="onCmdFieldChange(\'dlc\')" style="width:100%;height:28px;border:1px solid var(--border);border-radius:4px;padding:0 6px;font-size:0.72rem;font-family:inherit;background:#fff;">');
   return '<div id="cdEditBox" data-cmd-id="' + cmd.id + '" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;margin:8px 0;">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
       '<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);">Données personnalisées Akuiteo</div>' +
