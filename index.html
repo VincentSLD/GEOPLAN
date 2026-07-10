@@ -4689,12 +4689,11 @@ function _applyModalLock() {
   inputs.forEach(function(el) {
     if (el.hasAttribute('contenteditable')) {
       el.contentEditable = _modalLocked ? 'false' : 'true';
-      el.style.opacity = _modalLocked ? '0.7' : '1';
     } else {
       el.disabled = _modalLocked;
-      el.style.opacity = _modalLocked ? '0.7' : '1';
     }
   });
+  body.style.opacity = _modalLocked ? '0.75' : '1';
   var saveBtn = document.querySelector('#modalOverlay .modal-footer .btn-primary');
   if (saveBtn) { saveBtn.disabled = _modalLocked; saveBtn.style.opacity = _modalLocked ? '0.4' : '1'; }
   var suppBtn = document.getElementById('btnPlanifierSupp');
