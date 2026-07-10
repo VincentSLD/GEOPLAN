@@ -2118,7 +2118,13 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         </div>
       </div>
       <!-- Lieu d'intervention toujours visible -->
-      <div class="form-group" style="margin-bottom:4px;"><label class="form-label">Lieu d'intervention</label><div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div></div>
+      <div class="form-group" style="margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <label class="form-label" style="margin:0;">Lieu d'intervention</label>
+          <span id="intGpsTag" style="display:none;font-size:0.6rem;font-weight:600;color:#16A34A;background:#f0fdf4;border:1px solid #16A34A30;border-radius:6px;padding:1px 6px;cursor:pointer;" onclick="copyGpsCoords()" title="Cliquer pour copier les coordonnées GPS"></span>
+        </div>
+        <div style="position:relative;"><input class="form-input" id="intAddress" placeholder="Adresse de l'intervention..." autocomplete="off"></div>
+      </div>
 
       <!-- ═══ SECTION 3 : PLANNING (éditable) ═══ -->
       <div class="form-row">
@@ -7062,6 +7068,8 @@ function onCommandeSelect() {
     if (typeGroup) typeGroup.style.display = '';
     var habBox = document.getElementById('habitudesAccordion');
     if (habBox) habBox.style.display = 'none';
+    var gpsTag = document.getElementById('intGpsTag');
+    if (gpsTag) gpsTag.style.display = 'none';
     _updateInfoHeader(null);
     return;
   }
@@ -7962,18 +7970,46 @@ function renderGeosoliaList() {
   container.innerHTML = html;
 }
 
+function copyGpsCoords() {
+  var tag = document.getElementById('intGpsTag');
+  if (!tag) return;
+  var lat = tag.getAttribute('data-lat');
+  var lng = tag.getAttribute('data-lng');
+  if (!lat || !lng) return;
+  var text = lat + ', ' + lng;
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = tag.textContent;
+    tag.textContent = '✓ Copié !';
+    tag.style.color = '#fff';
+    tag.style.background = '#16A34A';
+    setTimeout(function() { tag.textContent = orig; tag.style.color = '#16A34A'; tag.style.background = '#f0fdf4'; }, 1500);
+  });
+}
 function onGeosoliaSelect() {
   var geoId = document.getElementById('intGeosolia').value;
   var infoDiv = document.getElementById('intGeosoliaInfo');
-  if (!geoId) { infoDiv.style.display = 'none'; return; }
+  var gpsTag = document.getElementById('intGpsTag');
+  if (!geoId) { infoDiv.style.display = 'none'; if (gpsTag) gpsTag.style.display = 'none'; return; }
 
   var prog = getGeosoliaProgram(geoId);
-  if (!prog) { infoDiv.style.display = 'none'; return; }
+  if (!prog) { infoDiv.style.display = 'none'; if (gpsTag) gpsTag.style.display = 'none'; return; }
 
   // Lieu Géosolia → remplace le champ Lieu
   var addrField = document.getElementById('intAddress');
   if (prog.address) {
     addrField.value = prog.address;
+  }
+
+  // Afficher GPS si disponible
+  if (gpsTag) {
+    if (prog.lat && prog.lng) {
+      gpsTag.textContent = '📍 GPS: ' + Number(prog.lat).toFixed(6) + ', ' + Number(prog.lng).toFixed(6);
+      gpsTag.setAttribute('data-lat', prog.lat);
+      gpsTag.setAttribute('data-lng', prog.lng);
+      gpsTag.style.display = '';
+    } else {
+      gpsTag.style.display = 'none';
+    }
   }
 
   // Auto-fill duration from Geosolia (report time for rapports, terrain time otherwise)
