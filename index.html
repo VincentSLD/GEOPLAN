@@ -7899,9 +7899,9 @@ function onGeosoliaSelect() {
   var prog = getGeosoliaProgram(geoId);
   if (!prog) { infoDiv.style.display = 'none'; return; }
 
-  // Auto-fill address if empty
+  // Lieu Géosolia → remplace le champ Lieu
   var addrField = document.getElementById('intAddress');
-  if (prog.address && (!addrField.value || addrField.value.length < 3)) {
+  if (prog.address) {
     addrField.value = prog.address;
   }
 
@@ -7912,9 +7912,6 @@ function onGeosoliaSelect() {
     document.getElementById('intDuration').value = fmtDurInput(geosoliaTime);
     updateEndFromDuration();
   }
-
-  // Build full enquête display
-  var html = renderGeosoliaEnquete(prog);
 
   // Auto-fill notes with program summary
   var notesField = document.getElementById('intNotes');
@@ -7935,8 +7932,21 @@ function onGeosoliaSelect() {
     notesField.value = noteLines.join('\n');
   }
 
-  infoDiv.innerHTML = html;
-  infoDiv.style.display = 'block';
+  // Afficher uniquement le programme d'investigation
+  var hasProg = prog.programPenetros || prog.programTarieres || prog.programRecoFondation || prog.programSondagePelle || Object.keys(prog.sondageCounts).length > 0;
+  if (hasProg) {
+    var html = '<strong style="font-size:0.6rem;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:4px;">Programme d\'investigation</strong>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    if (prog.programPenetros) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#eff6ff;border:1px solid #2563EB30;color:#2563EB;">' + prog.programPenetros + ' Pénétro.</span>';
+    if (prog.programTarieres) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#f0fdf4;border:1px solid #16A34A30;color:#16A34A;">' + prog.programTarieres + ' Tarière(s)</span>';
+    if (prog.programRecoFondation) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fef3c7;border:1px solid #D9770630;color:#D97706;">' + prog.programRecoFondation + ' Reco fond.</span>';
+    if (prog.programSondagePelle) html += '<span style="padding:3px 8px;border-radius:8px;font-size:0.68rem;font-weight:600;background:#fce7f3;border:1px solid #DB277730;color:#DB2777;">' + prog.programSondagePelle + ' Sondage pelle</span>';
+    html += '</div>';
+    infoDiv.innerHTML = html;
+    infoDiv.style.display = 'block';
+  } else {
+    infoDiv.style.display = 'none';
+  }
 }
 
 // Legacy compat
