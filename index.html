@@ -4258,6 +4258,36 @@ function isJourFerie(dateStr) {
   return _joursFeriesCache[year][dateStr] || null;
 }
 
+function getNextWorkingDay(dateStr) {
+  var d = new Date(dateStr);
+  var ds;
+  do {
+    d.setDate(d.getDate() + 1);
+    ds = d.toISOString().substring(0, 10);
+  } while (d.getDay() === 0 || d.getDay() === 6 || isJourFerie(ds));
+  return ds;
+}
+
+function computeSplitDays(duration, travelTo, travelFrom, maxDay) {
+  var days = [];
+  var remaining = duration;
+  var day1Max = Math.max(maxDay - travelTo, 30);
+  var day1Work = Math.min(remaining, day1Max);
+  days.push({ work: day1Work, travelTo: travelTo, travelFrom: 0 });
+  remaining -= day1Work;
+  while (remaining > 0) {
+    if (remaining <= maxDay - travelFrom) {
+      days.push({ work: remaining, travelTo: 0, travelFrom: travelFrom });
+      remaining = 0;
+    } else {
+      days.push({ work: Math.min(remaining, maxDay), travelTo: 0, travelFrom: 0 });
+      remaining -= Math.min(remaining, maxDay);
+    }
+  }
+  if (days.length === 1) days[0].travelFrom = travelFrom;
+  return days;
+}
+
 function jourFerieBadgeHTML(dateStr) {
   var label = isJourFerie(dateStr);
   if (!label) return '';
@@ -4891,6 +4921,52 @@ function saveIntervention(){
     var compWarn = checkCompetenceAlert(data);
     if (compWarn && !confirm('⚠ Alerte compétence :\n' + compWarn.techName + ' n\'a pas la compétence "' + compWarn.mission + '".\n\nContinuer quand même ?')) return;
     if (data.date && !confirmIfAbsence(data.techId, data.date)) return;
+    // Auto-split : proposer de scinder si durée + trajets > 8h30
+    var _totalWithTravel = (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0);
+    if (!editingId && !isSuppMode && _totalWithTravel > 510 && !_pendingMultiDates && !_pendingMulti) {
+      var _splitDays = computeSplitDays(data.duration, data.travelTo, data.travelFrom, 510);
+      if (_splitDays.length > 1) {
+        var _splitDates = [data.date];
+        for (var _sn = 1; _sn < _splitDays.length; _sn++) _splitDates.push(getNextWorkingDay(_splitDates[_sn - 1]));
+        var _splitMsg = '⏱ La durée totale (' + fmtTravelTime(_totalWithTravel) + ') dépasse 8h30.\n\n';
+        _splitMsg += 'Découpage proposé sur ' + _splitDays.length + ' jours :\n\n';
+        for (var _si = 0; _si < _splitDays.length; _si++) {
+          var _sd = _splitDays[_si];
+          var _sdDate = new Date(_splitDates[_si]).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+          var _sdTotal = _sd.work + _sd.travelTo + _sd.travelFrom;
+          _splitMsg += '  ' + _sdDate + ' : ' + fmtTravelTime(_sd.work) + ' travail';
+          if (_sd.travelTo > 0) _splitMsg += ' + ' + fmtTravelTime(_sd.travelTo) + ' aller';
+          if (_sd.travelFrom > 0) _splitMsg += ' + ' + fmtTravelTime(_sd.travelFrom) + ' retour';
+          _splitMsg += ' = ' + fmtTravelTime(_sdTotal) + '\n';
+        }
+        _splitMsg += '\nScinder sur ces ' + _splitDays.length + ' jours ?';
+        if (confirm(_splitMsg)) {
+          closeModal();
+          showLoader('Création de ' + _splitDays.length + ' intervention(s)...');
+          (async function() {
+            for (var _sdi = 0; _sdi < _splitDays.length; _sdi++) {
+              var _sdItem = _splitDays[_sdi];
+              var copy = Object.assign({}, data);
+              copy.date = _splitDates[_sdi];
+              copy.duration = _sdItem.work;
+              copy.travelTo = _sdItem.travelTo;
+              copy.travelFrom = _sdItem.travelFrom;
+              delete copy.id;
+              var row = intToRow(copy);
+              row.created_by = currentAuthUser ? currentAuthUser.email : null;
+              delete row.id;
+              try {
+                var res = await sbAuth.from('geoplan_interventions').insert(row).select();
+                if (res.data && res.data[0]) { copy.id = res.data[0].id; interventions.push(copy); }
+              } catch(e) { console.warn('[AutoSplit] Erreur:', e); }
+            }
+            hideLoader();
+            renderCurrentView(); updateTodayCount(); populateSidebar(); computeAllTravel();
+          })();
+          return;
+        }
+      }
+    }
     _rapportConflict = findRapportSlotConflict(data.techId, data.date, editingId);
     if (_rapportConflict) {
       _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
