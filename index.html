@@ -1532,8 +1532,8 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 .ai-msg-system { align-self:center; background:var(--gph-yellow-light); color:var(--text-secondary); font-size:0.72rem; font-weight:600; border-radius:20px; padding:6px 16px; border:1px solid rgba(245,197,24,0.2); }
 .ai-typing { align-self:flex-start; padding:12px 16px; font-size:0.8rem; color:var(--text-muted); font-style:italic; }
 .ai-input-bar { padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px; background:var(--bg-secondary); border-radius:0 0 12px 12px; flex-wrap:wrap; }
-.ai-cost-bar { width:100%; display:flex; justify-content:space-between; align-items:center; font-size:0.62rem; color:var(--text-muted); font-weight:600; padding:0 2px; order:1; }
-.ai-cost-bar span { opacity:0.8; }
+.ai-cost-bar { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; font-size:0.65rem; color:var(--text-secondary); font-weight:600; padding:4px 6px; order:1; background:var(--bg-primary); border-radius:6px; margin-top:4px; }
+.ai-cost-bar span { display:inline-flex; align-items:center; gap:3px; }
 .ai-input-bar textarea { flex:1; resize:none; border:2px solid var(--border); border-radius:10px; padding:10px 14px; font-size:0.82rem; font-family:inherit; color:var(--text-primary); outline:none; min-height:42px; max-height:120px; transition:border-color 0.2s; }
 .ai-input-bar textarea:focus { border-color:var(--gph-yellow); }
 .ai-input-bar textarea::placeholder { color:var(--text-muted); }
@@ -2380,6 +2380,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     <div class="ai-cost-bar" id="aiCostBar" style="display:none;">
       <span id="aiCostTokens"></span>
       <span id="aiCostPrice"></span>
+      <span id="aiCostCarbon"></span>
     </div>
   </div>
 </div>
@@ -11508,9 +11509,14 @@ function _updateAICost() {
   bar.style.display = 'flex';
   var inK = (_aiTotalInputTokens / 1000).toFixed(1);
   var outK = (_aiTotalOutputTokens / 1000).toFixed(1);
-  document.getElementById('aiCostTokens').textContent = inK + 'k in / ' + outK + 'k out';
-  var cost = (_aiTotalInputTokens * _AI_COST_INPUT + _aiTotalOutputTokens * _AI_COST_OUTPUT) / 1e6;
-  document.getElementById('aiCostPrice').textContent = '~' + cost.toFixed(4) + ' $';
+  document.getElementById('aiCostTokens').textContent = '🔤 ' + inK + 'k in · ' + outK + 'k out';
+  var costUsd = (_aiTotalInputTokens * _AI_COST_INPUT + _aiTotalOutputTokens * _AI_COST_OUTPUT) / 1e6;
+  var costEur = costUsd * 0.92;
+  document.getElementById('aiCostPrice').textContent = '💰 ~' + costEur.toFixed(4) + ' €';
+  var totalTokens = _aiTotalInputTokens + _aiTotalOutputTokens;
+  var co2mg = totalTokens * 0.004;
+  var co2Label = co2mg >= 1000 ? (co2mg / 1000).toFixed(2) + ' g' : co2mg.toFixed(1) + ' mg';
+  document.getElementById('aiCostCarbon').textContent = '🌱 ~' + co2Label + ' CO₂';
 }
 
 function openAIPanel() {
