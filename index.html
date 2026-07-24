@@ -4811,10 +4811,9 @@ function _applyModalLock() {
   }
   var body = document.querySelector('#modalOverlay .modal-body');
   if (!body) return;
-  var _cmdAlwaysEditable = { cdDlrInput:1, cdDlcInput:1 };
   var inputs = body.querySelectorAll('input:not([type=hidden]):not([type=checkbox]), select, textarea, [contenteditable]');
   inputs.forEach(function(el) {
-    if (_cmdAlwaysEditable[el.id] || el.id === 'intInfosAdv') return;
+    if (el.id === 'intInfosAdv') return;
     if (el.hasAttribute('contenteditable')) {
       el.contentEditable = _modalLocked ? 'false' : 'true';
     } else {
@@ -4822,10 +4821,6 @@ function _applyModalLock() {
     }
   });
   body.style.opacity = _modalLocked ? '0.75' : '1';
-  ['cdDlrInput','cdDlcInput'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) { el.disabled = false; el.style.opacity = '1'; }
-  });
   var advEl = document.getElementById('intInfosAdv');
   if (advEl) { advEl.contentEditable = 'true'; advEl.style.opacity = '1'; }
   var saveBtn = document.querySelector('#modalOverlay .modal-footer .btn-primary');
