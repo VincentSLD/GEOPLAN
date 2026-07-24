@@ -4995,11 +4995,11 @@ function saveIntervention(){
       var _brt = settingsIntTypes.find(function(x) { return x.id === _batchRapportConflicts[0].type; });
       var _brLabel = _brt ? _brt.label : 'Rapport';
       var _brMsg = '📝 ' + _batchRapportConflicts.length + ' créneau(x) "' + _brLabel + '" trouvé(s) en conflit.\n\n';
-      _brMsg += '1 — Remplacer les créneaux Rapport\n';
-      _brMsg += '2 — Déduire le temps de chaque Rapport\n';
-      _brMsg += '3 — Ignorer (conserver les Rapports tels quels)\n';
+      _brMsg += '1 — Remplacer les créneaux ' + _brLabel + '\n';
+      _brMsg += '2 — Déduire le temps de chaque ' + _brLabel.toLowerCase() + '\n';
+      _brMsg += '3 — Compléter la journée (ne pas toucher aux ' + _brLabel.toLowerCase() + ')\n';
       _brMsg += '4 — Annuler\n\nTapez 1, 2, 3 ou 4 :';
-      var _brChoice = prompt(_brMsg, '2');
+      var _brChoice = prompt(_brMsg, '3');
       if (!_brChoice || _brChoice.trim() === '4') return;
       if (_brChoice.trim() === '1') _batchRapportAction = 'replace';
       else if (_brChoice.trim() === '2') _batchRapportAction = 'deduct';
@@ -9629,15 +9629,22 @@ function promptRapportSlotConflict(rapportInt, newDuration) {
   var t = settingsIntTypes.find(function(x) { return x.id === rapportInt.type; });
   var rapportLabel = t ? t.label : rapportInt.type;
   var rapportDuration = rapportInt.duration || 0;
-  if (!newDuration || newDuration >= rapportDuration) {
-    var ok = confirm('📝 Un créneau "' + rapportLabel + '" (' + fmtTravelTime(rapportDuration) + ') existe sur ce jour.\n\nRemplacer ce créneau par la nouvelle intervention ?');
-    return ok ? 'replace' : 'cancel';
+  var msg = '📝 Un créneau "' + rapportLabel + '" (' + fmtTravelTime(rapportDuration) + ') existe sur ce jour.\n';
+  if (newDuration) msg += 'La nouvelle intervention dure ' + fmtTravelTime(newDuration) + '.\n';
+  msg += '\n1 — Remplacer entièrement le créneau ' + rapportLabel + '\n';
+  if (newDuration && newDuration < rapportDuration) {
+    var remaining = rapportDuration - newDuration;
+    msg += '2 — Déduire le temps (conserver ' + fmtTravelTime(remaining) + ' de ' + rapportLabel.toLowerCase() + ')\n';
+  } else {
+    msg += '2 — Déduire le temps du ' + rapportLabel.toLowerCase() + '\n';
   }
-  var remaining = rapportDuration - newDuration;
-  var choice = prompt('📝 Un créneau "' + rapportLabel + '" (' + fmtTravelTime(rapportDuration) + ') existe sur ce jour.\nLa nouvelle intervention dure ' + fmtTravelTime(newDuration) + '.\n\n1 — Remplacer entièrement le créneau Rapport\n2 — Déduire le temps (conserver ' + fmtTravelTime(remaining) + ' de rapport)\n3 — Annuler\n\nTapez 1, 2 ou 3 :', '2');
-  if (!choice || choice.trim() === '3') return 'cancel';
+  msg += '3 — Compléter la journée (ne pas toucher au ' + rapportLabel.toLowerCase() + ')\n';
+  msg += '4 — Annuler\n\nTapez 1, 2, 3 ou 4 :';
+  var choice = prompt(msg, '3');
+  if (!choice || choice.trim() === '4') return 'cancel';
   if (choice.trim() === '1') return 'replace';
-  return 'deduct';
+  if (choice.trim() === '2') return 'deduct';
+  return 'ignore';
 }
 
 async function applyRapportSlotAction(rapportInt, action, newDuration) {
