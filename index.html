@@ -5725,6 +5725,22 @@ async function pushCommandeToAkuiteo(opts) {
     console.warn('[Akuiteo push] Exception :', e.message);
     if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo erreur'; statusEl.style.color = '#D97706'; }
   }
+  // Proposer de mettre à jour la DDC si DLR/DLC modifiée
+  if ((opts.reason === 'dlr' || opts.reason === 'dlc') && fromDom) {
+    var ddcBadge = document.getElementById('ddcExistsBadge');
+    var ddcId = ddcBadge && ddcBadge.style.display !== 'none' && ddcBadge.getAttribute('data-ddc-id');
+    if (ddcId) {
+      var dlrLabel = newDlr ? new Date(newDlr + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+      var dlcLabel = newDlc ? new Date(newDlc + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+      var ddcMsg = '📋 Une DDC existe pour cette commande.\n\nMettre à jour la DDC avec les nouvelles dates ?\n  DLR : ' + dlrLabel + '\n  DLC : ' + dlcLabel;
+      if (confirm(ddcMsg)) {
+        try {
+          await sbAuth.from('exeplan_interventions').update({ dlr_date: newDlr || null, dlc_date: newDlc || null, date: newDlc || newDlr || null }).eq('id', ddcId);
+          checkExistingDDC(cmdId);
+        } catch(e2) { console.warn('[DDC sync] Erreur:', e2); }
+      }
+    }
+  }
 }
 
 function etudesMsg(msg) {
