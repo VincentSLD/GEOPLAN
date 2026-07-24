@@ -3606,6 +3606,40 @@ async function updateDDCExeplan() {
   }
 }
 
+function _showDDCDateSyncDialog(ddcId, cmdId, dlrSuggested, dlcSuggested) {
+  var existing = document.getElementById('ddcSyncOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'ddcSyncOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:10002;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:20px 24px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2);position:relative;">' +
+    '<button onclick="document.getElementById(\'ddcSyncOverlay\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;line-height:1;">&times;</button>' +
+    '<h3 style="margin:0 0 12px;font-size:0.95rem;color:#0891B2;">📋 Mettre à jour la DDC ?</h3>' +
+    '<p style="font-size:0.78rem;color:#555;margin:0 0 12px;">Les dates de la commande ont changé. Modifier aussi la DDC ?</p>' +
+    '<label style="font-size:0.72rem;font-weight:600;">DLR</label>' +
+    '<input type="date" id="ddcSyncDlr" value="' + (dlrSuggested || '') + '" style="width:100%;padding:5px 8px;margin:3px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+    '<label style="font-size:0.72rem;font-weight:600;">DLC</label>' +
+    '<input type="date" id="ddcSyncDlc" value="' + (dlcSuggested || '') + '" style="width:100%;padding:5px 8px;margin:3px 0 14px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button onclick="document.getElementById(\'ddcSyncOverlay\').remove()" style="padding:5px 12px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:0.78rem;">Ne pas modifier</button>' +
+      '<button id="ddcSyncSaveBtn" style="padding:5px 12px;border:none;border-radius:6px;background:#0891B2;color:#fff;cursor:pointer;font-weight:600;font-size:0.78rem;">Mettre à jour</button>' +
+    '</div>' +
+  '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('ddcSyncSaveBtn').onclick = async function() {
+    var dlr = document.getElementById('ddcSyncDlr').value;
+    var dlc = document.getElementById('ddcSyncDlc').value;
+    if (!dlr) { alert('La date DLR est obligatoire.'); return; }
+    try {
+      await sbAuth.from('exeplan_interventions').update({ dlr_date: dlr, dlc_date: dlc || null, date: dlc || dlr }).eq('id', ddcId);
+      if (cmdId) checkExistingDDC(cmdId);
+      if (typeof renderAPlanifier === 'function') renderAPlanifier();
+    } catch(e) { console.warn('[DDC sync] Erreur:', e); }
+    overlay.remove();
+  };
+}
+
 async function createDDCExeplan() {
   var cmdId = document.getElementById('intCommande').value;
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
@@ -5730,15 +5764,7 @@ async function pushCommandeToAkuiteo(opts) {
     var ddcBadge = document.getElementById('ddcExistsBadge');
     var ddcId = ddcBadge && ddcBadge.style.display !== 'none' && ddcBadge.getAttribute('data-ddc-id');
     if (ddcId) {
-      var dlrLabel = newDlr ? new Date(newDlr + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-      var dlcLabel = newDlc ? new Date(newDlc + 'T12:00:00').toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-      var ddcMsg = '📋 Une DDC existe pour cette commande.\n\nMettre à jour la DDC avec les nouvelles dates ?\n  DLR : ' + dlrLabel + '\n  DLC : ' + dlcLabel;
-      if (confirm(ddcMsg)) {
-        try {
-          await sbAuth.from('exeplan_interventions').update({ dlr_date: newDlr || null, dlc_date: newDlc || null, date: newDlc || newDlr || null }).eq('id', ddcId);
-          checkExistingDDC(cmdId);
-        } catch(e2) { console.warn('[DDC sync] Erreur:', e2); }
-      }
+      _showDDCDateSyncDialog(ddcId, cmdId, newDlr, newDlc);
     }
   }
 }
