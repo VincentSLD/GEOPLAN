@@ -11520,8 +11520,7 @@ function _updateAICost() {
 }
 
 function openAIPanel() {
-  document.getElementById('ai-panel').classList.add('open');
-  document.getElementById('aiInput').focus();
+  detachAIPanel();
 }
 function closeAIPanel() {
   document.getElementById('ai-panel').classList.remove('open');
