@@ -80,9 +80,10 @@ body{font-family:"Bricolage Grotesque",sans-serif;background:var(--bg-primary);c
 <div class="ai-input-bar">
   <textarea id="aiInput" placeholder="Ex: Optimise les tournées de demain en regroupant par zone..." rows="1"></textarea>
   <button class="ai-send-btn" id="aiSendBtn" onclick="doSend()">➤</button>
-  <div id="aiCostBar" style="width:100%;display:none;justify-content:space-between;align-items:center;font-size:0.62rem;color:var(--text-muted);font-weight:600;padding:0 2px;order:1;">
-    <span id="aiCostTokens"></span>
-    <span id="aiCostPrice"></span>
+  <div id="aiCostBar" style="width:100%;display:none;justify-content:center;align-items:center;gap:12px;font-size:0.65rem;color:var(--text-secondary);font-weight:600;padding:4px 6px;order:1;background:var(--bg-primary);border-radius:6px;margin-top:4px;">
+    <span id="aiCostTokens" style="display:inline-flex;align-items:center;gap:3px;"></span>
+    <span id="aiCostPrice" style="display:inline-flex;align-items:center;gap:3px;"></span>
+    <span id="aiCostCarbon" style="display:inline-flex;align-items:center;gap:3px;"></span>
   </div>
 </div>
 
@@ -228,9 +229,13 @@ function updateCostBar(inp, out) {
   if (!bar) return;
   if (!inp && !out) { bar.style.display = "none"; return; }
   bar.style.display = "flex";
-  document.getElementById("aiCostTokens").textContent = (inp/1000).toFixed(1) + "k in / " + (out/1000).toFixed(1) + "k out";
-  var cost = (inp * 3.0 + out * 15.0) / 1e6;
-  document.getElementById("aiCostPrice").textContent = "~" + cost.toFixed(4) + " $";
+  document.getElementById("aiCostTokens").textContent = "🔤 " + (inp/1000).toFixed(1) + "k in · " + (out/1000).toFixed(1) + "k out";
+  var costEur = (inp * 3.0 + out * 15.0) / 1e6 * 0.92;
+  document.getElementById("aiCostPrice").textContent = "💰 ~" + costEur.toFixed(4) + " €";
+  var totalTokens = inp + out;
+  var co2mg = totalTokens * 0.004;
+  var co2Label = co2mg >= 1000 ? (co2mg / 1000).toFixed(2) + " g" : co2mg.toFixed(1) + " mg";
+  document.getElementById("aiCostCarbon").textContent = "🌱 ~" + co2Label + " CO₂";
 }
 </script>
 </body>
