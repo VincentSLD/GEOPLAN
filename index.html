@@ -2275,7 +2275,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
       <button id="btnPlanifierSupp" class="btn btn-ghost" onclick="planifierSuppFromModal()" style="display:none;border-color:#1565C0;color:#1565C0;font-size:0.68rem;">➕ Planifier interv. supp.</button>
       <button type="button" id="btnCreateDDC" onclick="showCreateDDCDialog()" style="display:none;padding:4px 8px;border:1px solid #0891B2;border-radius:var(--radius-xs);background:#f0fdfa;font-size:0.68rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;color:#0891B2;" title="Créer une intervention DDC dans EXEPLAN">⚡ DDC EXEPLAN</button>
-      <span id="ddcExistsBadge" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;">✓ DDC créée</span>
+      <span id="ddcExistsBadge" onclick="showEditDDCDialog()" style="display:none;padding:2px 8px;border-radius:8px;font-size:0.6rem;font-weight:700;background:#f0fdfa;color:#0891B2;border:1px solid #0891B230;cursor:pointer;" title="Cliquer pour modifier la DDC">✓ DDC créée</span>
       <button class="btn btn-primary" onclick="saveIntervention()">Enregistrer</button>
     </div>
   </div>
@@ -3544,6 +3544,67 @@ function closeDDCDialog() {
   if (o) o.remove();
 }
 
+async function showEditDDCDialog() {
+  var badge = document.getElementById('ddcExistsBadge');
+  var ddcId = badge ? badge.getAttribute('data-ddc-id') : null;
+  if (!ddcId) { alert('DDC introuvable.'); return; }
+  try {
+    var { data } = await sbAuth.from('exeplan_interventions').select('*').eq('id', ddcId).single();
+    if (!data) { alert('DDC introuvable en base.'); return; }
+    var dlrVal = data.dlr_date || '';
+    var dlcVal = data.dlc_date || '';
+    var notesVal = data.notes || '';
+    var overlay = document.createElement('div');
+    overlay.id = 'ddcDialogOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    overlay.onclick = function(ev) { if (ev.target === overlay) closeDDCDialog(); };
+    overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.2);position:relative;">' +
+      '<button onclick="closeDDCDialog()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">&times;</button>' +
+      '<h3 style="margin:0 0 16px;font-size:1rem;color:#0891B2;">✏️ Modifier DDC EXEPLAN</h3>' +
+      '<div style="font-size:0.8rem;margin-bottom:12px;color:#555;">' +
+        '<div><b>Commande :</b> ' + _esc(data.commande_ref || '') + '</div>' +
+        '<div><b>Client :</b> ' + _esc(data.client || '') + '</div>' +
+      '</div>' +
+      '<input type="hidden" id="ddcEditId" value="' + ddcId + '">' +
+      '<label style="font-size:0.75rem;font-weight:600;">Date DLR <span style="color:#DC2626;">*</span></label>' +
+      '<input type="date" id="ddcDlrInput" value="' + _esc(dlrVal) + '" required style="width:100%;padding:6px 8px;margin:4px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+      '<label style="font-size:0.75rem;font-weight:600;">Date DLC</label>' +
+      '<input type="date" id="ddcDlcInput" value="' + _esc(dlcVal) + '" style="width:100%;padding:6px 8px;margin:4px 0 8px;border:1px solid #ccc;border-radius:6px;font-size:0.85rem;">' +
+      '<label style="font-size:0.75rem;font-weight:600;">Notes</label>' +
+      '<textarea id="ddcNotesInput" rows="3" style="width:100%;padding:6px 8px;margin:4px 0 16px;border:1px solid #ccc;border-radius:6px;font-size:0.8rem;resize:vertical;">' + _esc(notesVal) + '</textarea>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button onclick="closeDDCDialog()" style="padding:6px 14px;border:1px solid #ccc;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:0.8rem;">Annuler</button>' +
+        '<button onclick="updateDDCExeplan()" style="padding:6px 14px;border:none;border-radius:6px;background:#0891B2;color:#fff;cursor:pointer;font-weight:600;font-size:0.8rem;">Enregistrer</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+  } catch(e) {
+    console.error('showEditDDCDialog error', e);
+    alert('Erreur : ' + (e.message || e));
+  }
+}
+
+async function updateDDCExeplan() {
+  var ddcId = document.getElementById('ddcEditId').value;
+  if (!ddcId) return;
+  var dlr = document.getElementById('ddcDlrInput').value;
+  if (!dlr) { alert('La date DLR est obligatoire.'); document.getElementById('ddcDlrInput').focus(); return; }
+  var dlc = document.getElementById('ddcDlcInput').value;
+  var notes = document.getElementById('ddcNotesInput').value;
+  try {
+    var upd = { dlr_date: dlr, dlc_date: dlc || null, date: dlc || dlr, notes: notes || '' };
+    var { error } = await sbAuth.from('exeplan_interventions').update(upd).eq('id', ddcId);
+    if (error) throw error;
+    closeDDCDialog();
+    var cmdId = document.getElementById('intCommande').value;
+    if (cmdId) checkExistingDDC(cmdId);
+    if (typeof renderAPlanifier === 'function') renderAPlanifier();
+  } catch(e) {
+    console.error('updateDDCExeplan error', e);
+    alert('Erreur : ' + (e.message || e));
+  }
+}
+
 async function createDDCExeplan() {
   var cmdId = document.getElementById('intCommande').value;
   var cmd = commandesData.find(function(c) { return c.id === cmdId; });
@@ -4715,8 +4776,10 @@ function _applyModalLock() {
   }
   var body = document.querySelector('#modalOverlay .modal-body');
   if (!body) return;
+  var _cmdAlwaysEditable = { cdDlrInput:1, cdDlcInput:1 };
   var inputs = body.querySelectorAll('input:not([type=hidden]):not([type=checkbox]), select, textarea, [contenteditable]');
   inputs.forEach(function(el) {
+    if (_cmdAlwaysEditable[el.id] || el.id === 'intInfosAdv') return;
     if (el.hasAttribute('contenteditable')) {
       el.contentEditable = _modalLocked ? 'false' : 'true';
     } else {
@@ -4724,6 +4787,12 @@ function _applyModalLock() {
     }
   });
   body.style.opacity = _modalLocked ? '0.75' : '1';
+  ['cdDlrInput','cdDlcInput'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.disabled = false; el.style.opacity = '1'; }
+  });
+  var advEl = document.getElementById('intInfosAdv');
+  if (advEl) { advEl.contentEditable = 'true'; advEl.style.opacity = '1'; }
   var saveBtn = document.querySelector('#modalOverlay .modal-footer .btn-primary');
   if (saveBtn) { saveBtn.disabled = _modalLocked; saveBtn.style.opacity = _modalLocked ? '0.4' : '1'; }
   var suppBtn = document.getElementById('btnPlanifierSupp');
@@ -4967,10 +5036,12 @@ function saveIntervention(){
         }
       }
     }
-    _rapportConflict = findRapportSlotConflict(data.techId, data.date, editingId);
-    if (_rapportConflict) {
-      _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
-      if (_rapportAction === 'cancel') return;
+    if (!editingId) {
+      _rapportConflict = findRapportSlotConflict(data.techId, data.date, editingId);
+      if (_rapportConflict) {
+        _rapportAction = promptRapportSlotConflict(_rapportConflict, data.duration);
+        if (_rapportAction === 'cancel') return;
+      }
     }
     if (!checkDayOverload(data.techId, data.date, (data.duration || 0) + (data.travelTo || 0) + (data.travelFrom || 0), editingId)) return;
   }
