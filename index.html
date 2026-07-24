@@ -5747,9 +5747,9 @@ async function pushCommandeToAkuiteo(opts) {
       } else {
         if (statusEl) { statusEl.textContent = '✓ Supabase + Akuiteo OK'; statusEl.style.color = '#16A34A'; }
       }
-      return;
+    } else {
+      if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
     }
-    if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo ' + rSave.status; statusEl.style.color = '#D97706'; }
   } catch(e) {
     console.warn('[Akuiteo push] Exception :', e.message);
     if (statusEl) { statusEl.textContent = '✓ Supabase OK · ⚠ Akuiteo erreur'; statusEl.style.color = '#D97706'; }
