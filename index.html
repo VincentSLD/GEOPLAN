@@ -7216,7 +7216,7 @@ function _updateInfoHeader(cmd) {
   var statutVal = _cdVal('1-alpha17');
   var statutSel = document.getElementById('cdStatutSelect');
   if (statutSel) {
-    statutSel.innerHTML = ['', 'A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'].map(function(v) {
+    statutSel.innerHTML = ['', 'A planifier', 'A faire', 'En cours', 'En attente', 'Terminée'].map(function(v) {
       var sel = (statutVal || '') === v ? ' selected' : '';
       return '<option value="' + v.replace(/"/g,'&quot;') + '"' + sel + '>' + (v || '— Non renseigné —') + '</option>';
     }).join('');
@@ -10813,7 +10813,7 @@ function syncTypesToApp() {
 
 // ======== TAB 4: STATUTS ========
 // Les statuts correspondent aux valeurs du champ custom_data['1-alpha17'] (données personnalisées Akuiteo).
-var STATUT_CD_VALUES = ['A faire', 'A planifier', 'En attente', 'En cours', 'Terminée'];
+var STATUT_CD_VALUES = ['A planifier', 'A faire', 'En cours', 'En attente', 'Terminée'];
 var DEFAULT_STATUT_COLORS = {
   'A faire': '#6B7280',
   'A planifier': '#7C3AED',
