@@ -30,6 +30,7 @@ module.exports = function handler(req, res) {
   const params = new URLSearchParams({
     ...queryParams,
     action,
+    account: WEBFLEET_ACCOUNT,
     apikey: WEBFLEET_APIKEY,
     outputformat: 'json',
     lang: 'fr',
@@ -38,7 +39,7 @@ module.exports = function handler(req, res) {
   });
 
   const url = `https://csv.webfleet.com/extern?${params}`;
-  const basicAuth = Buffer.from(WEBFLEET_ACCOUNT + '/' + WEBFLEET_USERNAME + ':' + WEBFLEET_PASSWORD).toString('base64');
+  const basicAuth = Buffer.from(WEBFLEET_USERNAME + ':' + WEBFLEET_PASSWORD).toString('base64');
 
   const request = https.get(url, {
     timeout: 25000,
