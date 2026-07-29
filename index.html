@@ -1982,10 +1982,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div class="map-inline-header">
         <div class="map-inline-info" style="gap:10px;">
           <span style="font-weight:700;font-size:0.85rem;">Carte</span>
-          <button class="nav-btn" onclick="navigateMapDate(-1)" title="Jour précédent"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-          <input type="date" id="mapDate" onchange="renderMapTournees()" style="height:28px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">
-          <button class="nav-btn" onclick="navigateMapDate(1)" title="Jour suivant"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
-          <button class="btn btn-ghost" onclick="document.getElementById('mapDate').value=localDateStr(new Date());renderMapTournees();" style="font-size:0.68rem;">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="navigateMapDate(-1)" title="Jour précédent" style="font-size:0.72rem;font-weight:700;padding:2px 8px;">◀ J-1</button>
+          <input type="date" id="mapDate" onchange="navigateMapDateTo(this.value)" style="height:28px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 8px;font-size:0.72rem;font-family:inherit;">
+          <button class="btn btn-ghost" onclick="navigateMapDate(1)" title="Jour suivant" style="font-size:0.72rem;font-weight:700;padding:2px 8px;">J+1 ▶</button>
+          <button class="btn btn-ghost" onclick="navigateMapDateTo(localDateStr(new Date()))" style="font-size:0.68rem;">Aujourd'hui</button>
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;margin-left:8px;">
             <input type="checkbox" id="mapShowFleet" checked onchange="toggleFleetOnMap()"> Véhicules en live
           </label>
@@ -2540,21 +2540,23 @@ async function deleteInterventionFromSupabase(id) {
   } catch(e) { console.warn('[Interventions] Erreur delete:', e); }
 }
 
+var _isDetachedMap = false;
 var _realtimeIntChannel = null;
 function subscribeRealtimeInterventions() {
   if (_realtimeIntChannel) { sbAuth.removeChannel(_realtimeIntChannel); _realtimeIntChannel = null; }
   _realtimeIntChannel = sbAuth.channel('geoplan-sync-' + Date.now())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'geoplan_interventions' }, function(payload) {
       var myEmail = currentAuthUser ? currentAuthUser.email : null;
+      var isOwnChange = payload.new && payload.new.updated_by === myEmail;
       if (payload.eventType === 'INSERT') {
-        if (payload.new.updated_by === myEmail) return;
+        if (isOwnChange && !_isDetachedMap) return;
         var exists = interventions.find(function(i) { return i.id === payload.new.id; });
         if (!exists) {
           interventions.push(rowToInt(payload.new));
           console.log('[Realtime] +1 intervention (par ' + (payload.new.updated_by || '?') + ')');
         }
       } else if (payload.eventType === 'UPDATE') {
-        if (payload.new.updated_by === myEmail) return;
+        if (isOwnChange && !_isDetachedMap) return;
         var idx = interventions.findIndex(function(i) { return i.id === payload.new.id; });
         if (idx >= 0) {
           interventions[idx] = rowToInt(payload.new);
@@ -2563,13 +2565,14 @@ function subscribeRealtimeInterventions() {
           interventions.push(rowToInt(payload.new));
         }
       } else if (payload.eventType === 'DELETE') {
-        var delIdx = interventions.findIndex(function(i) { return i.id === payload.old.id; });
+        var delIdx = interventions.findIndex(function(i) { return i.id === (payload.old || {}).id; });
         if (delIdx >= 0) {
           interventions.splice(delIdx, 1);
           console.log('[Realtime] Suppression intervention #' + payload.old.id);
         }
       }
       renderCurrentView(); updateTodayCount(); populateSidebar(); renderAPlanifier();
+      if (typeof renderMapTournees === 'function') renderMapTournees();
     })
     .subscribe(function(status) {
       console.log('[Realtime] ' + status);
@@ -4740,7 +4743,7 @@ async function handleDrop(e,tid,ds){
       i.techId=tid;i.date=ds;if(!i.isRapport)i.status='pre-planned';
       await saveInterventionToSupabase(i);
       if(moveRapport && linkedRapport){linkedRapport.techId=tid;await saveInterventionToSupabase(linkedRapport);}
-      renderCurrentView();computeAllTravel();
+      renderCurrentView();computeAllTravel();if(typeof renderMapTournees==='function')renderMapTournees();
     }
     draggedId=null;
   }
@@ -4781,6 +4784,7 @@ function dropToAPlanifier(e) {
         }
       }
       renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+      if(typeof renderMapTournees==='function')renderMapTournees();
     })();
   });
 }
@@ -5253,6 +5257,7 @@ function saveIntervention(){
     if (!editingId && data.geosoliaId && data.commandeId) await createRapportIntervention(data);
     syncCommandeGeosoliaFromInterventions();
     renderCurrentView();updateTodayCount();populateSidebar();computeAllTravel();renderAPlanifier();
+    if (typeof renderMapTournees === 'function') renderMapTournees();
     hideLoader();
   })();
 }
@@ -5514,6 +5519,7 @@ function deleteIntervention(id){
       }
     }
     closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    if(typeof renderMapTournees==='function')renderMapTournees();
     hideLoader();
   })();
 }
@@ -5543,6 +5549,7 @@ function unplanIntervention(id) {
         }
       }
       closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+      if(typeof renderMapTournees==='function')renderMapTournees();
     })();
   });
 }
@@ -5571,6 +5578,7 @@ function deleteRecurrenceGroup(id) {
       await deleteInterventionFromSupabase(idsToDelete[k]);
     }
     closeDetail();renderCurrentView();updateTodayCount();populateSidebar();renderAPlanifier();
+    if(typeof renderMapTournees==='function')renderMapTournees();
     hideLoader();
   })();
 }
@@ -8378,8 +8386,14 @@ function navigateMapDate(dir) {
   var input = document.getElementById('mapDate');
   var d = new Date(input.value + 'T12:00:00');
   d.setDate(d.getDate() + dir);
-  input.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  navigateMapDateTo(ds);
+}
+function navigateMapDateTo(dateStr) {
+  var input = document.getElementById('mapDate');
+  input.value = dateStr;
   renderMapTournees();
+  if (_mapBroadcast) _mapBroadcast.postMessage({ type: 'map-date-change', date: dateStr });
 }
 
 function toggleFleetOnMap() {
@@ -8648,6 +8662,7 @@ function detachMap() {
 function applyDetachedMapMode() {
   var params = new URLSearchParams(window.location.search);
   if (params.get('map') !== 'detached') return false;
+  _isDetachedMap = true;
   document.title = 'Carte — GéoPlan';
   var dateParam = params.get('date');
   var style = document.createElement('style');
@@ -8656,11 +8671,14 @@ function applyDetachedMapMode() {
   window.addEventListener('load', function() {
     var dp = document.getElementById('mapDate');
     if (dp && dateParam) dp.value = dateParam;
-    var bc = new BroadcastChannel('geoplan-map');
-    dp.addEventListener('change', function() {
-      bc.postMessage({ type: 'map-date-change', date: dp.value });
-    });
-    window.addEventListener('beforeunload', function() { bc.postMessage({ type: 'map-closed' }); });
+    _mapBroadcast = new BroadcastChannel('geoplan-map');
+    _mapBroadcast.onmessage = function(ev) {
+      if (ev.data.type === 'map-date-change') {
+        dp.value = ev.data.date;
+        renderMapTournees();
+      }
+    };
+    window.addEventListener('beforeunload', function() { _mapBroadcast.postMessage({ type: 'map-closed' }); });
   });
   return true;
 }
