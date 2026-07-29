@@ -22,12 +22,14 @@ module.exports = function handler(req, res) {
 
   const action = req.query.action || 'showObjectReportExtern';
 
+  const queryParams = Object.assign({}, req.query);
+  delete queryParams.account;
+  delete queryParams.username;
+  delete queryParams.password;
+
   const params = new URLSearchParams({
-    ...req.query,
+    ...queryParams,
     action,
-    account: WEBFLEET_ACCOUNT,
-    username: WEBFLEET_USERNAME,
-    password: WEBFLEET_PASSWORD,
     apikey: WEBFLEET_APIKEY,
     outputformat: 'json',
     lang: 'fr',
@@ -36,8 +38,12 @@ module.exports = function handler(req, res) {
   });
 
   const url = `https://csv.webfleet.com/extern?${params}`;
+  const basicAuth = Buffer.from(WEBFLEET_ACCOUNT + '/' + WEBFLEET_USERNAME + ':' + WEBFLEET_PASSWORD).toString('base64');
 
-  const request = https.get(url, { timeout: 25000 }, (response) => {
+  const request = https.get(url, {
+    timeout: 25000,
+    headers: { 'Authorization': 'Basic ' + basicAuth }
+  }, (response) => {
     let body = '';
     response.on('data', (chunk) => { body += chunk; });
     response.on('end', () => {
