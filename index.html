@@ -8666,7 +8666,7 @@ function applyDetachedMapMode() {
   document.title = 'Carte — GéoPlan';
   var dateParam = params.get('date');
   var style = document.createElement('style');
-  style.textContent = '.app-header,.sidebar,.view-tabs,#modalOverlay,.detail-panel,#ai-panel,.ai-fab{display:none!important;}.app{display:flex!important;}.main{margin-left:0!important;width:100%!important;}.view-content{display:none!important;}#mapView{display:block!important;}#mapView .map-inline-container{border-radius:0;height:100vh;}#mapView .map-inline-header{padding:12px 20px;font-size:0.9rem;}#mapView .map-inline-header .btn{font-size:0.85rem!important;padding:6px 14px!important;}#mapView .map-inline-header input[type="date"]{height:34px;font-size:0.85rem;}';
+  style.textContent = '.app-header,.topbar,.sidebar,.view-tabs,#modalOverlay,.detail-panel,#ai-panel,.ai-fab{display:none!important;}.app{display:flex!important;}.main{margin-left:0!important;width:100%!important;}.view-content{display:none!important;}#mapView{display:block!important;}#mapView .map-inline-container{border-radius:0;height:100vh;}#mapView .map-inline-header{padding:12px 20px;font-size:0.9rem;}#mapView .map-inline-header .btn{font-size:0.85rem!important;padding:6px 14px!important;}#mapView .map-inline-header input[type="date"]{height:34px;font-size:0.85rem;}';
   document.head.appendChild(style);
   window.addEventListener('load', function() {
     var dp = document.getElementById('mapDate');
