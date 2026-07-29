@@ -1998,6 +1998,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             Actualiser
           </button>
+          <button class="btn btn-ghost" onclick="detachMap()" title="Détacher dans une nouvelle fenêtre">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <span class="btn-label-desktop">Détacher</span>
+          </button>
           <button class="btn btn-ghost" onclick="toggleMapFullscreen()" id="mapFullscreenBtn" title="Plein écran">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             <span class="btn-label-desktop">Plein écran</span>
@@ -8608,6 +8612,60 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+var _mapDetachedWindow = null;
+var _mapBroadcast = null;
+function getMapBroadcast() {
+  if (!_mapBroadcast) {
+    _mapBroadcast = new BroadcastChannel('geoplan-map');
+    _mapBroadcast.onmessage = function(ev) {
+      if (ev.data.type === 'map-date-change') {
+        var dp = document.getElementById('mapDate');
+        if (dp) { dp.value = ev.data.date; renderMapTournees(); }
+      } else if (ev.data.type === 'map-sync-fleet') {
+        syncFleet().then(function() {
+          _mapBroadcast.postMessage({ type: 'map-fleet-data', fleet: fleetData });
+        });
+      } else if (ev.data.type === 'map-closed') {
+        _mapDetachedWindow = null;
+      }
+    };
+  }
+  return _mapBroadcast;
+}
+
+function detachMap() {
+  if (_mapDetachedWindow && !_mapDetachedWindow.closed) {
+    _mapDetachedWindow.focus();
+    return;
+  }
+  var dateStr = document.getElementById('mapDate').value || localDateStr(new Date());
+  var url = location.origin + location.pathname + '?map=detached&date=' + dateStr;
+  _mapDetachedWindow = window.open(url, 'geoplan-map', 'width=1100,height=750,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
+  if (!_mapDetachedWindow) { alert('Le navigateur a bloqué la popup. Autorisez les popups pour ce site.'); return; }
+  getMapBroadcast();
+}
+
+function applyDetachedMapMode() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('map') !== 'detached') return false;
+  document.title = 'Carte — GéoPlan';
+  var dateParam = params.get('date');
+  var style = document.createElement('style');
+  style.textContent = '.app-header,.sidebar,.view-tabs,#modalOverlay,.detail-panel,#ai-panel,.ai-fab{display:none!important;}.app{display:flex!important;}.main{margin-left:0!important;width:100%!important;}.view-content{display:none!important;}#mapView{display:block!important;}#mapView .map-inline-container{border-radius:0;height:100vh;}';
+  document.head.appendChild(style);
+  window.addEventListener('load', function() {
+    var dp = document.getElementById('mapDate');
+    if (dp && dateParam) dp.value = dateParam;
+    var bc = new BroadcastChannel('geoplan-map');
+    dp.addEventListener('change', function() {
+      bc.postMessage({ type: 'map-date-change', date: dp.value });
+    });
+    window.addEventListener('beforeunload', function() { bc.postMessage({ type: 'map-closed' }); });
+  });
+  return true;
+}
+applyDetachedMapMode();
+
 function createVehicleIcon(color, label) {
   var isLong = label.length > 3;
   return L.divIcon({
@@ -12575,7 +12633,13 @@ function showApp(user) {
   try { sbAuth.from('connexions_log').insert({ user_id: user.id, email: user.email || null, nom: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : null), app: 'geoplan' }).then(() => {}, () => {}); } catch (e) {}
   // Sync settings from Supabase before init
   showLoader('Synchronisation des paramètres...');
-  loadAllSettingsFromSupabase().then(() => { applyMonEspacePrefs(); init(); });
+  loadAllSettingsFromSupabase().then(() => {
+    applyMonEspacePrefs();
+    init();
+    if (new URLSearchParams(window.location.search).get('map') === 'detached') {
+      switchView('map');
+    }
+  });
 }
 
 function showLogin() {
