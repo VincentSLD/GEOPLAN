@@ -2874,6 +2874,24 @@ async function getOSRMRoute(lat1, lon1, lat2, lon2) {
   }
 }
 
+async function fetchOSRMGeometry(points) {
+  if (points.length < 2 || !osrmAvailable) return null;
+  var coords = points.map(function(p) { return p[1] + ',' + p[0]; }).join(';');
+  try {
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 8000);
+    var r = await fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=full&geometries=geojson', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!r.ok) return null;
+    var data = await r.json();
+    if (data.code !== 'Ok' || !data.routes || !data.routes[0]) return null;
+    return data.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
+  } catch(e) {
+    console.warn('[OSRM geo] Erreur:', e.message);
+    return null;
+  }
+}
+
 function haversineFallback(lat1, lon1, lat2, lon2) {
   const key = `${lat1},${lon1}-${lat2},${lon2}`;
   const min = estimateTravelHaversine(lat1, lon1, lat2, lon2);
@@ -8477,9 +8495,8 @@ function renderMapTournees() {
       var lastCoords = getInterventionCoords(lastInt);
       if (lastCoords) segments.push({ from: [lastCoords.lat, lastCoords.lon], to: [arriveeCoords.lat, arriveeCoords.lon], minutes: lastInt.travelFrom || 0, km: lastInt.travelFromKm || 0, label: 'Retour' });
     }
+    // Draw travel labels at midpoints
     segments.forEach(function(seg) {
-      var line = L.polyline([seg.from, seg.to], { color: color, weight: 3, opacity: 0.7, dashArray: '8,6' }).addTo(fleetMap);
-      mapTourneeLines.push(line);
       if (seg.minutes > 0) {
         var midLat = (seg.from[0] + seg.to[0]) / 2;
         var midLng = (seg.from[1] + seg.to[1]) / 2;
@@ -8495,6 +8512,22 @@ function renderMapTournees() {
         mapTourneeMarkers.push(lbl);
       }
     });
+    // Draw road route via OSRM (async), fallback to straight lines
+    (function(rp, segs, col) {
+      if (rp.length >= 2) {
+        fetchOSRMGeometry(rp).then(function(roadCoords) {
+          if (roadCoords && roadCoords.length > 0) {
+            var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 }).addTo(fleetMap);
+            mapTourneeLines.push(line);
+          } else {
+            segs.forEach(function(seg) {
+              var line = L.polyline([seg.from, seg.to], { color: col, weight: 3, opacity: 0.7, dashArray: '8,6' }).addTo(fleetMap);
+              mapTourneeLines.push(line);
+            });
+          }
+        });
+      }
+    })(routePoints, segments, color);
   });
 
   // Fit bounds
