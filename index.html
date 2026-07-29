@@ -8343,6 +8343,9 @@ function openFleet() {
 
 var mapTourneeMarkers = [];
 var mapTourneeLines = [];
+var _mapTourneeGroup = null;
+var _mapRenderDebounce = null;
+var _mapLastDate = null;
 var showFleetOnMap = true;
 
 function initFleetMap() {
@@ -8351,7 +8354,7 @@ function initFleetMap() {
   if (datePicker && !datePicker.value) datePicker.value = localDateStr(currentDate);
 
   if (fleetMap) {
-    setTimeout(function() { fleetMap.invalidateSize(); renderMapTournees(); }, 200);
+    setTimeout(function() { fleetMap.invalidateSize(); renderMapTournees(true); }, 200);
     return;
   }
   fleetMap = L.map('fleetMapInline').setView([46.8, -1.2], 8);
@@ -8377,10 +8380,10 @@ function initFleetMap() {
   }
 
   // Render tournees
-  setTimeout(function() { renderMapTournees(); }, 500);
+  setTimeout(function() { renderMapTournees(true); }, 500);
 }
 
-function syncFleetInline() { syncFleet(); setTimeout(renderMapTournees, 1000); }
+function syncFleetInline() { syncFleet(); setTimeout(function() { renderMapTournees(true); }, 1000); }
 
 function navigateMapDate(dir) {
   var input = document.getElementById('mapDate');
@@ -8404,24 +8407,43 @@ function toggleFleetOnMap() {
   });
 }
 
-function renderMapTournees() {
+function renderMapTournees(force) {
+  if (_mapRenderDebounce) clearTimeout(_mapRenderDebounce);
+  _mapRenderDebounce = setTimeout(function() { _renderMapTourneesNow(force); }, 150);
+}
+
+function _renderMapTourneesNow(force) {
   if (!fleetMap) return;
 
-  // Clear previous tournee layers
-  mapTourneeMarkers.forEach(function(m) { fleetMap.removeLayer(m); });
-  mapTourneeLines.forEach(function(l) { fleetMap.removeLayer(l); });
-  mapTourneeMarkers = [];
-  mapTourneeLines = [];
-
-  if (!document.getElementById('mapShowTournees').checked) { renderMapTourneeList(); return; }
-
   var dateStr = document.getElementById('mapDate').value;
-  if (!dateStr) return;
+  var dateChanged = dateStr !== _mapLastDate;
+  _mapLastDate = dateStr;
+
+  // Build new layers in a temporary group (off-screen)
+  var newGroup = L.layerGroup();
+  var newMarkers = [];
+  var newLines = [];
+
+  if (!document.getElementById('mapShowTournees').checked || !dateStr) {
+    // Swap groups atomically
+    if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
+    _mapTourneeGroup = newGroup;
+    mapTourneeMarkers = [];
+    mapTourneeLines = [];
+    renderMapTourneeList();
+    return;
+  }
 
   var dayInts = interventions.filter(function(i) { return i.date === dateStr; });
-  if (dayInts.length === 0) { renderMapTourneeList(); return; }
+  if (dayInts.length === 0) {
+    if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
+    _mapTourneeGroup = newGroup;
+    mapTourneeMarkers = [];
+    mapTourneeLines = [];
+    renderMapTourneeList();
+    return;
+  }
 
-  // Group by tech
   var byTech = {};
   dayInts.forEach(function(i) {
     if (!byTech[i.techId]) byTech[i.techId] = [];
@@ -8429,6 +8451,7 @@ function renderMapTournees() {
   });
 
   var allBounds = [];
+  var osrmPromises = [];
 
   Object.keys(byTech).forEach(function(techId) {
     var tech = TECHNICIANS.find(function(t) { return t.id === +techId; });
@@ -8437,18 +8460,17 @@ function renderMapTournees() {
     var color = tech.color || '#2563EB';
     var routePoints = [];
 
-    // Departure point
     var departCoords = getTechDepartCoords(tech, dateStr);
     if (departCoords) {
       var depMarker = L.circleMarker([departCoords.lat, departCoords.lon], {
         radius: 6, color: color, fillColor: '#fff', fillOpacity: 1, weight: 3
-      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Départ</span>');
-      mapTourneeMarkers.push(depMarker);
+      }).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Départ</span>');
+      newGroup.addLayer(depMarker);
+      newMarkers.push(depMarker);
       routePoints.push([departCoords.lat, departCoords.lon]);
       allBounds.push([departCoords.lat, departCoords.lon]);
     }
 
-    // Intervention points
     ints.forEach(function(int, idx) {
       var coords = getInterventionCoords(int);
       if (!coords) return;
@@ -8459,7 +8481,7 @@ function renderMapTournees() {
           html: '<div style="background:' + color + ';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);">' + num + '</div>',
           iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
         })
-      }).addTo(fleetMap).bindPopup((function() {
+      }).bindPopup((function() {
         var siblings = int.commandeId ? dayInts.filter(function(s) { return s.commandeId === int.commandeId && s.id !== int.id; }) : [];
         var popHtml = '<div style="font-family:inherit;min-width:200px;">';
         popHtml += '<strong style="font-size:0.82rem;">' + int.title + '</strong>';
@@ -8482,38 +8504,37 @@ function renderMapTournees() {
         popHtml += '</div>';
         return popHtml;
       })());
-      mapTourneeMarkers.push(marker);
+      newGroup.addLayer(marker);
+      newMarkers.push(marker);
       routePoints.push([coords.lat, coords.lon]);
       allBounds.push([coords.lat, coords.lon]);
     });
 
-    // Arrival point
     var lastInt = ints[ints.length - 1];
     var arriveeCoords = getTechArriveeCoords(tech, lastInt ? lastInt.date : dateStr);
     if (arriveeCoords && ints.length > 0) {
       routePoints.push([arriveeCoords.lat, arriveeCoords.lon]);
       var arrMarker = L.circleMarker([arriveeCoords.lat, arriveeCoords.lon], {
         radius: 6, color: color, fillColor: color, fillOpacity: 0.3, weight: 3
-      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Retour</span>');
-      mapTourneeMarkers.push(arrMarker);
+      }).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Retour</span>');
+      newGroup.addLayer(arrMarker);
+      newMarkers.push(arrMarker);
     }
 
-    // Draw route segments with travel labels
     var segments = [];
     if (departCoords && ints.length > 0) {
       var firstCoords = getInterventionCoords(ints[0]);
-      if (firstCoords) segments.push({ from: [departCoords.lat, departCoords.lon], to: [firstCoords.lat, firstCoords.lon], minutes: ints[0].travelTo || 0, km: ints[0].travelToKm || 0, label: 'Départ' });
+      if (firstCoords) segments.push({ from: [departCoords.lat, departCoords.lon], to: [firstCoords.lat, firstCoords.lon], minutes: ints[0].travelTo || 0, km: ints[0].travelToKm || 0 });
     }
     for (var si = 0; si < ints.length - 1; si++) {
       var cA = getInterventionCoords(ints[si]);
       var cB = getInterventionCoords(ints[si + 1]);
-      if (cA && cB) segments.push({ from: [cA.lat, cA.lon], to: [cB.lat, cB.lon], minutes: ints[si + 1].travelTo || 0, km: ints[si + 1].travelToKm || 0, label: '' });
+      if (cA && cB) segments.push({ from: [cA.lat, cA.lon], to: [cB.lat, cB.lon], minutes: ints[si + 1].travelTo || 0, km: ints[si + 1].travelToKm || 0 });
     }
     if (arriveeCoords && ints.length > 0) {
       var lastCoords = getInterventionCoords(lastInt);
-      if (lastCoords) segments.push({ from: [lastCoords.lat, lastCoords.lon], to: [arriveeCoords.lat, arriveeCoords.lon], minutes: lastInt.travelFrom || 0, km: lastInt.travelFromKm || 0, label: 'Retour' });
+      if (lastCoords) segments.push({ from: [lastCoords.lat, lastCoords.lon], to: [arriveeCoords.lat, arriveeCoords.lon], minutes: lastInt.travelFrom || 0, km: lastInt.travelFromKm || 0 });
     }
-    // Draw travel labels at midpoints
     segments.forEach(function(seg) {
       if (seg.minutes > 0) {
         var midLat = (seg.from[0] + seg.to[0]) / 2;
@@ -8526,30 +8547,41 @@ function renderMapTournees() {
             iconSize: null, iconAnchor: [0, 10]
           }),
           interactive: false
-        }).addTo(fleetMap);
-        mapTourneeMarkers.push(lbl);
+        });
+        newGroup.addLayer(lbl);
+        newMarkers.push(lbl);
       }
     });
-    // Draw road route via OSRM (async), fallback to straight lines
-    (function(rp, segs, col) {
+    // OSRM route (async) — add to the same group when ready
+    (function(rp, segs, col, grp, lines) {
       if (rp.length >= 2) {
-        fetchOSRMGeometry(rp).then(function(roadCoords) {
+        var p = fetchOSRMGeometry(rp).then(function(roadCoords) {
           if (roadCoords && roadCoords.length > 0) {
-            var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 }).addTo(fleetMap);
-            mapTourneeLines.push(line);
+            var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 });
+            grp.addLayer(line);
+            lines.push(line);
           } else {
             segs.forEach(function(seg) {
-              var line = L.polyline([seg.from, seg.to], { color: col, weight: 3, opacity: 0.7, dashArray: '8,6' }).addTo(fleetMap);
-              mapTourneeLines.push(line);
+              var line = L.polyline([seg.from, seg.to], { color: col, weight: 3, opacity: 0.7, dashArray: '8,6' });
+              grp.addLayer(line);
+              lines.push(line);
             });
           }
         });
+        osrmPromises.push(p);
       }
-    })(routePoints, segments, color);
+    })(routePoints, segments, color, newGroup, newLines);
   });
 
-  // Fit bounds
-  if (allBounds.length > 0) {
+  // Swap old group for new one atomically
+  if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
+  newGroup.addTo(fleetMap);
+  _mapTourneeGroup = newGroup;
+  mapTourneeMarkers = newMarkers;
+  mapTourneeLines = newLines;
+
+  // Only fit bounds on date change or forced, not on data-only updates
+  if ((dateChanged || force) && allBounds.length > 0) {
     fleetMap.fitBounds(allBounds, { padding: [40, 40], maxZoom: 13 });
   }
 
