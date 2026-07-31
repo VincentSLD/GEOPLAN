@@ -8560,8 +8560,8 @@ function _renderMapTourneesNow(force) {
       });
     }
     // OSRM route (async) — add to the same group when ready
-    (function(rp, segs, col, grp, lines, drawRoute) {
-      if (rp.length >= 2 && drawRoute) {
+    (function(rp, segs, col, grp, lines) {
+      if (rp.length >= 2) {
         var p = fetchOSRMGeometry(rp).then(function(roadCoords) {
           if (roadCoords && roadCoords.length > 0) {
             var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 });
@@ -8577,7 +8577,7 @@ function _renderMapTourneesNow(force) {
         });
         osrmPromises.push(p);
       }
-    })(routePoints, segments, color, newGroup, newLines, showTravel);
+    })(routePoints, segments, color, newGroup, newLines);
   });
 
   // Swap old group for new one atomically
