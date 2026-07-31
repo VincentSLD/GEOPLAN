@@ -1992,6 +1992,9 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;">
             <input type="checkbox" id="mapShowTournees" checked onchange="renderMapTournees()"> Tournées
           </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="mapShowTravelLabels" checked onchange="renderMapTournees()"> Trajets
+          </label>
         </div>
         <div class="map-inline-actions">
           <button class="btn btn-ghost" onclick="syncFleetInline()">
@@ -8418,6 +8421,8 @@ function _renderMapTourneesNow(force) {
   var dateStr = document.getElementById('mapDate').value;
   var dateChanged = dateStr !== _mapLastDate;
   _mapLastDate = dateStr;
+  var showTravelEl = document.getElementById('mapShowTravelLabels');
+  var showTravel = showTravelEl ? showTravelEl.checked : true;
 
   // Build new layers in a temporary group (off-screen)
   var newGroup = L.layerGroup();
@@ -8535,26 +8540,28 @@ function _renderMapTourneesNow(force) {
       var lastCoords = getInterventionCoords(lastInt);
       if (lastCoords) segments.push({ from: [lastCoords.lat, lastCoords.lon], to: [arriveeCoords.lat, arriveeCoords.lon], minutes: lastInt.travelFrom || 0, km: lastInt.travelFromKm || 0 });
     }
-    segments.forEach(function(seg) {
-      if (seg.minutes > 0) {
-        var midLat = (seg.from[0] + seg.to[0]) / 2;
-        var midLng = (seg.from[1] + seg.to[1]) / 2;
-        var txt = fmtTravelTime(seg.minutes) + (seg.km ? ' · ' + seg.km + 'km' : '');
-        var lbl = L.marker([midLat, midLng], {
-          icon: L.divIcon({
-            className: 'map-travel-label',
-            html: '<div style="background:' + color + ';color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.25);font-family:\'DM Mono\',monospace;">🚗 ' + txt + '</div>',
-            iconSize: null, iconAnchor: [0, 10]
-          }),
-          interactive: false
-        });
-        newGroup.addLayer(lbl);
-        newMarkers.push(lbl);
-      }
-    });
+    if (showTravel) {
+      segments.forEach(function(seg) {
+        if (seg.minutes > 0) {
+          var midLat = (seg.from[0] + seg.to[0]) / 2;
+          var midLng = (seg.from[1] + seg.to[1]) / 2;
+          var txt = fmtTravelTime(seg.minutes) + (seg.km ? ' · ' + seg.km + 'km' : '');
+          var lbl = L.marker([midLat, midLng], {
+            icon: L.divIcon({
+              className: 'map-travel-label',
+              html: '<div style="background:' + color + ';color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.25);font-family:\'DM Mono\',monospace;">🚗 ' + txt + '</div>',
+              iconSize: null, iconAnchor: [0, 10]
+            }),
+            interactive: false
+          });
+          newGroup.addLayer(lbl);
+          newMarkers.push(lbl);
+        }
+      });
+    }
     // OSRM route (async) — add to the same group when ready
-    (function(rp, segs, col, grp, lines) {
-      if (rp.length >= 2) {
+    (function(rp, segs, col, grp, lines, drawRoute) {
+      if (rp.length >= 2 && drawRoute) {
         var p = fetchOSRMGeometry(rp).then(function(roadCoords) {
           if (roadCoords && roadCoords.length > 0) {
             var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 });
@@ -8570,7 +8577,7 @@ function _renderMapTourneesNow(force) {
         });
         osrmPromises.push(p);
       }
-    })(routePoints, segments, color, newGroup, newLines);
+    })(routePoints, segments, color, newGroup, newLines, showTravel);
   });
 
   // Swap old group for new one atomically
