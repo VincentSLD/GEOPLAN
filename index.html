@@ -8580,12 +8580,13 @@ function _renderMapTourneesNow(force) {
     })(routePoints, segments, color, newGroup, newLines);
   });
 
-  // Swap old group for new one atomically
-  if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
+  // Swap: add new group first, then remove old (no flash)
+  var oldGroup = _mapTourneeGroup;
   newGroup.addTo(fleetMap);
   _mapTourneeGroup = newGroup;
   mapTourneeMarkers = newMarkers;
   mapTourneeLines = newLines;
+  if (oldGroup) fleetMap.removeLayer(oldGroup);
 
   // Only fit bounds on date change or forced, not on data-only updates
   if ((dateChanged || force) && allBounds.length > 0) {
