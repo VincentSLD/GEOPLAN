@@ -8346,7 +8346,6 @@ function openFleet() {
 
 var mapTourneeMarkers = [];
 var mapTourneeLines = [];
-var _mapTourneeGroup = null;
 var _mapRenderDebounce = null;
 var _mapLastDate = null;
 var showFleetOnMap = true;
@@ -8424,30 +8423,16 @@ function _renderMapTourneesNow(force) {
   var showTravelEl = document.getElementById('mapShowTravelLabels');
   var showTravel = showTravelEl ? showTravelEl.checked : true;
 
-  // Build new layers in a temporary group (off-screen)
-  var newGroup = L.layerGroup();
-  var newMarkers = [];
-  var newLines = [];
+  // Clear previous layers
+  mapTourneeMarkers.forEach(function(m) { fleetMap.removeLayer(m); });
+  mapTourneeLines.forEach(function(l) { fleetMap.removeLayer(l); });
+  mapTourneeMarkers = [];
+  mapTourneeLines = [];
 
-  if (!document.getElementById('mapShowTournees').checked || !dateStr) {
-    // Swap groups atomically
-    if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
-    _mapTourneeGroup = newGroup;
-    mapTourneeMarkers = [];
-    mapTourneeLines = [];
-    renderMapTourneeList();
-    return;
-  }
+  if (!document.getElementById('mapShowTournees').checked || !dateStr) { renderMapTourneeList(); return; }
 
   var dayInts = interventions.filter(function(i) { return i.date === dateStr; });
-  if (dayInts.length === 0) {
-    if (_mapTourneeGroup) fleetMap.removeLayer(_mapTourneeGroup);
-    _mapTourneeGroup = newGroup;
-    mapTourneeMarkers = [];
-    mapTourneeLines = [];
-    renderMapTourneeList();
-    return;
-  }
+  if (dayInts.length === 0) { renderMapTourneeList(); return; }
 
   var byTech = {};
   dayInts.forEach(function(i) {
@@ -8456,7 +8441,6 @@ function _renderMapTourneesNow(force) {
   });
 
   var allBounds = [];
-  var osrmPromises = [];
 
   Object.keys(byTech).forEach(function(techId) {
     var tech = TECHNICIANS.find(function(t) { return t.id === +techId; });
@@ -8469,9 +8453,8 @@ function _renderMapTourneesNow(force) {
     if (departCoords) {
       var depMarker = L.circleMarker([departCoords.lat, departCoords.lon], {
         radius: 6, color: color, fillColor: '#fff', fillOpacity: 1, weight: 3
-      }).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Départ</span>');
-      newGroup.addLayer(depMarker);
-      newMarkers.push(depMarker);
+      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Départ</span>');
+      mapTourneeMarkers.push(depMarker);
       routePoints.push([departCoords.lat, departCoords.lon]);
       allBounds.push([departCoords.lat, departCoords.lon]);
     }
@@ -8486,7 +8469,7 @@ function _renderMapTourneesNow(force) {
           html: '<div style="background:' + color + ';width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);">' + num + '</div>',
           iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
         })
-      }).bindPopup((function() {
+      }).addTo(fleetMap).bindPopup((function() {
         var siblings = int.commandeId ? dayInts.filter(function(s) { return s.commandeId === int.commandeId && s.id !== int.id; }) : [];
         var popHtml = '<div style="font-family:inherit;min-width:200px;">';
         popHtml += '<strong style="font-size:0.82rem;">' + int.title + '</strong>';
@@ -8509,8 +8492,7 @@ function _renderMapTourneesNow(force) {
         popHtml += '</div>';
         return popHtml;
       })());
-      newGroup.addLayer(marker);
-      newMarkers.push(marker);
+      mapTourneeMarkers.push(marker);
       routePoints.push([coords.lat, coords.lon]);
       allBounds.push([coords.lat, coords.lon]);
     });
@@ -8521,9 +8503,8 @@ function _renderMapTourneesNow(force) {
       routePoints.push([arriveeCoords.lat, arriveeCoords.lon]);
       var arrMarker = L.circleMarker([arriveeCoords.lat, arriveeCoords.lon], {
         radius: 6, color: color, fillColor: color, fillOpacity: 0.3, weight: 3
-      }).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Retour</span>');
-      newGroup.addLayer(arrMarker);
-      newMarkers.push(arrMarker);
+      }).addTo(fleetMap).bindPopup('<strong>' + tech.name + '</strong><br><span style="font-size:0.75rem;">🏠 Retour</span>');
+      mapTourneeMarkers.push(arrMarker);
     }
 
     var segments = [];
@@ -8553,42 +8534,30 @@ function _renderMapTourneesNow(force) {
               iconSize: null, iconAnchor: [0, 10]
             }),
             interactive: false
-          });
-          newGroup.addLayer(lbl);
-          newMarkers.push(lbl);
+          }).addTo(fleetMap);
+          mapTourneeMarkers.push(lbl);
         }
       });
     }
-    // OSRM route (async) — add to the same group when ready
-    (function(rp, segs, col, grp, lines) {
+    // OSRM route (async), fallback to straight lines
+    (function(rp, segs, col) {
       if (rp.length >= 2) {
-        var p = fetchOSRMGeometry(rp).then(function(roadCoords) {
+        fetchOSRMGeometry(rp).then(function(roadCoords) {
           if (roadCoords && roadCoords.length > 0) {
-            var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 });
-            grp.addLayer(line);
-            lines.push(line);
+            var line = L.polyline(roadCoords, { color: col, weight: 4, opacity: 0.7 }).addTo(fleetMap);
+            mapTourneeLines.push(line);
           } else {
             segs.forEach(function(seg) {
-              var line = L.polyline([seg.from, seg.to], { color: col, weight: 3, opacity: 0.7, dashArray: '8,6' });
-              grp.addLayer(line);
-              lines.push(line);
+              var line = L.polyline([seg.from, seg.to], { color: col, weight: 3, opacity: 0.7, dashArray: '8,6' }).addTo(fleetMap);
+              mapTourneeLines.push(line);
             });
           }
         });
-        osrmPromises.push(p);
       }
-    })(routePoints, segments, color, newGroup, newLines);
+    })(routePoints, segments, color);
   });
 
-  // Swap: add new group first, then remove old (no flash)
-  var oldGroup = _mapTourneeGroup;
-  newGroup.addTo(fleetMap);
-  _mapTourneeGroup = newGroup;
-  mapTourneeMarkers = newMarkers;
-  mapTourneeLines = newLines;
-  if (oldGroup) fleetMap.removeLayer(oldGroup);
-
-  // Only fit bounds on date change or forced, not on data-only updates
+  // Only fit bounds on date change or forced
   if ((dateChanged || force) && allBounds.length > 0) {
     fleetMap.fitBounds(allBounds, { padding: [40, 40], maxZoom: 13 });
   }
