@@ -1,8 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="96" fill="#111111"/>
-  <rect x="104" y="120" width="304" height="42" rx="12" fill="#f5c518"/>
-  <rect x="104" y="204" width="196" height="42" rx="12" fill="#f5c518" opacity="0.95"/>
-  <rect x="168" y="266" width="240" height="42" rx="12" fill="#f5c518" opacity="0.78"/>
-  <rect x="104" y="328" width="150" height="42" rx="12" fill="#f5c518" opacity="0.95"/>
-  <rect x="208" y="390" width="160" height="42" rx="12" fill="#f5c518" opacity="0.78"/>
+  <!-- Grille de planning (en fond, atténuée) -->
+  <g fill="none" stroke="#f5c518" stroke-width="14" stroke-linecap="round" opacity="0.4">
+    <rect x="88" y="132" width="336" height="268" rx="30"/>
+    <line x1="88" y1="192" x2="424" y2="192"/>
+    <line x1="200" y1="192" x2="200" y2="400"/>
+    <line x1="312" y1="192" x2="312" y2="400"/>
+    <line x1="88" y1="266" x2="424" y2="266"/>
+    <line x1="88" y1="333" x2="424" y2="333"/>
+  </g>
+  <g fill="#f5c518" opacity="0.4">
+    <rect x="168" y="110" width="24" height="48" rx="12"/>
+    <rect x="320" y="110" width="24" height="48" rx="12"/>
+  </g>
+  <!-- Marqueur de carte (premier plan) -->
+  <path d="M256 392 C214 322 170 292 170 244 A86 86 0 1 1 342 244 C342 292 298 322 256 392 Z"
+        fill="#f5c518" stroke="#111111" stroke-width="24" stroke-linejoin="round"/>
+  <circle cx="256" cy="244" r="36" fill="#111111"/>
 </svg>
