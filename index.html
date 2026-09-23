@@ -1611,8 +1611,12 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 .stg-table th { text-align:left; padding:8px 10px; font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); border-bottom:2px solid var(--border); }
 .stg-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
 .stg-table tr:hover td { background:var(--bg-card-hover); }
-.cmd-table th { white-space:nowrap; vertical-align:top; }
+.cmd-table th { vertical-align:top; }
+.cmd-table th .cmd-col-label { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:9px; cursor:pointer; }
+.cmd-table th input[data-col-filter] { display:block; box-sizing:border-box; text-transform:none; letter-spacing:normal; }
 .cmd-table th .cmd-col-resize:hover { background:var(--gph-yellow); opacity:0.6; }
+.cmd-table th:first-child, .cmd-table td:first-child { position:sticky; left:0; z-index:1; background:var(--bg-secondary); box-shadow:1px 0 0 var(--border); }
+.cmd-table thead th:first-child { z-index:3; background:var(--bg-card); }
 .me-col-row:hover { border-color:var(--gph-yellow) !important; }
 .stg-actions { display:flex; gap:4px; }
 .stg-btn-edit, .stg-btn-del { border:none; border-radius:4px; padding:4px 8px; font-size:0.65rem; font-weight:700; cursor:pointer; font-family:inherit; }
@@ -1975,6 +1979,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
           <div id="cmdFlagFilterMenu" style="display:none;position:absolute;top:34px;left:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:6px;min-width:180px;"></div>
         </div>
         <button onclick="showEnAttente()" title="Voir les commandes en attente de feu vert" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.72rem;font-family:inherit;background:var(--bg-card);cursor:pointer;white-space:nowrap;">⏸ En attente <span id="enAttenteCount" class="badge-count">0</span></button>
+        <button onclick="_cmdClearAllFilters()" title="Effacer tous les filtres (recherche, colonnes, drapeaux)" style="height:30px;border:1px solid var(--border);border-radius:var(--radius-xs);padding:0 10px;font-size:0.72rem;font-family:inherit;background:var(--bg-card);cursor:pointer;white-space:nowrap;">✕ Effacer filtres</button>
       </div>
       <button class="btn btn-ghost" onclick="autoLinkGeosolia()" title="Lier automatiquement les commandes aux projets Géosolia par numéro d'affaire">
         🌍 Auto-lier Géosolia
@@ -7334,6 +7339,14 @@ function showEnAttente(){
   if (typeof showView === 'function') showView('commandes');
   filterCommandes();
 }
+// ─── Effacer tous les filtres (recherche + colonnes + drapeaux) ───
+function _cmdClearAllFilters(){
+  _cmdColFilters = {};
+  _cmdFlagFilter = [];
+  var s = document.getElementById('commandesSearch'); if (s) s.value = '';
+  if (typeof _cmdUpdateFlagBtn === 'function') _cmdUpdateFlagBtn();
+  filterCommandes();
+}
 
 function renderCommandesList() {
   var c = document.getElementById('commandesListContainer');
@@ -7369,7 +7382,7 @@ function renderCommandesList() {
     var w = colWidths[col];
     var wStyle = (w && w > 40) ? ('width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;') : '';
     return '<th data-col="'+col+'" draggable="true" ondragstart="_cmdColDragStart(event,\''+col+'\')" ondragover="_cmdColDragOver(event)" ondrop="_cmdColDrop(event,\''+col+'\')" ondragend="_cmdColDragEnd(event)" title="Glisser pour déplacer · tirer le bord droit pour redimensionner" style="position:relative;cursor:grab;user-select:none;'+wStyle+'">'
-      + '<span style="cursor:pointer;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + '</span>'
+      + '<span class="cmd-col-label" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + '</span>'
       + fInput(col)
       + '<span class="cmd-col-resize" onmousedown="_cmdColResizeStart(event,\''+col+'\')" style="position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;"></span>'
       + '</th>';
