@@ -9945,8 +9945,9 @@ function renderSettingsTeam() {
   const c = document.getElementById('settingsTeam');
 
   // Section Équipe GéoPlan
+  var _supCol = isAdminUser();
   let html = `<div class="stg-toolbar"><h3>Équipe GéoPlan (${settingsTeam.length})</h3><button class="stg-add-btn" onclick="editTeamMember(null)">+ Ajouter manuellement</button></div>`;
-  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Binôme</th><th>Véhicule</th><th>Habilitations</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  html += `<table class="stg-table"><thead><tr><th></th><th>Nom</th><th>Groupe</th><th>Binôme</th><th>Véhicule</th><th>Habilitations</th><th>Statut</th>${_supCol?'<th title="Accès superviseur : vues Suivi / Rentabilité / Erreurs-Modifs + paramétrage étendu">Superviseur</th>':''}<th>Actions</th></tr></thead><tbody>`;
   settingsTeam.forEach(t => {
     // Statut auto Lucca: priorité sur le statut manuel si absent aujourd'hui
     let effectiveStatut = t.statut;
@@ -9977,6 +9978,7 @@ function renderSettingsTeam() {
       <td>${t.vehicule || '—'}</td>
       <td><div class="stg-habilitations">${habs || '—'}</div></td>
       <td><span class="stg-badge ${statusCls}">${statusLabel}</span></td>
+      ${_supCol ? ('<td style="text-align:center;">' + (t.email ? '<input type="checkbox" '+(supervisorEmails.has(String(t.email).toLowerCase())?'checked':'')+' onchange="setSupervisor(\''+_esc(t.email)+'\', this.checked)" title="Superviseur">' : '<span style="font-size:0.6rem;color:var(--text-muted);" title="Renseigner un e-mail pour activer">e-mail requis</span>') + '</td>') : ''}
       <td><div class="stg-actions"><button class="stg-btn-edit" onclick="editTeamMember(${t.id})">Modifier</button><button class="stg-btn-del" onclick="deleteTeamMember(${t.id})">Suppr.</button></div></td>
     </tr>`;
   });
@@ -12641,18 +12643,50 @@ function _monEspaceKey() {
   if (!currentAuthUser || !currentAuthUser.email) return null;
   return 'geoplan_userprefs_' + currentAuthUser.email.toLowerCase().trim();
 }
-function loadMonEspacePrefs() {
+// ─── Préférences personnelles : cache localStorage synchrone + Supabase (cross-appareils) ───
+var _userPrefsMem = null;
+var _userPrefsTimer = null;
+function getUserPrefs() {
+  if (_userPrefsMem) return _userPrefsMem;
   var key = _monEspaceKey();
   if (!key) return {};
-  try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { return {}; }
+  try { _userPrefsMem = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { _userPrefsMem = {}; }
+  return _userPrefsMem;
 }
-function saveMonEspacePrefs() {
+function setUserPrefs(prefs) {
+  _userPrefsMem = prefs || {};
   var key = _monEspaceKey();
-  if (!key) return;
-  var prefs = loadMonEspacePrefs();
+  if (key) { try { localStorage.setItem(key, JSON.stringify(_userPrefsMem)); } catch (e) {} }
+  clearTimeout(_userPrefsTimer);
+  _userPrefsTimer = setTimeout(_pushUserPrefs, 600);
+}
+async function _pushUserPrefs() {
+  if (!currentAuthUser || typeof sbAuth === 'undefined' || !sbAuth) return;
+  try {
+    await sbAuth.from('geoplan_user_prefs').upsert({ user_id: currentAuthUser.id, email: currentAuthUser.email || null, prefs: _userPrefsMem || {}, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+  } catch (e) { console.warn('[prefs] push Supabase échoué', e); }
+}
+async function syncUserPrefsFromSupabase() {
+  if (!currentAuthUser || typeof sbAuth === 'undefined' || !sbAuth) return;
+  try {
+    var r = await sbAuth.from('geoplan_user_prefs').select('prefs').eq('user_id', currentAuthUser.id).maybeSingle();
+    if (r && r.data && r.data.prefs) {
+      _userPrefsMem = r.data.prefs || {};
+      var key = _monEspaceKey(); if (key) { try { localStorage.setItem(key, JSON.stringify(_userPrefsMem)); } catch (e) {} }
+      applyMonEspacePrefs();
+    } else {
+      // Aucune ligne distante : migrer la config locale existante vers Supabase
+      var local = getUserPrefs();
+      if (local && Object.keys(local).length) _pushUserPrefs();
+    }
+  } catch (e) { console.warn('[prefs] sync Supabase échoué (table geoplan_user_prefs créée ?)', e); }
+}
+function loadMonEspacePrefs() { return getUserPrefs(); }
+function saveMonEspacePrefs() {
+  var prefs = getUserPrefs();
   var sel = document.getElementById('monEspaceGroupeDefaut');
   prefs.defaultGroupId = sel ? (sel.value ? parseInt(sel.value) : null) : null;
-  localStorage.setItem(key, JSON.stringify(prefs));
+  setUserPrefs(prefs);
   var st = document.getElementById('monEspaceSaveStatus');
   if (st) { st.textContent = '✓ Enregistré'; setTimeout(function() { st.textContent = ''; }, 2000); }
 }
@@ -12690,6 +12724,7 @@ function showApp(user) {
   document.getElementById('auth-avatar-inline').textContent = initials;
   document.getElementById('auth-user-bar-inline').classList.add('visible');
   checkAdmin(user);
+  loadSupervisors();
   // Journal de connexion
   try { sbAuth.from('connexions_log').insert({ user_id: user.id, email: user.email || null, nom: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : null), app: 'geoplan' }).then(() => {}, () => {}); } catch (e) {}
   // Sync settings from Supabase before init
@@ -12697,6 +12732,7 @@ function showApp(user) {
   loadAllSettingsFromSupabase().then(() => {
     applyMonEspacePrefs();
     init();
+    syncUserPrefsFromSupabase();
     if (new URLSearchParams(window.location.search).get('map') === 'detached') {
       switchView('map');
     }
@@ -12713,6 +12749,45 @@ function showLogin() {
 async function authLogout() { mobileMyTechId = null; document.body.classList.remove('mob-active'); await sbAuth.auth.signOut(); showLogin(); }
 
 const ADMIN_EMAILS = ['vsalaud@be-gph.fr'];
+function isAdminUser(){ return !!(currentAuthUser && ADMIN_EMAILS.indexOf(currentAuthUser.email) >= 0); }
+
+// ═══ Rôles / niveaux d'accès (superviseurs) ═══
+var isSupervisor = false;
+var supervisorEmails = new Set();
+// Technicien de l'utilisateur connecté (email → settingsTeam). Réutilise getLoggedTechId().
+function myTechId(){ return (typeof getLoggedTechId === 'function') ? getLoggedTechId() : null; }
+async function loadSupervisors(){
+  supervisorEmails = new Set();
+  try {
+    var r = await sbAuth.from('geoplan_supervisors').select('email');
+    if (r.data) r.data.forEach(function(row){ if (row.email) supervisorEmails.add(String(row.email).toLowerCase()); });
+  } catch(e){ console.warn('[Roles] geoplan_supervisors indisponible', e); }
+  var em = ((currentAuthUser && currentAuthUser.email) || '').toLowerCase();
+  isSupervisor = isAdminUser() || (!!em && supervisorEmails.has(em));
+  _applyRoleUI();
+}
+function _applyRoleUI(){
+  // Masque les vues réservées superviseur (créées aux étapes suivantes) pour les non-superviseurs.
+  ['suivi','renta','qualite'].forEach(function(v){
+    var el = document.querySelector('.nav-item[data-nav="'+v+'"]');
+    if (el) el.style.display = isSupervisor ? '' : 'none';
+  });
+}
+async function setSupervisor(email, on){
+  email = (email||'').toLowerCase().trim();
+  if (!email) return;
+  try {
+    if (on){
+      var res = await sbAuth.from('geoplan_supervisors').upsert({ email: email, added_by: (currentAuthUser&&currentAuthUser.email)||null }, { onConflict: 'email' });
+      if (res.error) throw res.error;
+      supervisorEmails.add(email);
+    } else {
+      var d = await sbAuth.from('geoplan_supervisors').delete().eq('email', email);
+      if (d.error) throw d.error;
+      supervisorEmails.delete(email);
+    }
+  } catch(e){ alert("Impossible de modifier le rôle superviseur (réservé à l'admin).\n" + (e.message||e)); if (typeof renderSettingsTeam === 'function') renderSettingsTeam(); }
+}
 
 async function getAuthToken() {
   const { data } = await sbAuth.auth.getSession();
