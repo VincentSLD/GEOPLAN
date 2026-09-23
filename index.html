@@ -1793,8 +1793,9 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px;">Colonnes du tableau Commandes</label>
     <div id="monEspaceCols"></div>
   </div>
-  <div style="text-align:right;margin-top:16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
     <span id="monEspaceSaveStatus" style="font-size:0.7rem;color:#16A34A;font-weight:600;"></span>
+    <button onclick="authLogout()" style="border:1px solid #d32f2f;background:#fff;color:#d32f2f;border-radius:6px;padding:7px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">⎋ Déconnexion</button>
   </div>
 </div>
 
@@ -1924,7 +1925,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
       <div id="auth-user-bar-inline" class="auth-inline">
         <button class="admin-btn" id="admin-btn-inline" style="display:none;" onclick="openAdminPanel()">Admin <span class="admin-badge" id="admin-badge-inline"></span></button>
         <div class="auth-avatar" id="auth-avatar-inline" onclick="openMonEspace()" style="cursor:pointer;" title="Mon Espace"></div>
-        <button class="auth-logout" onclick="authLogout()">Déconnexion</button>
+        <button class="btn btn-ghost" id="fullscreenBtn" onclick="toggleFullscreen()" title="Plein écran (agrandir)" style="padding:6px 9px;margin-left:4px;" aria-label="Agrandir">
+          <svg id="fsIconOpen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          <svg id="fsIconClose" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -13084,6 +13088,30 @@ function showLogin() {
 }
 
 async function authLogout() { mobileMyTechId = null; document.body.classList.remove('mob-active'); await sbAuth.auth.signOut(); showLogin(); }
+
+// ─── Mode plein écran (bouton en haut à droite) ───
+function _isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function _updateFullscreenIcon() {
+  var fs = _isFullscreen();
+  var o = document.getElementById('fsIconOpen'), c = document.getElementById('fsIconClose'), b = document.getElementById('fullscreenBtn');
+  if (o) o.style.display = fs ? 'none' : '';
+  if (c) c.style.display = fs ? '' : 'none';
+  if (b) b.title = fs ? 'Quitter le plein écran' : 'Plein écran';
+}
+function toggleFullscreen() {
+  try {
+    if (!_isFullscreen()) {
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) req.call(el);
+    } else {
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
+  } catch (e) {}
+}
+document.addEventListener('fullscreenchange', _updateFullscreenIcon);
+document.addEventListener('webkitfullscreenchange', _updateFullscreenIcon);
 
 const ADMIN_EMAILS = ['vsalaud@be-gph.fr'];
 function isAdminUser(){ return !!(currentAuthUser && ADMIN_EMAILS.indexOf(currentAuthUser.email) >= 0); }
