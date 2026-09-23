@@ -1611,6 +1611,9 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 .stg-table th { text-align:left; padding:8px 10px; font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); border-bottom:2px solid var(--border); }
 .stg-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
 .stg-table tr:hover td { background:var(--bg-card-hover); }
+.cmd-table th { white-space:nowrap; vertical-align:top; }
+.cmd-table th .cmd-col-resize:hover { background:var(--gph-yellow); opacity:0.6; }
+.me-col-row:hover { border-color:var(--gph-yellow) !important; }
 .stg-actions { display:flex; gap:4px; }
 .stg-btn-edit, .stg-btn-del { border:none; border-radius:4px; padding:4px 8px; font-size:0.65rem; font-weight:700; cursor:pointer; font-family:inherit; }
 .stg-btn-edit { background:var(--gph-yellow-light); color:var(--gph-dark); border:1px solid rgba(245,197,24,0.3); }
@@ -1778,6 +1781,17 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     <select id="monEspaceGroupeDefaut" onchange="saveMonEspacePrefs()" style="width:100%;height:32px;border:1px solid #ddd;border-radius:6px;padding:0 8px;font-size:0.78rem;font-family:inherit;">
       <option value="">Tous les groupes</option>
     </select>
+  </div>
+  <div style="margin-bottom:12px;">
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">
+      <input id="monEspaceMyCmd" type="checkbox" onchange="_meToggleMyCmd(this.checked)" style="width:16px;height:16px;">
+      Voir uniquement mes dossiers
+    </label>
+    <div style="font-size:0.66rem;color:#888;margin-top:4px;">Filtre le tableau Commandes sur les commandes qui vous sont attribuées (une intervention à votre nom).</div>
+  </div>
+  <div style="margin-bottom:12px;">
+    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px;">Colonnes du tableau Commandes</label>
+    <div id="monEspaceCols"></div>
   </div>
   <div style="text-align:right;margin-top:16px;">
     <span id="monEspaceSaveStatus" style="font-size:0.7rem;color:#16A34A;font-weight:600;"></span>
@@ -6719,7 +6733,7 @@ async function loadCommandesFromSupabase() {
     // Charger affaires & marchés en parallèle
     if (Object.keys(affairesMap).length === 0) await loadAffairesMarches();
 
-    var cols = 'id, ref, nom, client_name, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, marche_id, societe, custom_data';
+    var cols = 'id, ref, nom, client_name, client_id, montant, montant_ttc, statut, projet, agence, description, date, date_client, responsable_id, reference1, affaire_id, marche_id, societe, custom_data, surface_facturee, apporteur_affaire, architecte, gros_oeuvre';
 
     // Appliquer filtres admin
     var g = settingsGeneral;
@@ -6916,26 +6930,308 @@ async function refreshCommandes() {
 var cmdSortCol = 'dlr';
 var cmdSortAsc = true;
 
-function getCmdSortValue(cmd, col) {
-  switch(col) {
-    case 'ref': return (cmd.ref || '').toLowerCase();
-    case 'nom': return (cmd._affaire ? cmd._affaire.nom : cmd.nom || '').toLowerCase();
-    case 'client': return (cmd.client_name || '').toLowerCase();
-    case 'societe': return (cmd.societe || '').toLowerCase();
-    case 'type': return (cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '').toLowerCase();
-    case 'dlr': return cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || 'zzzz';
-    case 'apporteur': return (cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || cmd.apporteur_affaire || '').toLowerCase();
-    case 'commercial': var _ch = findClientHabits(cmd.client_name); return (_ch && _ch.salesman_name || '').toLowerCase();
+// ═══ Formateurs / helpers colonnes commandes ═══
+function _cmdIsoToInput(raw){
+  if (!raw) return '';
+  var d = new Date(raw);
+  if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(raw))) return String(raw).substring(0,10);
+  return '';
+}
+function _cmdIsoToDisplay(raw){ var iso=_cmdIsoToInput(raw); if(!iso) return ''; var p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function _cmdFmtDurHm(min){ min=Math.round(min||0); if(min<=0) return '0min'; var h=Math.floor(min/60), m=min%60; return h>0 ? (h+'h'+(m?String(m).padStart(2,'0'):'')) : (m+'min'); }
+function _cmdCdVal(cmd, key){ var cd=(cmd&&cmd.custom_data)||{}; var r=cd[key]; return r && typeof r==='object' ? (r.value||'') : (r||''); }
+function _cmdStatutLabel(c){ return (c.custom_data && c.custom_data['1-alpha17'] && c.custom_data['1-alpha17'].value) || c.statut || ''; }
+function _cmdClientName(cmd){ return cmd.client_name || (cmd._affaire && cmd._affaire.client_name) || ''; }
+
+// Importance client (badge A/B/C + ★++) — depuis la base clients (categorie_* JSONB par agence)
+function _pickAgencyVal(obj, agency){ if(!obj||typeof obj!=='object') return ''; if(agency && obj[agency]!=null && obj[agency]!=='') return obj[agency]; for(var k in obj){ if(obj[k]!=null && obj[k]!=='') return obj[k]; } return ''; }
+function _clientImportance(name, role, agency){
+  var c = name ? findClientHabits(name) : null;
+  if (!c) return null;
+  var col = role==='apporteur' ? c.categorie_apporteur : role==='architecte' ? c.categorie_architecte : role==='go' ? c.categorie_gros_oeuvre : null;
+  var val = _pickAgencyVal(col, agency);
+  var letter = val ? String(val).trim().charAt(0).toUpperCase() : '';
+  if (['A','B','C'].indexOf(letter) < 0) letter = '';
+  var plus = !!_pickAgencyVal(c.categorie_compte_plus, agency);
+  if (!letter && !plus) return null;
+  return { letter: letter, label: val || '', plus: plus };
+}
+function _importanceBadgeHtml(name, role, agency){
+  var imp = _clientImportance(name, role, agency);
+  if (!imp) return '';
+  var out = '';
+  if (imp.letter){
+    var color = imp.letter==='A' ? '#16A34A' : imp.letter==='B' ? '#D97706' : '#8a8a80';
+    out += '<span title="'+_esc(imp.label)+'" style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:5px;font-size:0.62rem;font-weight:800;color:#fff;background:'+color+';">'+imp.letter+'</span>';
+  }
+  if (imp.plus){
+    out += '<span title="Grand compte" style="display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:5px;font-size:0.6rem;font-weight:800;color:#7c5e00;background:#fde68a;border:1px solid var(--gph-yellow);">★ ++</span>';
+  }
+  return out;
+}
+
+// Index interventions par commande (reconstruit avant chaque tri/filtre/rendu)
+var _intsByCmdId = {};
+function _rebuildIntsByCmd(){
+  _intsByCmdId = {};
+  (typeof interventions !== 'undefined' ? interventions : []).forEach(function(i){
+    if (i.commandeId){ (_intsByCmdId[i.commandeId] = _intsByCmdId[i.commandeId] || []).push(i); }
+  });
+}
+
+// Délai le plus court (DLR/DLC) au format YYYY-MM-DD
+function _cmdDeadline(cmd){
+  var cands = [];
+  var a = _cmdIsoToInput(cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value);
+  var b = _cmdIsoToInput(cmd.custom_data && cmd.custom_data['1-date02'] && cmd.custom_data['1-date02'].value);
+  if (a) cands.push(a);
+  if (b) cands.push(b);
+  if (!cands.length) return null;
+  cands.sort();
+  return cands[0];
+}
+// Date de rendu = dernière date d'intervention planifiée de la commande
+function _cmdPlanEndDate(cmd){
+  var ints = _intsByCmdId[cmd.id] || [];
+  var maxEnd = '';
+  ints.forEach(function(i){ if (i.date && (!maxEnd || i.date > maxEnd)) maxEnd = i.date; });
+  return maxEnd;
+}
+function _deadlineMarginDays(endDateStr, deadlineStr){
+  if (!endDateStr || !deadlineStr) return null;
+  var end = new Date(endDateStr+'T00:00:00'), dl = new Date(deadlineStr+'T00:00:00');
+  if (isNaN(end.getTime()) || isNaN(dl.getTime())) return null;
+  return Math.round((dl-end)/86400000);
+}
+function _cmdDeadlineMargin(cmd){ var end = _cmdPlanEndDate(cmd); if (!end) return null; return _deadlineMarginDays(end, _cmdDeadline(cmd)); }
+// Début conseillé = échéance reculée du nb de jours ouvrés nécessaires (durée estimée ÷ TS_TARGET h/j)
+var TS_TARGET = 7.8;
+function _cmdEstStartDate(cmd){
+  if (_cmdStatutLabel(cmd) === 'En attente') return '';
+  var deadline = _cmdDeadline(cmd);
+  if (!deadline) return '';
+  var estMin = computeGeoDuration(cmd) || 0;
+  if (!estMin || estMin <= 0) return '';
+  var days = Math.ceil((estMin/60)/TS_TARGET);
+  if (days < 1) days = 1;
+  var d = new Date(deadline+'T12:00:00');
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate()-1);
+  var counted = 0, start = '', safety = 0;
+  while (counted < days && safety++ < 500){
+    var ds = dateToLocalStr(d), dow = d.getDay();
+    if (dow !== 0 && dow !== 6 && !isJourFerie(ds)){ counted++; start = ds; }
+    d.setDate(d.getDate()-1);
+  }
+  return start;
+}
+
+// ═══ Colonnes du tableau Commandes (configurables : ordre / visibilité / largeur) ═══
+var CMD_COLS = [
+  { col:'societe',    label:'Société' },
+  { col:'affaire',    label:'N° Affaire' },
+  { col:'nom',        label:'Intitulé' },
+  { col:'adresse',    label:'Lieu' },
+  { col:'apporteur',  label:'Apporteur' },
+  { col:'commercial', label:'Commercial GPH' },
+  { col:'importance', label:'Import. (app.)' },
+  { col:'type',       label:'Type mission' },
+  { col:'options',    label:'Options' },
+  { col:'longrines',  label:'Longrines' },
+  { col:'montant',    label:'Montant', num:true },
+  { col:'dlr',        label:'DLR' },
+  { col:'dlc',        label:'DLC' },
+  { col:'debutplan',  label:'Début conseillé' },
+  { col:'dateplan',   label:'Date planif.' },
+  { col:'marge',      label:'Avance/Retard' },
+  { col:'ingenieur',  label:'Technicien' },
+  { col:'statut',     label:'Statut' },
+  { col:'duree',      label:'Durée est.', num:true },
+  { col:'tempspasse', label:'Tps passé', num:true },
+  { col:'client',     label:'Client facturé' },
+  { col:'architecte', label:'Architecte' },
+  { col:'gooeuvre',   label:'Gros Œuvre' },
+  { col:'ref',        label:'Réf. cmd' },
+];
+
+// Valeur brute d'une colonne (tri + filtre). Chaîne, sauf montant/duree/tempspasse (nombre).
+function _cmdRaw(cmd, col){
+  var v = function(k){ return _cmdCdVal(cmd, k); };
+  var planned = _intsByCmdId[cmd.id] || [];
+  switch(col){
+    case 'affaire': return cmd._affaire ? (cmd._affaire.ref||'') : '';
+    case 'ref': return cmd.ref || '';
+    case 'nom': return cmd._affaire ? (cmd._affaire.nom||'') : (cmd.nom||'');
+    case 'client': return _cmdClientName(cmd);
+    case 'societe': return cmd.societe || '';
+    case 'type': return v('1-alpha06');
+    case 'options': return v('1-alpha14');
+    case 'longrines': return v('1-alpha15');
+    case 'apporteur': return cmd.apporteur_affaire || v('1-alpha10');
+    case 'commercial': { var _app = cmd.apporteur_affaire || v('1-alpha10'); var _ca = _app ? findClientHabits(_app) : null; return (_ca && _ca.salesman_name) || ''; }
+    case 'importance': { var _imp = _clientImportance(cmd.apporteur_affaire || v('1-alpha10'), 'apporteur', cmd.societe); return _imp ? (_imp.letter + (_imp.plus?' ++':'')) : ''; }
+    case 'architecte': return cmd.architecte || cmd._architecte || v('1-alpha09');
+    case 'gooeuvre': return cmd.gros_oeuvre || v('1-alpha12');
+    case 'adresse': return cmd._adresse || '';
+    case 'dlr': return v('1-date01') ? _cmdIsoToInput(v('1-date01')) : '';
+    case 'dlc': return v('1-date02') ? _cmdIsoToInput(v('1-date02')) : '';
+    case 'statut': return v('1-alpha17');
     case 'montant': return cmd.montant || 0;
-    case 'statut': var _cs = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || ''; return _cs.toLowerCase();
-    case 'affaire': return (cmd._affaire ? cmd._affaire.ref : '').toLowerCase();
+    case 'duree': return computeGeoDuration(cmd) || 0;
+    case 'tempspasse': return getTempsPasse(cmd.id) || 0;
+    case 'ingenieur': { var pt = planned.filter(function(i){return i.techId;}); var t = pt.length ? TECHNICIANS.find(function(x){return x.id===pt[0].techId;}) : null; return t ? (t.name || '') : ''; }
+    case 'debutplan': return _cmdEstStartDate(cmd);
+    case 'dateplan': { var pd = planned.filter(function(i){return i.date;}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); return pd.length ? pd[0].date : ''; }
+    case 'marge': { var m = _cmdDeadlineMargin(cmd); return m===null||m===undefined ? '' : m; }
     default: return '';
   }
+}
+function _cmdStatutColor(label){
+  if (!label) return '#888';
+  var valNorm = label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var m = settingsStatuts.find(function(s){ var l=(s.label||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); return l===valNorm || s.id===valNorm || s.label===label; });
+  return m ? m.color : '#888';
+}
+// Rendu HTML d'une cellule (formatage + couleurs)
+function _cmdCellHtml(cmd, col){
+  var raw = _cmdRaw(cmd, col);
+  var muted = '<span style="color:var(--text-muted);">—</span>';
+  if (col === 'importance') return _importanceBadgeHtml(cmd.apporteur_affaire || _cmdCdVal(cmd,'1-alpha10'), 'apporteur', cmd.societe) || muted;
+  if (col === 'montant') return '<span style="font-family:\'DM Mono\',monospace;font-size:0.72rem;">' + new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(cmd.montant||0) + '</span>';
+  if (col === 'duree') return raw ? _cmdFmtDurHm(raw) : muted;
+  if (col === 'tempspasse') return raw ? (raw + ' h') : muted;
+  if (col === 'dlr' || col === 'dlc'){
+    if (!raw) return muted;
+    var enAtt = _cmdStatutLabel(cmd) === 'En attente';
+    var past = new Date(raw) < new Date(new Date().toDateString());
+    return '<span style="' + ((past && !enAtt) ? 'color:#DC2626;font-weight:700;' : (enAtt ? 'color:var(--text-muted);' : '')) + '">' + _cmdIsoToDisplay(raw) + '</span>';
+  }
+  if (col === 'debutplan'){
+    if (!raw) return muted;
+    var _late = raw < dateToLocalStr(TODAY);
+    return '<span title="Début conseillé pour tenir le délai (DLR/DLC) : estimé ÷ 7,8 h/j en jours ouvrés" style="' + (_late ? 'color:#DC2626;font-weight:700;' : 'color:#2563EB;font-weight:600;') + '">' + _cmdIsoToDisplay(raw) + '</span>';
+  }
+  if (col === 'dateplan') return raw ? _cmdIsoToDisplay(raw) : muted;
+  if (col === 'marge'){
+    if (_cmdStatutLabel(cmd) === 'En attente') return '<span title="Dossier en attente — DLR/DLC non applicables" style="display:inline-block;padding:1px 8px;border-radius:6px;font-size:0.62rem;font-weight:700;background:#D9770618;color:#D97706;white-space:nowrap;">⏸ En attente</span>';
+    if (raw === '' || raw === null || raw === undefined) return muted;
+    var _mj = Number(raw);
+    var _mc = _mj>=5?'#16A34A':_mj>=2?'#65A30D':_mj>=1?'#CA8A04':_mj===0?'#EA580C':'#DC2626';
+    var _mtxt = (_mj>0?'+':'') + _mj + ' j';
+    var _mtitle = _mj>=0 ? ('Avance de '+_mj+' j sur le délai le plus court (DLR/DLC) vs date de rendu') : ('Retard de '+Math.abs(_mj)+' j sur le délai (DLR/DLC) vs date de rendu');
+    return '<span title="'+_mtitle+'" style="display:inline-block;padding:1px 8px;border-radius:6px;font-size:0.62rem;font-weight:800;background:'+_mc+';color:#fff;white-space:nowrap;">'+_mtxt+'</span>';
+  }
+  if (col === 'statut'){
+    if (!raw) return muted;
+    var sc = _cmdStatutColor(raw);
+    return '<span style="padding:1px 7px;border-radius:8px;font-size:0.6rem;font-weight:700;background:'+sc+'18;color:'+sc+';white-space:nowrap;">'+_esc(raw)+'</span>';
+  }
+  if (col === 'affaire' || col === 'ref') return '<span style="font-family:\'DM Mono\',monospace;font-size:0.7rem;font-weight:600;">'+(_esc(raw)||'—')+'</span>';
+  if (col === 'adresse') return raw ? '<span style="font-size:0.7rem;">📍 '+_esc(raw)+'</span>' : muted;
+  if (col === 'nom') return raw ? '<strong style="font-size:0.74rem;">'+_esc(raw)+'</strong>' : muted;
+  return _esc(raw) || muted;
+}
+
+// ─── Filtres (recherche globale + filtres par colonne mémorisés) ───
+var _cmdColFilters = {};
+function _applyCmdFilters(){
+  _rebuildIntsByCmd();
+  var q = ((document.getElementById('commandesSearch')||{}).value || '').toLowerCase().trim();
+  var cols = Object.keys(_cmdColFilters).filter(function(k){ return String(_cmdColFilters[k]||'').trim(); });
+  commandesFiltered = commandesData.filter(function(c){
+    if (q){
+      var hay = [c.ref, c.nom, c.client_name, c.agence, c.description, c.projet, c._adresse, (c._affaire&&c._affaire.ref), (c._affaire&&c._affaire.nom), (c.custom_data&&c.custom_data['1-alpha06']&&c.custom_data['1-alpha06'].value), (c.custom_data&&c.custom_data['1-alpha10']&&c.custom_data['1-alpha10'].value)||c.apporteur_affaire, c._responsable].filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    if (typeof _cmdFlagFilter !== 'undefined' && _cmdFlagFilter.length){
+      var fids = _cmdFlagIds(c);
+      if (!_cmdFlagFilter.some(function(fid){ return fids.indexOf(fid)>=0; })) return false;
+    }
+    return cols.every(function(col){ return String(_cmdRaw(c,col)).toLowerCase().indexOf(String(_cmdColFilters[col]).toLowerCase().trim()) >= 0; });
+  });
+}
+
+// ─── Configuration personnalisée des colonnes (Mon Espace) ───
+function _cmdColsPref(){ var p=getUserPrefs()||{}; return p.cmdCols || {}; }
+function _setCmdColsPref(cc){ var p=getUserPrefs()||{}; p.cmdCols=cc; setUserPrefs(p); }
+function _cmdFullOrder(){
+  var order = Array.isArray(_cmdColsPref().order) ? _cmdColsPref().order.slice() : [];
+  var known = {}; CMD_COLS.forEach(function(c){ known[c.col]=true; });
+  order = order.filter(function(k){ return known[k]; });
+  CMD_COLS.forEach(function(c){ if (order.indexOf(c.col)<0) order.push(c.col); });
+  return order;
+}
+function _cmdColsEffective(){
+  var hidden = _cmdColsPref().hidden || {};
+  var byCol = {}; CMD_COLS.forEach(function(c){ byCol[c.col]=c; });
+  return _cmdFullOrder().map(function(k){ return byCol[k]; }).filter(function(c){ return c && !hidden[c.col]; });
+}
+function _saveCmdColOrder(order){ var cc=_cmdColsPref(); cc.order=order; _setCmdColsPref(cc); }
+function _saveCmdColWidth(col,w){ var cc=_cmdColsPref(); cc.widths=cc.widths||{}; cc.widths[col]=w; _setCmdColsPref(cc); }
+function _setCmdColHidden(col,hidden){ var cc=_cmdColsPref(); cc.hidden=cc.hidden||{}; if(hidden) cc.hidden[col]=true; else delete cc.hidden[col]; _setCmdColsPref(cc); }
+function _resetCmdCols(){ var p=getUserPrefs()||{}; delete p.cmdCols; setUserPrefs(p); }
+// Réordonnancement par glisser-déposer des en-têtes
+var _cmdDragCol = null;
+function _cmdColDragStart(e,col){ if(_cmdResize){ e.preventDefault(); return; } _cmdDragCol=col; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',col); }catch(_){} }
+function _cmdColDragOver(e){ if(_cmdDragCol) e.preventDefault(); }
+function _cmdColDragEnd(){ _cmdDragCol=null; }
+function _cmdColDrop(e,targetCol){
+  e.preventDefault();
+  if(!_cmdDragCol || _cmdDragCol===targetCol){ _cmdDragCol=null; return; }
+  var order=_cmdFullOrder(); var from=order.indexOf(_cmdDragCol), to=order.indexOf(targetCol);
+  if(from<0||to<0){ _cmdDragCol=null; return; }
+  order.splice(to,0,order.splice(from,1)[0]); _saveCmdColOrder(order); _cmdDragCol=null; renderCommandesList();
+}
+// Redimensionnement (tirer le bord droit de l'en-tête)
+var _cmdResize = null;
+function _cmdColResizeStart(e,col){ e.preventDefault(); e.stopPropagation(); var th=e.target.closest('th'); if(!th) return; _cmdResize={col:col,startX:e.clientX,startW:th.offsetWidth,th:th,w:th.offsetWidth}; document.addEventListener('mousemove',_cmdColResizeMove); document.addEventListener('mouseup',_cmdColResizeEnd); }
+function _cmdColResizeMove(e){ if(!_cmdResize) return; var w=Math.max(50,_cmdResize.startW+(e.clientX-_cmdResize.startX)); _cmdResize.w=w; _cmdResize.th.style.width=w+'px'; _cmdResize.th.style.minWidth=w+'px'; _cmdResize.th.style.maxWidth=w+'px'; }
+function _cmdColResizeEnd(){ document.removeEventListener('mousemove',_cmdColResizeMove); document.removeEventListener('mouseup',_cmdColResizeEnd); var r=_cmdResize; _cmdResize=null; if(r&&r.w){ _saveCmdColWidth(r.col,r.w); renderCommandesList(); } }
+// Gestionnaire de colonnes dans Mon Espace
+function renderMonEspaceCols(){
+  var box=document.getElementById('monEspaceCols'); if(!box) return;
+  var hidden=_cmdColsPref().hidden||{};
+  var byCol={}; CMD_COLS.forEach(function(c){ byCol[c.col]=c; });
+  var rows=_cmdFullOrder().map(function(k,i){
+    var c=byCol[k]; if(!c) return '';
+    var vis=!hidden[k];
+    return '<div class="me-col-row" draggable="true" data-col="'+k+'" ondragstart="_meColDragStart(event,\''+k+'\')" ondragover="_meColDragOver(event)" ondrop="_meColDrop(event,\''+k+'\')" ondragend="_meColDragEnd(event)" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:0.76rem;background:#fff;cursor:grab;'+(vis?'':'opacity:0.55;')+'">'
+      + '<span style="color:#9ca3af;font-size:0.9rem;line-height:1;">⠿</span>'
+      + '<span style="min-width:22px;text-align:center;font-weight:800;color:#8a6d00;background:#fdf6d8;border:1px solid var(--gph-yellow);border-radius:4px;padding:1px 4px;font-size:0.66rem;">'+(i+1)+'</span>'
+      + '<input type="checkbox" '+(vis?'checked':'')+' onchange="_meToggleCol(\''+k+'\',this.checked)" onmousedown="event.stopPropagation();" draggable="false" style="width:15px;height:15px;cursor:pointer;">'
+      + '<span style="flex:1;">'+_esc(c.label)+'</span></div>';
+  }).join('');
+  box.innerHTML = '<div style="font-size:0.66rem;color:#888;margin-bottom:6px;">Glissez (⠿) pour l\'ordre — décochez pour masquer. (Aussi possible sur les en-têtes du tableau.)</div><div id="meColList" style="max-height:280px;overflow:auto;">'+rows+'</div><button onclick="_meResetCols()" style="margin-top:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:#f9fafb;cursor:pointer;font-size:0.72rem;font-family:inherit;">↺ Réinitialiser</button>';
+}
+var _meDragCol = null;
+function _meColDragStart(e,col){ _meDragCol=col; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',col); }catch(_){} }
+function _meColDragOver(e){ if(_meDragCol) e.preventDefault(); }
+function _meColDragEnd(){ _meDragCol=null; }
+function _meColDrop(e,targetCol){
+  e.preventDefault();
+  if(!_meDragCol || _meDragCol===targetCol){ _meDragCol=null; return; }
+  var order=_cmdFullOrder(); var from=order.indexOf(_meDragCol), to=order.indexOf(targetCol);
+  if(from<0||to<0){ _meDragCol=null; return; }
+  order.splice(to,0,order.splice(from,1)[0]); _saveCmdColOrder(order); _meDragCol=null; renderMonEspaceCols();
+  if(currentView==='commandes') renderCommandesList();
+}
+function _meToggleCol(col,visible){ _setCmdColHidden(col,!visible); renderMonEspaceCols(); if(currentView==='commandes') renderCommandesList(); }
+function _meResetCols(){ _resetCmdCols(); renderMonEspaceCols(); if(currentView==='commandes') renderCommandesList(); }
+function _meToggleMyCmd(on){ var p=getUserPrefs(); p.myCmdOnly=!!on; setUserPrefs(p); if(currentView==='commandes') renderCommandesList(); }
+
+function getCmdSortValue(cmd, col) {
+  if (col === 'montant' || col === 'duree' || col === 'tempspasse') return _cmdRaw(cmd, col) || 0;
+  if (col === 'marge') { var _mv = _cmdRaw(cmd, col); return (_mv === '' || _mv === null || _mv === undefined) ? 99999 : Number(_mv); }
+  var raw = _cmdRaw(cmd, col);
+  if ((col === 'dlr' || col === 'dlc' || col === 'dateplan' || col === 'debutplan') && !raw) return 'zzzz';
+  return String(raw).toLowerCase();
 }
 
 function sortCommandesBy(col) {
   if (cmdSortCol === col) { cmdSortAsc = !cmdSortAsc; }
   else { cmdSortCol = col; cmdSortAsc = true; }
+  _rebuildIntsByCmd();
   commandesFiltered.sort(function(a, b) {
     var va = getCmdSortValue(a, col), vb = getCmdSortValue(b, col);
     var cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
@@ -6945,131 +7241,83 @@ function sortCommandesBy(col) {
 }
 
 function filterCommandesByColumn() {
-  var filters = {};
+  // Mémoriser la colonne active + le curseur pour restaurer le focus après le re-render
+  var active = document.activeElement;
+  var activeCol = (active && active.getAttribute) ? active.getAttribute('data-col-filter') : null;
+  var caret = (active && active.selectionStart != null) ? active.selectionStart : null;
   document.querySelectorAll('[data-col-filter]').forEach(function(inp) {
-    var v = (inp.value || '').toLowerCase().trim();
-    if (v) filters[inp.dataset.colFilter] = v;
+    _cmdColFilters[inp.getAttribute('data-col-filter')] = inp.value || '';
   });
-  if (Object.keys(filters).length === 0) { commandesFiltered = commandesData.slice(); renderCommandesList(); return; }
-  commandesFiltered = commandesData.filter(function(c) {
-    if (filters.ref && (c.ref || '').toLowerCase().indexOf(filters.ref) < 0) return false;
-    if (filters.nom && (c._affaire ? c._affaire.nom : c.nom || '').toLowerCase().indexOf(filters.nom) < 0) return false;
-    if (filters.client && (c.client_name || '').toLowerCase().indexOf(filters.client) < 0) return false;
-    if (filters.societe && (c.societe || '').toLowerCase().indexOf(filters.societe) < 0) return false;
-    if (filters.type) { var t = c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || ''; if (t.toLowerCase().indexOf(filters.type) < 0) return false; }
-    if (filters.apporteur) { var a = c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || ''; if (a.toLowerCase().indexOf(filters.apporteur) < 0) return false; }
-    if (filters.commercial) { var _fch = findClientHabits(c.client_name); var _fcn = _fch && _fch.salesman_name || ''; if (_fcn.toLowerCase().indexOf(filters.commercial) < 0) return false; }
-    if (filters.statut) { var _fst = c.custom_data && c.custom_data['1-alpha17'] && c.custom_data['1-alpha17'].value || ''; if (_fst.toLowerCase().indexOf(filters.statut) < 0) return false; }
-    if (filters.affaire) { var af = c._affaire ? c._affaire.ref : ''; if (af.toLowerCase().indexOf(filters.affaire) < 0) return false; }
-    return true;
-  });
+  _applyCmdFilters();
   renderCommandesList();
+  if (activeCol) {
+    var ni = document.querySelector('[data-col-filter="' + activeCol + '"]');
+    if (ni) { ni.focus(); if (caret != null) { try { ni.setSelectionRange(caret, caret); } catch (e) {} } }
+  }
 }
 
-function filterCommandes() {
-  var q = (document.getElementById('commandesSearch').value || '').toLowerCase().trim();
-  if (!q) { commandesFiltered = commandesData.slice(); }
-  else {
-    commandesFiltered = commandesData.filter(function(c) {
-      return (c.ref || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.nom || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.client_name || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.agence || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.description || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.projet || '').toLowerCase().indexOf(q) >= 0 ||
-        (c._adresse || '').toLowerCase().indexOf(q) >= 0 ||
-        (c._affaire && c._affaire.ref || '').toLowerCase().indexOf(q) >= 0 ||
-        (c._affaire && c._affaire.nom || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value || '').toLowerCase().indexOf(q) >= 0 ||
-        (c.custom_data && c.custom_data['1-alpha10'] && c.custom_data['1-alpha10'].value || c.apporteur_affaire || '').toLowerCase().indexOf(q) >= 0 ||
-        (c._responsable || '').toLowerCase().indexOf(q) >= 0 ||
-        (function(){ var _h = findClientHabits(c.client_name); return (_h && _h.salesman_name || '').toLowerCase().indexOf(q) >= 0; })();
-    });
-  }
-  renderCommandesList();
-}
+function filterCommandes() { _applyCmdFilters(); renderCommandesList(); }
 
 function renderCommandesList() {
   var c = document.getElementById('commandesListContainer');
   if (!c) return;
+  _rebuildIntsByCmd();
+  // Périmètre « mes dossiers » (coche Mon Espace) : commandes ayant une intervention à mon nom
+  var _myCmdOnly = !!(getUserPrefs().myCmdOnly);
+  var _mineTech = (_myCmdOnly || (typeof isSupervisor !== 'undefined' && !isSupervisor && typeof viewScope !== 'undefined' && viewScope === 'mine')) ? myTechId() : null;
+  var _cmdRows = _mineTech
+    ? commandesFiltered.filter(function(cmd){ return (_intsByCmdId[cmd.id] || []).some(function(i){ return i.techId === _mineTech; }); })
+    : commandesFiltered;
   var countEl = document.getElementById('commandesCount');
-  if (countEl) countEl.textContent = commandesFiltered.length;
+  if (countEl) countEl.textContent = _cmdRows.length;
 
-  if (commandesFiltered.length === 0) {
-    c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">' + (commandesData.length === 0 ? 'Chargement des commandes...' : 'Aucune commande trouvée.') + '</div>';
+  if (_cmdRows.length === 0) {
+    var _emptyMsg = commandesData.length === 0 ? 'Chargement des commandes...' : (_mineTech ? 'Aucune commande ne vous est attribuée. Décochez « voir uniquement mes dossiers » dans Mon Espace pour tout voir.' : 'Aucune commande trouvée.');
+    c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.82rem;">' + _emptyMsg + '</div>';
     return;
   }
 
-  var fmt = function(n) { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); };
-  var fmtDate = function(d) { return d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; };
-  var statusLabels = { en_cours: 'En cours', livree: 'Livrée', annulee: 'Annulée', confirmee: 'Confirmée', expediee: 'Expédiée' };
-  var statusColors = { en_cours: '#D97706', livree: '#16A34A', annulee: '#DC2626', confirmee: '#2563EB', expediee: '#0891B2' };
-
-  // Build geosolia options once
+  // Options Géosolia (une seule fois)
   var geoOpts = '<option value="">—</option>';
   geosoliaProjects.forEach(function(p) {
     geoOpts += '<option value="' + p.id + '">' + (p.project_ref || '') + ' — ' + (p.project_name || '').substring(0, 30) + '</option>';
   });
 
-  var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
+  var effCols = _cmdColsEffective();
+  var colWidths = _cmdColsPref().widths || {};
+  var fInput = function(col) { return '<input type="text" data-col-filter="'+col+'" value="'+_esc(_cmdColFilters[col] || '')+'" draggable="false" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();" oninput="filterCommandesByColumn()" placeholder="🔍" style="width:100%;height:22px;border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:0.6rem;font-family:inherit;margin-top:3px;">'; };
   var sortArrow = cmdSortCol ? (cmdSortAsc ? ' ▲' : ' ▼') : '';
-  var thSort = function(col, label) { var active = cmdSortCol === col; return '<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + fInput(col) + '</th>'; };
-  var html = '<table class="stg-table"><thead><tr>'+thSort('ref','Réf.')+thSort('nom','Nom')+thSort('client','Client')+thSort('societe','Société')+'<th>Adresse</th>'+thSort('type','Type mission')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'dlr\')">DLR'+(cmdSortCol==='dlr'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('apporteur','Apporteur')+thSort('commercial','Commercial GPH')+'<th style="cursor:pointer;user-select:none;" onclick="sortCommandesBy(\'montant\')">Montant'+(cmdSortCol==='montant'?sortArrow:' <span style="opacity:0.2;">⇅</span>')+'</th>'+thSort('statut','Statut')+thSort('affaire','Affaire')+'<th>Dossier</th><th>Géosolia</th><th>Planification</th></tr></thead><tbody>';
-  // Build index of planned commandes
-  var plannedCmds = {};
-  interventions.forEach(function(int) { if (int.commandeId) { if (!plannedCmds[int.commandeId]) plannedCmds[int.commandeId] = []; plannedCmds[int.commandeId].push(int); } });
+  var thSort = function(col, label) {
+    var active = cmdSortCol === col;
+    var w = colWidths[col];
+    var wStyle = (w && w > 40) ? ('width:'+w+'px;min-width:'+w+'px;max-width:'+w+'px;') : '';
+    return '<th data-col="'+col+'" draggable="true" ondragstart="_cmdColDragStart(event,\''+col+'\')" ondragover="_cmdColDragOver(event)" ondrop="_cmdColDrop(event,\''+col+'\')" ondragend="_cmdColDragEnd(event)" title="Glisser pour déplacer · tirer le bord droit pour redimensionner" style="position:relative;cursor:grab;user-select:none;'+wStyle+'">'
+      + '<span style="cursor:pointer;" onclick="sortCommandesBy(\''+col+'\')">' + label + (active ? sortArrow : ' <span style="opacity:0.2;">⇅</span>') + '</span>'
+      + fInput(col)
+      + '<span class="cmd-col-resize" onmousedown="_cmdColResizeStart(event,\''+col+'\')" style="position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;"></span>'
+      + '</th>';
+  };
+  var html = '<table class="stg-table cmd-table"><thead><tr><th>Planification</th><th>Dossier</th><th>Géosolia</th>' + effCols.map(function(col){ return thSort(col.col, col.label); }).join('') + '</tr></thead><tbody>';
 
-  commandesFiltered.forEach(function(cmd) {
-    var cdStatutRaw = cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value || '';
-    var cdStatutMatch = (function() {
-      if (!cdStatutRaw) return { label: '—', color: '#888' };
-      var valNorm = cdStatutRaw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      var m = settingsStatuts.find(function(s) {
-        var lblNorm = (s.label || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-        return lblNorm === valNorm || s.id === valNorm || s.label === cdStatutRaw;
-      });
-      return m ? { label: cdStatutRaw, color: m.color } : { label: cdStatutRaw, color: '#888' };
-    })();
-    var sColor = cdStatutMatch.color;
-    var sLabel = cdStatutMatch.label;
-    var adresse = cmd._adresse || '';
+  _cmdRows.forEach(function(cmd) {
     var affRef = cmd._affaire ? cmd._affaire.ref : '';
     var affNom = cmd._affaire ? cmd._affaire.nom : '';
-    var planned = plannedCmds[cmd.id] || [];
+    var planned = (_intsByCmdId[cmd.id] || []).slice();
     var linkedGeo = commandeGeosoliaLinks[cmd.id] || '';
-    html += '<tr>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.72rem;font-weight:600;">' + (cmd.ref || '—') + '</td>';
-    html += '<td><strong>' + (cmd._affaire ? cmd._affaire.nom : cmd.nom || '—') + '</strong>';
-    if (cmd._responsable) html += '<br><span style="font-size:0.65rem;color:var(--text-muted);">Resp: ' + cmd._responsable + '</span>';
-    html += '</td>';
-    html += '<td style="font-size:0.75rem;">' + (cmd.client_name || '—') + '</td>';
-    html += '<td style="font-size:0.68rem;font-weight:600;">' + (cmd.societe || '—') + '</td>';
-    html += '<td style="font-size:0.72rem;">' + (adresse ? '📍 ' + adresse : '<span style="color:var(--text-muted);">—</span>') + '</td>';
-    var cdTypeMission = cmd.custom_data && cmd.custom_data['1-alpha06'] && cmd.custom_data['1-alpha06'].value || '';
-    var cdDlr = cmd.custom_data && cmd.custom_data['1-date01'] && cmd.custom_data['1-date01'].value || '';
-    var cdApporteur = cmd.custom_data && cmd.custom_data['1-alpha10'] && cmd.custom_data['1-alpha10'].value || cmd.apporteur_affaire || '';
-    var dlrFormatted = cdDlr ? new Date(cdDlr).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'2-digit'}) : '—';
-    var dlrWarn = cdDlr && new Date(cdDlr) < new Date(Date.now() + 7*86400000) ? 'color:#DC2626;font-weight:700;' : '';
-    html += '<td style="font-size:0.7rem;">' + (cdTypeMission || '—') + '</td>';
-    html += '<td style="font-size:0.7rem;' + dlrWarn + '">' + dlrFormatted + '</td>';
-    html += '<td style="font-size:0.7rem;">' + (cdApporteur || '—') + '</td>';
-    var clientHab = findClientHabits(cmd.client_name);
-    var commercialGph = clientHab && clientHab.salesman_name || '';
-    html += '<td style="font-size:0.7rem;">' + (commercialGph || '—') + '</td>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.75rem;">' + fmt(cmd.montant || 0) + '</td>';
-    html += '<td>';
-    html += '<span style="padding:2px 8px;border-radius:10px;font-size:0.62rem;font-weight:700;background:' + sColor + '15;color:' + sColor + ';">' + sLabel + '</span>';
-    html += '</td>';
-    html += '<td style="font-family:\'DM Mono\',monospace;font-size:0.7rem;font-weight:600;">' + (affRef ? affRef : '—') + '</td>';
-    var _dossierBtnId = 'btnCopyCmd_' + (cmd.id || '').replace(/[^a-zA-Z0-9]/g, '');
-    html += '<td>' + (affRef ? '<button id="'+_dossierBtnId+'" onclick="copyServerPathFor(\''+affRef.replace(/'/g,"\\'")+'\',\''+(affNom||'').replace(/'/g,"\\'")+'\',\''+_dossierBtnId+'\')" title="Copier le chemin réseau du dossier" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.7rem;cursor:pointer;font-family:inherit;white-space:nowrap;">📁 Copier</button>' : '—') + '</td>';
-    html += '<td>';
-    html += '<select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">';
-    html += geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected');
-    html += '</select>';
-    if (linkedGeo) html += '<br><a href="https://geosolia.vercel.app/?project=' + linkedGeo + '" target="_blank" style="font-size:0.58rem;color:var(--gph-yellow);font-weight:700;">Ouvrir ↗</a>';
-    html += '</td>';
-    html += '<td>';
+    // Cellules configurables
+    var _dataTds = '';
+    effCols.forEach(function(col) {
+      var style = 'font-size:0.72rem;white-space:nowrap;';
+      if (col.num) style += 'text-align:right;font-family:\'DM Mono\',monospace;';
+      var titleAttr = '';
+      var w = colWidths[col.col];
+      if (w && w > 40) { style += 'max-width:' + w + 'px;overflow:hidden;text-overflow:ellipsis;'; }
+      else if (col.col === 'nom' || col.col === 'adresse') { style += 'max-width:240px;overflow:hidden;text-overflow:ellipsis;'; }
+      if (col.col === 'nom' || col.col === 'adresse') { titleAttr = ' title="' + _esc(String(_cmdRaw(cmd, col.col))) + '"'; }
+      _dataTds += '<td style="' + style + '"' + titleAttr + '>' + _cmdCellHtml(cmd, col.col) + '</td>';
+    });
+    // Planification (système)
+    var _planTd = '<td style="white-space:nowrap;">';
     if (planned.length > 0) {
       planned.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
       planned.forEach(function(p) {
@@ -7078,15 +7326,20 @@ function renderCommandesList() {
         var pBg = p.isRapport ? '#f3e8ff' : '#dcfce7';
         var pColor = p.isRapport ? '#7C3AED' : '#16a34a';
         var pIcon = p.isRapport ? '📝' : '✓';
-        html += '<div onclick="goToIntervention('+p.id+')" style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:2px 0;" title="Voir l\'intervention">';
-        html += '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;background:'+pBg+';color:'+pColor+';border:1px solid '+pColor+'30;">'+pIcon+' ' + pDate + '</span>';
-        if (pTech) html += '<span style="font-size:0.55rem;color:var(--text-muted);">' + pTech.name.split(' ')[0] + '</span>';
-        html += '</div>';
+        _planTd += '<div onclick="goToIntervention('+p.id+')" style="cursor:pointer;display:flex;align-items:center;gap:4px;padding:2px 0;" title="Voir l\'intervention">';
+        _planTd += '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:0.58rem;font-weight:700;background:'+pBg+';color:'+pColor+';border:1px solid '+pColor+'30;">'+pIcon+' ' + pDate + '</span>';
+        if (pTech) _planTd += '<span style="font-size:0.55rem;color:var(--text-muted);">' + pTech.name.split(' ')[0] + '</span>';
+        _planTd += '</div>';
       });
     }
-    html += '<button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;margin-top:2px;">' + (planned.length > 0 ? '+' : 'A planifier') + '</button>';
-    html += '</td>';
-    html += '</tr>';
+    _planTd += '<button class="stg-btn-edit" onclick="planifierCommande(\'' + (cmd.id || '').replace(/'/g, "\\'") + '\')" style="font-size:0.6rem;margin-top:2px;">' + (planned.length > 0 ? '+' : 'A planifier') + '</button>';
+    _planTd += '</td>';
+    // Dossier (système)
+    var _dossierBtnId = 'btnCopyCmd_' + (cmd.id || '').replace(/[^a-zA-Z0-9]/g, '');
+    var _dossTd = '<td>' + (affRef ? '<button id="'+_dossierBtnId+'" onclick="copyServerPathFor(\''+affRef.replace(/'/g,"\\'")+'\',\''+(affNom||'').replace(/'/g,"\\'")+'\',\''+_dossierBtnId+'\')" title="Copier le chemin réseau du dossier" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);font-size:0.7rem;cursor:pointer;font-family:inherit;white-space:nowrap;">📁 Copier</button>' : '—') + '</td>';
+    // Géosolia (système)
+    var _geoTd = '<td><select onchange="linkCommandeGeosolia(\'' + cmd.id.replace(/'/g, "\\'") + '\', this.value)" style="height:26px;border:1px solid var(--border);border-radius:4px;font-size:0.65rem;font-family:inherit;max-width:140px;padding:0 4px;">' + geoOpts.replace('value="' + linkedGeo + '"', 'value="' + linkedGeo + '" selected') + '</select>' + (linkedGeo ? '<br><a href="https://geosolia.vercel.app/?project=' + linkedGeo + '" target="_blank" style="font-size:0.58rem;color:var(--gph-yellow);font-weight:700;">Ouvrir ↗</a>' : '') + '</td>';
+    html += '<tr>' + _planTd + _dossTd + _geoTd + _dataTds + '</tr>';
   });
   html += '</tbody></table>';
   c.innerHTML = html;
@@ -7474,11 +7727,15 @@ async function loadClientsHabits() {
   try {
     var data = [];
     var off = 0;
-    var selectCols = 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, habitudes_admin_commerciales, salesman_name';
+    var baseCols = 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, habitudes_admin_commerciales, salesman_name';
+    var selectCols = baseCols + ', categorie_apporteur, categorie_architecte, categorie_gros_oeuvre, categorie_compte_plus';
     var r0 = await sbAuth.from('clients').select(selectCols).range(0, 0);
-    if (r0.error && r0.error.message && r0.error.message.indexOf('habitudes_admin_commerciales') !== -1) {
-      selectCols = 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, salesman_name';
-      console.info('[Clients] Colonne habitudes_admin_commerciales absente, ignoree');
+    if (r0.error && r0.error.message) {
+      // Retirer les colonnes optionnelles absentes (catégories importance / habitudes admin)
+      selectCols = /habitudes_admin_commerciales/.test(r0.error.message)
+        ? 'name, akuiteo_id, habitudes_techniques, habitudes_geotechniques, salesman_name'
+        : baseCols;
+      console.info('[Clients] Colonnes optionnelles absentes, fallback:', selectCols);
     }
     while (true) {
       var r = await sbAuth.from('clients').select(selectCols).range(off, off + 999);
@@ -12706,6 +12963,9 @@ function openMonEspace() {
   sel.innerHTML = '<option value="">Tous les groupes</option>' + grps.map(function(g) { return '<option value="' + g.id + '">' + g.nom + '</option>'; }).join('');
   var prefs = loadMonEspacePrefs();
   if (prefs.defaultGroupId) sel.value = prefs.defaultGroupId;
+  var myCmdCb = document.getElementById('monEspaceMyCmd');
+  if (myCmdCb) myCmdCb.checked = !!prefs.myCmdOnly;
+  if (typeof renderMonEspaceCols === 'function') renderMonEspaceCols();
   document.getElementById('monEspaceOverlay').style.display = 'block';
   document.getElementById('monEspacePanel').style.display = 'block';
 }
