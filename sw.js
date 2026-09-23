@@ -3,7 +3,7 @@
 //  - Navigation (HTML) : RÉSEAU D'ABORD → toujours la dernière version en ligne ; cache en secours si hors-ligne.
 //  - Autres GET same-origin (favicon, icônes, css/js locaux) : stale-while-revalidate (rapide + mise à jour en arrière-plan).
 //  - API (/api/...) et domaines externes (CDN, tuiles carte, OSRM, Webfleet) : jamais interceptés → comportement navigateur normal.
-const CACHE = 'geoplan-v1';
+const CACHE = 'geoplan-v2';
 const CORE = ['/', 'favicon.svg', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {
