@@ -25,7 +25,11 @@
       "Bash(where vercel:*)",
       "Bash(cmd.exe /c \"where npm\")",
       "Bash(cmd.exe /c \"where node\")",
-      "Bash(cmd.exe /c \"where vercel\")"
+      "Bash(cmd.exe /c \"where vercel\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X PUT \"https://geoplan-chi.vercel.app/api/akuiteo?path=/sales/orders/GR-CC2600037\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"id\":\"GR-CC2600037\",\"customData\":{\"1-alpha17\":{\"type\":\"ALPHANUMERIC\",\"value\":\"Test\"}}}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X PATCH \"https://geoplan-chi.vercel.app/api/akuiteo?path=/sales/orders/GR-CC2600037\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"customData\":{\"1-alpha17\":{\"type\":\"ALPHANUMERIC\",\"value\":\"Test\"}}}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X POST \"https://geoplan-chi.vercel.app/api/akuiteo?path=/sales/orders/GR-CC2600037/custom-data\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"1-alpha17\":{\"type\":\"ALPHANUMERIC\",\"value\":\"Test\"}}')",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" -X PUT \"https://geoplan-chi.vercel.app/api/akuiteo?path=/sales/orders/GR-CC2600037/custom-data\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"1-alpha17\":{\"type\":\"ALPHANUMERIC\",\"value\":\"Test\"}}')"
     ]
   }
 }
