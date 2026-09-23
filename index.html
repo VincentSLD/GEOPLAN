@@ -1618,6 +1618,41 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
 .cmd-table th:first-child, .cmd-table td:first-child { position:sticky; left:0; z-index:1; background:var(--bg-secondary); box-shadow:1px 0 0 var(--border); }
 .cmd-table thead th:first-child { z-index:3; background:var(--bg-card); }
 .me-col-row:hover { border-color:var(--gph-yellow) !important; }
+/* ═══ Feuille de temps (Mes temps) / Suivi ═══ */
+.ts-wrap { flex: 1; overflow: auto; }
+.ts-table { border-collapse: separate; border-spacing: 0; font-size: 0.72rem; min-width: max-content; }
+.ts-table th, .ts-table td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 3px 5px; text-align: center; white-space: nowrap; background: var(--bg-secondary); }
+.ts-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-primary); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 700; height: 34px; }
+.ts-table td.ts-col-label, .ts-table th.ts-col-label { position: sticky; left: 0; z-index: 3; text-align: left; min-width: 230px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.ts-table thead .ts-col-label { z-index: 4; }
+.ts-col-tot { position: sticky; right: 0; z-index: 3; font-weight: 800; background: var(--bg-primary); min-width: 62px; }
+.ts-table thead .ts-col-tot { z-index: 4; }
+.ts-cell { width: 46px; height: 26px; border: none; text-align: center; font-family: inherit; font-size: 0.72rem; color: var(--text-primary); background: transparent; padding: 0; -moz-appearance: textfield; appearance: textfield; }
+.ts-cell::-webkit-outer-spin-button, .ts-cell::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ts-cell:focus { outline: 2px solid var(--gph-yellow); background: #fff; border-radius: 3px; }
+.ts-th-day { min-width: 48px; }
+.ts-th-day.ts-weekend, td.ts-weekend { background: #eeece6; }
+.ts-th-day.ts-today, td.ts-today { background: var(--gph-yellow-light); }
+td.ts-autoabs { background: repeating-linear-gradient(45deg, #eef2ff, #eef2ff 5px, #e0e7ff 5px, #e0e7ff 10px); }
+td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
+.ts-totrow td.ts-missing { background: #fdecea !important; box-shadow: inset 0 0 0 1px #f3b4ac; }
+.ts-totrow td.ts-missing::before { content: '•'; color: #DC2626; font-weight: 900; }
+.ts-th-day .ts-dnum { font-size: 0.78rem; color: var(--text-primary); }
+.ts-table td.ts-grp { position: sticky; left: 0; z-index: 3; text-align: left; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); background: var(--bg-primary); }
+.ts-totrow td { position: sticky; bottom: 25px; z-index: 2; height: 25px; box-sizing: border-box; font-weight: 800; background: var(--bg-primary); border-top: 2px solid var(--gph-dark); }
+.ts-totrow .ts-col-label, .ts-totrow .ts-col-tot { z-index: 3; }
+.ts-wktotrow td { position: sticky; bottom: 0; z-index: 2; height: 25px; box-sizing: border-box; font-weight: 700; color: var(--text-secondary); background: #eef2f7; }
+.ts-wktotrow .ts-col-label { z-index: 3; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); }
+.ts-wktotrow .ts-col-tot { z-index: 3; }
+@keyframes tsBlink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+.ts-addbtn { border: 1px dashed var(--border); background: none; color: var(--text-muted); font-size: 0.66rem; font-weight: 600; cursor: pointer; padding: 2px 8px; border-radius: 6px; font-family: inherit; }
+.ts-addbtn:hover { border-color: var(--gph-yellow); color: var(--gph-dark); }
+.ts-del { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; margin-left: 4px; opacity: 0; }
+.ts-row:hover .ts-del { opacity: 1; }
+.ts-nav-btn { width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-primary); cursor: pointer; font-size: 14px; }
+.ts-nav-btn:hover { border-color: var(--gph-yellow); }
+.ts-kpi { display: inline-flex; flex-direction: column; align-items: center; padding: 4px 14px; border-left: 1px solid var(--border); }
+.ts-kpi .v { font-size: 1rem; font-weight: 800; } .ts-kpi .l { font-size: 0.58rem; text-transform: uppercase; color: var(--text-muted); }
 .stg-actions { display:flex; gap:4px; }
 .stg-btn-edit, .stg-btn-del { border:none; border-radius:4px; padding:4px 8px; font-size:0.65rem; font-weight:700; cursor:pointer; font-family:inherit; }
 .stg-btn-edit { background:var(--gph-yellow-light); color:var(--gph-dark); border:1px solid rgba(245,197,24,0.3); }
@@ -1866,6 +1901,14 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Erreurs / Modifs
       </div>
+      <div class="nav-item" data-nav="temps" onclick="showView('temps')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Mes temps
+      </div>
+      <div class="nav-item" data-nav="suivi" onclick="showView('suivi')" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Suivi équipe
+      </div>
       <div class="nav-item" onclick="alert('Module clients — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Clients
@@ -2004,6 +2047,16 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
   <div class="view-content" id="qualiteView">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="qualiteHeader"></div>
     <div style="flex:1;overflow:auto;padding:16px 20px;" id="qualiteBody"></div>
+  </div>
+
+  <div class="view-content" id="tempsView">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="tempsHeader"></div>
+    <div class="ts-wrap" id="tempsGrid" style="flex:1;overflow:auto;padding:12px 16px;"></div>
+  </div>
+
+  <div class="view-content" id="suiviView">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="suiviHeader"></div>
+    <div id="suiviBody" style="flex:1;overflow:auto;padding:16px 20px;"></div>
   </div>
 
   <div class="view-content" id="geosoliaView">
@@ -4350,6 +4403,8 @@ function switchView(v,tab) {
   else if (v === 'geosolia') { initGeosoliaView(); }
   else if (v === 'plancharge') { initPlanCharge(); }
   else if (v === 'qualite') { initQualite(); }
+  else if (v === 'temps') { initTimesheet(); }
+  else if (v === 'suivi') { initSuivi(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -7824,6 +7879,917 @@ function qualTypeDelete(nature,i){ var arr=_qualStore(nature); if(!arr[i])return
 function qualSousAdd(nature,i){ var name=(window.prompt('Nom du sous-type :')||'').trim(); if(!name)return; var arr=_qualStore(nature); if(!arr[i])return; arr[i].sous=arr[i].sous||[]; arr[i].sous.push({ code:_qualUniqCode(arr[i].sous,_qualSlug(name)), label:name }); _qualSaveTypes(nature); renderSettingsQualite(); }
 function qualSousRename(nature,i,j,val){ var arr=_qualStore(nature); if(arr[i]&&arr[i].sous&&arr[i].sous[j]){ arr[i].sous[j].label=val; _qualSaveTypes(nature); } }
 function qualSousDelete(nature,i,j){ var arr=_qualStore(nature); if(!arr[i]||!arr[i].sous||!arr[i].sous[j])return; arr[i].sous.splice(j,1); _qualSaveTypes(nature); renderSettingsQualite(); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  FEUILLE DE TEMPS (Mes temps) + SUIVI D'ÉQUIPE
+// ═══════════════════════════════════════════════════════════════════
+var tsMonth = null;                 // 1er du mois affiché (Date)
+var tsEntries = {};                 // 'YYYY-MM-DD|item_key' -> heures (number)
+var tsRowMeta = {};                 // item_key -> { type, label, commande_id }
+var tsPriorTotals = {};             // item_key -> heures cumulées des mois PRÉCÉDENTS
+var tsDays = [];
+var tsRowKeysAll = [];
+var TS_STEP = 0.1;                  // pas de saisie (0,1 h = 6 min) ; TS_TARGET déjà défini plus haut
+var TS_DEFAULT_ACTS = [
+  { key: 'act:reunion', label: 'Réunion' },
+  { key: 'act:formation', label: 'Formation' },
+  { key: 'act:admin', label: 'Administratif' },
+  { key: 'act:commercial', label: 'Commercial / Avant-vente' },
+  { key: 'act:absence', label: 'Congés / Absence' },
+  { key: 'act:autre', label: 'Autre' },
+];
+var settingsTsActivities = loadSettings('geoplan_ts_activities', TS_DEFAULT_ACTS);
+function tsActivities(){ return (Array.isArray(settingsTsActivities) && settingsTsActivities.length) ? settingsTsActivities : TS_DEFAULT_ACTS; }
+var tsLocked = false, tsLockInfo = null;
+var tsAutoAbs = {};
+
+function _tsFmt(h){ if(!h) return ''; var s=(Math.round(h*100)/100).toString(); return s.replace('.', ','); }
+function _tsParse(s){ if(s==null) return 0; var v = parseFloat(String(s).replace(',', '.')); if(isNaN(v)||v<0) return 0; return Math.round(Math.round(v/TS_STEP)*TS_STEP*100)/100; }
+function _tsIdSafe(k){ return String(k).replace(/[^a-zA-Z0-9]/g,'_'); }
+function _tsAttr(k){ return String(k).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function _tsSlug(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+function _tsMonthBounds(){ var y=tsMonth.getFullYear(), m=tsMonth.getMonth(); return { start: dateToLocalStr(new Date(y,m,1)), end: dateToLocalStr(new Date(y,m+1,0)), y:y, m:m }; }
+function _tsMoisKey(){ return tsMonth.getFullYear() + '-' + String(tsMonth.getMonth()+1).padStart(2,'0'); }
+function _tsUserMember(){
+  if (!currentAuthUser) return null;
+  var em = (currentAuthUser.email||'').toLowerCase(); if (!em) return null;
+  return (settingsTeam||[]).find(function(x){ return (x.email||'').toLowerCase() === em; }) || null;
+}
+function _tsUserTechId(){ var m = _tsUserMember(); return m ? m.id : null; }
+function _tsUserLuccaId(){ var m = _tsUserMember(); return m ? (m.luccaId || m.luccaid || m.lucca_id || null) : null; }
+
+async function initTimesheet(){
+  if (!currentAuthUser) return;
+  if (!tsMonth) tsMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  var grid = document.getElementById('tempsGrid');
+  if (grid && !grid._tsBound){ grid.addEventListener('input', _tsOnInput); grid.addEventListener('change', _tsOnChange); grid._tsBound = true; }
+  if (!commandesLoaded) { try { await loadCommandesFromSupabase(); } catch(e){} }
+  await loadTimesheet();
+}
+
+async function loadTimesheet(){
+  if (!tsMonth) tsMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  _tsTimerLoad();
+  var b = _tsMonthBounds();
+  tsEntries = {}; tsRowMeta = {};
+  try {
+    var r = await sbAuth.from('geoplan_timesheet').select('jour,item_key,item_type,label,commande_id,heures')
+      .eq('user_id', currentAuthUser.id).gte('jour', b.start).lte('jour', b.end);
+    if (r.error) { console.warn('[Timesheet] load', r.error.message); }
+    if (r.data) r.data.forEach(function(row){
+      var jour = String(row.jour).substring(0,10);
+      tsEntries[jour + '|' + row.item_key] = parseFloat(row.heures) || 0;
+      if (!tsRowMeta[row.item_key]) tsRowMeta[row.item_key] = { type: row.item_type || 'commande', label: row.label || '', commande_id: row.commande_id || null };
+    });
+  } catch(e){ console.warn('[Timesheet] load exception', e); }
+  // Commandes auto : interventions de l'utilisateur (via son technicien)
+  var techId = _tsUserTechId();
+  var _cmdLbl = function(cmd, i){ return cmd ? (cmd._affaire ? (cmd._affaire.ref + ' — ' + (cmd._affaire.nom||'').substring(0,30)) : (cmd.ref||'')) : ((i&&(i.affaireRef||i.commandeRef||i.commandeId))||''); };
+  if (techId != null) {
+    (interventions||[]).forEach(function(i){
+      if (!i.commandeId || i.techId !== techId) return;
+      if (i.date && (i.date < b.start || i.date > b.end)) return;
+      var key = 'cmd:' + i.commandeId;
+      if (!tsRowMeta[key]) {
+        var cmd = (commandesData||[]).find(function(c){ return c.id === i.commandeId; });
+        tsRowMeta[key] = { type: 'commande', label: _cmdLbl(cmd, i), commande_id: i.commandeId };
+      }
+    });
+  }
+  // Cumul des mois PRÉCÉDENTS (même user) + maintien des dossiers en cours
+  tsPriorTotals = {};
+  try {
+    var rp = await sbAuth.from('geoplan_timesheet').select('item_key,item_type,commande_id,label,heures')
+      .eq('user_id', currentAuthUser.id).lt('jour', b.start);
+    if (rp.data) rp.data.forEach(function(row){
+      var k = row.item_key; if (!k) return;
+      tsPriorTotals[k] = (tsPriorTotals[k]||0) + (parseFloat(row.heures)||0);
+      if (!tsRowMeta[k] && row.item_type === 'commande' && row.commande_id) {
+        var cmd = (commandesData||[]).find(function(c){ return c.id === row.commande_id; });
+        var statut = cmd ? ((cmd.custom_data && cmd.custom_data['1-alpha17'] && cmd.custom_data['1-alpha17'].value)||'') : '';
+        if (statut !== 'Terminée') tsRowMeta[k] = { type: 'commande', label: (cmd ? _cmdLbl(cmd, null) : (row.label||row.commande_id)), commande_id: row.commande_id };
+      }
+    });
+  } catch(e){ console.warn('[Timesheet] cumul mois précédents', e); }
+  // Congés / absences : pré-remplissage auto depuis Lucca
+  tsAutoAbs = {};
+  var lucca = _tsUserLuccaId();
+  if (lucca && typeof getAbsenceForDate === 'function') {
+    var last = new Date(b.y, b.m+1, 0).getDate();
+    for (var dd=1; dd<=last; dd++){
+      var dt = new Date(b.y, b.m, dd); var ds = dateToLocalStr(dt); var dow = dt.getDay();
+      if (dow===0 || dow===6 || isJourFerie(ds)) continue;
+      var abs = getAbsenceForDate(lucca, ds);
+      if (!abs) continue;
+      var h = abs.full ? TS_TARGET : (TS_TARGET/2);
+      tsAutoAbs[ds] = h;
+      var mk = ds + '|act:absence';
+      if (tsEntries[mk] == null) tsEntries[mk] = h;
+    }
+  }
+  // Verrou mensuel
+  tsLocked = false; tsLockInfo = null;
+  try {
+    var lr = await sbAuth.from('geoplan_timesheet_locks').select('validated_at').eq('user_id', currentAuthUser.id).eq('mois', _tsMoisKey()).maybeSingle();
+    if (lr && lr.data) { tsLocked = true; tsLockInfo = lr.data; }
+  } catch(e){ /* table absente = pas de verrou */ }
+  renderTimesheet();
+}
+
+function renderTimesheet(){
+  var head = document.getElementById('tempsHeader');
+  var grid = document.getElementById('tempsGrid');
+  if (!head || !grid) return;
+  var b = _tsMonthBounds();
+  var last = new Date(b.y, b.m+1, 0).getDate();
+  var todayStr = dateToLocalStr(TODAY);
+  var dn = ['D','L','M','M','J','V','S'];
+  tsDays = [];
+  for (var d=1; d<=last; d++){
+    var dt = new Date(b.y, b.m, d); var ds = dateToLocalStr(dt); var dow = dt.getDay();
+    var wk = dateToLocalStr(getMonday(new Date(ds + 'T12:00:00')));
+    tsDays.push({ dateStr: ds, dnum: d, dow: dow, weekend: (dow===0||dow===6), ferie: isJourFerie(ds), today: ds===todayStr, dname: dn[dow], weekKey: wk });
+  }
+  tsDays.forEach(function(dd, i){ dd.lastOfWeek = (i === tsDays.length-1) || (tsDays[i+1].weekKey !== dd.weekKey); });
+  tsActivities().forEach(function(a){ if(!tsRowMeta[a.key]) tsRowMeta[a.key] = { type:'activite', label:a.label, commande_id:null }; });
+  var cmdKeys = Object.keys(tsRowMeta).filter(function(k){ return tsRowMeta[k].type==='commande'; })
+    .sort(function(a,c){ return (tsRowMeta[a].label||'').localeCompare(tsRowMeta[c].label||''); });
+  var actDefaultKeys = tsActivities().map(function(a){ return a.key; });
+  var actExtraKeys = Object.keys(tsRowMeta).filter(function(k){ return tsRowMeta[k].type==='activite' && actDefaultKeys.indexOf(k)<0; });
+  var monthLabel = tsMonth.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+  var uname = (currentAuthUser.user_metadata && currentAuthUser.user_metadata.full_name) || (currentAuthUser.email||'');
+  head.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+    + '<div style="display:flex;align-items:center;gap:8px;">'
+    +   '<button class="ts-nav-btn" onclick="tsShiftMonth(-1)" title="Mois précédent">‹</button>'
+    +   '<span style="font-weight:800;font-size:0.95rem;text-transform:capitalize;min-width:150px;text-align:center;display:inline-block;">' + monthLabel + '</span>'
+    +   '<button class="ts-nav-btn" onclick="tsShiftMonth(1)" title="Mois suivant">›</button>'
+    +   '<button class="ts-nav-btn" style="width:auto;padding:0 10px;font-size:0.7rem;font-weight:700;" onclick="tsGoToday()">Aujourd\'hui</button>'
+    +   (tsLocked
+          ? '<span style="font-size:0.72rem;font-weight:800;color:#16A34A;margin-left:8px;">🔒 Mois validé</span> <button class="ts-nav-btn" style="width:auto;padding:0 10px;font-size:0.7rem;font-weight:700;" onclick="tsUnlockMonth()">Dévalider</button>'
+          : '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-size:0.7rem;font-weight:800;background:#16A34A;color:#fff;border-color:#16A34A;margin-left:8px;" onclick="tsValidateMonth()">✅ Valider le mois</button>')
+    + '</div>'
+    + '<div style="display:flex;align-items:center;">'
+    +   '<span style="font-size:0.75rem;color:var(--text-secondary);font-weight:600;margin-right:6px;">👤 ' + _esc(uname) + '</span>'
+    +   '<div class="ts-kpi"><span class="v" id="ts-kpi-month">0</span><span class="l">Total mois (h)</span></div>'
+    +   '<div class="ts-kpi"><span class="v" id="ts-kpi-days">0</span><span class="l">Jours saisis</span></div>'
+    +   '<div class="ts-kpi"><span class="v" id="ts-kpi-todo" title="Jours ouvrés passés sans aucune saisie">0</span><span class="l">À compléter</span></div>'
+    +   (tsLocked ? '' : '<button class="ts-nav-btn" style="width:auto;padding:0 10px;font-size:0.7rem;font-weight:700;margin-left:10px;" onclick="tsCopyPrevWeek()" title="Copier la semaine précédente sur la semaine en cours">⧉ Copier S-1</button>')
+    +   (tsLocked ? '' : '<button class="ts-nav-btn" style="width:auto;padding:0 10px;font-size:0.7rem;font-weight:700;margin-left:6px;" onclick="tsRoundMonth(true)" title="Arrondir toutes les heures du mois au pas de 0,1 h">≈ Arrondir</button>')
+    + '</div>'
+    + '</div>'
+    + '<div id="tsTimerBar" style="margin-top:8px;"></div>';
+
+  var html = '<table class="ts-table"><thead><tr><th class="ts-col-label">Commande / Activité</th>';
+  tsDays.forEach(function(dd){
+    var cls = 'ts-th-day' + (dd.weekend||dd.ferie?' ts-weekend':'') + (dd.today?' ts-today':'');
+    html += '<th class="'+cls+'" title="'+dd.dateStr+(dd.ferie?(' — '+dd.ferie):'')+'"><div>'+dd.dname+'</div><div class="ts-dnum">'+dd.dnum+'</div></th>';
+  });
+  html += '<th class="ts-col-tot">Total</th></tr></thead><tbody>';
+  html += _tsGroupRow('Autres temps');
+  var _renderActLine = function(k, isDefault){
+    if (isDefault){ var subs = _tsSubKeys(k); html += _tsRowHtml(k, { subKeys: subs }); if (subs.length && !_tsAccCollapsed(k)) subs.forEach(function(sk){ html += _tsRowHtml(sk, { isSub: true }); }); }
+    else { html += _tsRowHtml(k); }
+  };
+  var _emptyActs = [];
+  actDefaultKeys.forEach(function(pk){ if (_tsActHasData(pk)) _renderActLine(pk, true); else _emptyActs.push({ k: pk, def: true }); });
+  actExtraKeys.filter(function(k){ return !_tsParentOf(k); }).forEach(function(k){ if (_tsRowHasData(k)) _renderActLine(k, false); else _emptyActs.push({ k: k, def: false }); });
+  if (_emptyActs.length){
+    var _eaOpen = _tsEmptyActsOpen();
+    html += '<tr><td class="ts-col-label" style="cursor:pointer;color:var(--text-muted);font-weight:700;font-size:0.72rem;" onclick="tsToggleEmptyActs()" title="Activités sans temps saisi ce mois"><span style="font-size:1rem;vertical-align:middle;">'+(_eaOpen?'▾':'▸')+'</span> Activités sans saisie ('+_emptyActs.length+')</td><td colspan="'+(tsDays.length+1)+'"></td></tr>';
+    if (_eaOpen) _emptyActs.forEach(function(e){ _renderActLine(e.k, e.def); });
+  }
+  if (!tsLocked) html += '<tr><td class="ts-col-label" style="padding-top:4px;padding-bottom:4px;"><button onclick="tsAddSousCat()" title="Créer une sous-activité" style="border:1px solid var(--gph-yellow);background:var(--gph-yellow-light);color:var(--gph-dark);font-size:0.68rem;font-weight:700;cursor:pointer;padding:4px 10px;border-radius:6px;font-family:inherit;white-space:nowrap;">＋ Ajouter une sous-activité</button></td><td colspan="'+(tsDays.length+1)+'"></td></tr>';
+  html += _tsGroupRow('Commandes');
+  cmdKeys.forEach(function(k){ html += _tsRowHtml(k); });
+  html += _tsAddRow('cmd');
+  html += '<tr class="ts-totrow"><td class="ts-col-label">TOTAL / jour</td>';
+  tsDays.forEach(function(dd){ html += '<td id="ts-dt-'+dd.dateStr+'" class="'+(dd.weekend||dd.ferie?'ts-weekend':'')+(dd.today?' ts-today':'')+'"></td>'; });
+  html += '<td class="ts-col-tot" id="ts-grand"></td></tr>';
+  html += '<tr class="ts-wktotrow"><td class="ts-col-label">TOTAL / semaine</td>';
+  tsDays.forEach(function(dd){ if (dd.lastOfWeek) html += '<td id="ts-wk-'+_tsIdSafe(dd.weekKey)+'" title="Semaine du '+dd.weekKey+'"></td>'; else html += '<td></td>'; });
+  html += '<td class="ts-col-tot"></td></tr></tbody></table>';
+  html += '<div style="font-size:0.66rem;color:var(--text-muted);margin:8px 0 6px;">⏱ Saisie au pas de 0,1 h — <b>0,10</b> = 6 mn · <b>0,25</b> = 15 mn · <b>0,50</b> = 30 mn · (journée = 7,8 h · semaine = 39 h)</div>';
+  grid.innerHTML = html;
+  tsRowKeysAll = actDefaultKeys.concat(actExtraKeys).concat(cmdKeys);
+  tsRecomputeTotals();
+  _tsRenderTimerBar();
+}
+
+// ── Sous-activités + accordéon ──
+function _tsDefaultActKeys(){ return tsActivities().map(function(a){ return a.key; }); }
+function _tsParentOf(key){ var dks = _tsDefaultActKeys(); for (var i=0;i<dks.length;i++){ if (key.indexOf(dks[i]+':') === 0) return dks[i]; } return null; }
+function _tsSubKeys(pk){ return Object.keys(tsRowMeta).filter(function(k){ return tsRowMeta[k].type === 'activite' && k.indexOf(pk+':') === 0; }).sort(function(a,b){ return (tsRowMeta[a].label||'').localeCompare(tsRowMeta[b].label||''); }); }
+var _tsAcc = null;
+function _tsAccLoad(){ if (_tsAcc) return _tsAcc; try { _tsAcc = JSON.parse(localStorage.getItem('geoplan_ts_acc') || '{}'); } catch (e) { _tsAcc = {}; } return _tsAcc; }
+function _tsAccCollapsed(pk){ return !!_tsAccLoad()[pk]; }
+function tsToggleAcc(pk){ var a = _tsAccLoad(); a[pk] = !a[pk]; try { localStorage.setItem('geoplan_ts_acc', JSON.stringify(a)); } catch (e) {} renderTimesheet(); }
+function _tsRowHasData(k){ for (var d=0;d<tsDays.length;d++){ if (tsEntries[tsDays[d].dateStr+'|'+k]) return true; } return false; }
+function _tsActHasData(pk){ if (_tsRowHasData(pk)) return true; var subs=_tsSubKeys(pk); for (var i=0;i<subs.length;i++){ if (_tsRowHasData(subs[i])) return true; } return false; }
+function _tsEmptyActsOpen(){ try { return localStorage.getItem('geoplan_ts_emptyacts_open') === '1'; } catch (e) { return false; } }
+function tsToggleEmptyActs(){ try { localStorage.setItem('geoplan_ts_emptyacts_open', _tsEmptyActsOpen() ? '0' : '1'); } catch (e) {} renderTimesheet(); }
+function _tsGroupRow(label){ return '<tr><td class="ts-grp" colspan="'+(tsDays.length+2)+'">'+label+'</td></tr>'; }
+function _tsAddRow(kind){
+  var btn = kind==='cmd' ? '<button class="ts-addbtn" onclick="tsAddCommande()">＋ Ajouter une commande</button>' : '<button class="ts-addbtn" onclick="tsAddActivite()">＋ Ajouter une activité</button>';
+  return '<tr><td class="ts-col-label">'+btn+'</td><td colspan="'+(tsDays.length+1)+'"></td></tr>';
+}
+function _tsRowHtml(key, opts){
+  opts = opts || {};
+  var meta = tsRowMeta[key] || { label:key, type:'activite' };
+  var isCmd = meta.type === 'commande';
+  var isSub = !!opts.isSub;
+  var subKeys = opts.subKeys || [];
+  var hasSubs = subKeys.length > 0;
+  var fullLabel = meta.label || key;
+  var dispLabel = isSub ? (fullLabel.split(' — ').slice(1).join(' — ') || fullLabel) : fullLabel;
+  var label = _esc(dispLabel);
+  var isParamAct = (!isCmd) && (!isSub) && (_tsDefaultActKeys().indexOf(key) >= 0);
+  var del = isParamAct ? '' : '<button class="ts-del" title="Retirer la ligne" onclick="tsRemoveRow(\''+_tsAttr(key)+'\')">✕</button>';
+  var estMin = 0, totExtra = '';
+  var cmdNum = '', cmdName = '';
+  if (isCmd) {
+    var cmd = meta.commande_id ? (commandesData||[]).find(function(c){ return c.id === meta.commande_id; }) : null;
+    if (cmd) {
+      estMin = computeGeoDuration(cmd) || 0;
+      cmdNum = (cmd._affaire && cmd._affaire.ref) || cmd.ref || meta.commande_ref || '';
+      cmdName = (cmd._affaire && cmd._affaire.nom) || cmd.nom || cmd.client_name || '';
+      totExtra = '<div style="font-size:0.56rem;color:var(--text-muted);font-weight:600;" title="Temps estimé de la commande">/ ' + _cmdFmtDurHm(estMin) + '</div>';
+    } else {
+      var _p = String(fullLabel).split(' — '); cmdNum = _p[0] || fullLabel; cmdName = _p.slice(1).join(' — ');
+    }
+  }
+  var timerBtn = '';
+  if (!tsLocked && String(key).indexOf('act:absence') !== 0) {
+    var _run = tsTimer && tsTimer.key === key;
+    var _dot = _run ? '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#DC2626;"></span>' : '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#DC2626;box-shadow:0 0 0 2px #DC262633;"></span>';
+    timerBtn = '<button class="ts-timerbtn" title="'+(_run?'Arrêter l\'enregistrement':'Démarrer l\'enregistrement du temps')+'" onclick="'+(_run?'tsTimerStop()':'tsTimerStart(\''+_tsAttr(key)+'\',\''+_tsAttr(meta.label||key)+'\')')+'" style="background:none;border:none;cursor:pointer;padding:0;width:20px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;">'+_dot+'</button>';
+  }
+  var accBtn = '';
+  if (hasSubs) { var _col = _tsAccCollapsed(key); accBtn = '<button title="'+(_col?'Déployer':'Réduire')+' les sous-activités" onclick="tsToggleAcc(\''+_tsAttr(key)+'\')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;padding:0 5px;color:var(--gph-dark);font-weight:800;">'+(_col?'▸':'▾')+'</button>'; }
+  var icon = isSub ? '↳ ' : '🕓 ';
+  var indentStyle = isSub ? 'padding-left:20px;' : '';
+  var labelInner;
+  if (isCmd) {
+    var _cmdObjS = meta.commande_id ? (commandesData||[]).find(function(c){ return c.id === meta.commande_id; }) : null;
+    var _stat = _cmdObjS ? ((_cmdObjS.custom_data && _cmdObjS.custom_data['1-alpha17'] && _cmdObjS.custom_data['1-alpha17'].value)||'') : '';
+    var _priorLine = (_stat==='En attente') ? '<div style="font-size:0.56rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:#D97706;font-weight:700;">⏸ En attente du feu vert</span></div>' : '';
+    labelInner = '<div style="flex:1;min-width:0;line-height:1.12;">'
+      + '<div style="font-family:\'DM Mono\',monospace;font-weight:700;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📋 ' + _esc(cmdNum || '—') + '</div>'
+      + (cmdName ? '<div style="font-size:0.64rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(cmdName) + '</div>' : '')
+      + _priorLine + '</div>';
+  } else {
+    var labelSpanStyle = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' + (isSub ? 'color:var(--text-secondary);font-size:0.7rem;' : '');
+    labelInner = '<span style="'+labelSpanStyle+'">'+icon+label+'</span>';
+  }
+  var labelCell = '<td class="ts-col-label" style="'+indentStyle+'" title="'+_esc(fullLabel)+'"><div style="display:flex;align-items:center;gap:2px;">'+accBtn+labelInner+del+timerBtn+'</div></td>';
+  var planStart = '', planEnd = '';
+  var START_COLOR = '#c7d2fe';
+  var _endColor = '#bfdbfe', _endTitle = 'Livraison planifiée de la commande';
+  if (isCmd && meta.commande_id) {
+    (typeof interventions !== 'undefined' ? interventions : []).forEach(function(i){
+      if (i.commandeId !== meta.commande_id) return;
+      if (i.date && (!planStart || i.date < planStart)) planStart = i.date;
+      if (i.date && (!planEnd || i.date > planEnd)) planEnd = i.date;
+    });
+    var _cmdObj = (commandesData || []).find(function(c){ return c.id === meta.commande_id; });
+    var _dl = (typeof _cmdDeadline === 'function') ? _cmdDeadline(_cmdObj) : null;
+    if (planEnd && _dl) {
+      var _mj = _deadlineMarginDays(planEnd, _dl);
+      if (_mj !== null && _mj !== undefined) {
+        _endColor = _mj >= 2 ? '#bbf7d0' : (_mj >= 0 ? '#fde68a' : '#fecaca');
+        _endTitle = 'Livraison planifiée — ' + (_mj > 0 ? ('+' + _mj + ' j d\'avance') : (_mj === 0 ? 'juste à l\'échéance' : (Math.abs(_mj) + ' j de retard'))) + ' vs DLR/DLC';
+      }
+    }
+  }
+  var cells = '';
+  tsDays.forEach(function(dd){
+    var val = tsEntries[dd.dateStr+'|'+key];
+    var isAutoAbs = (key === 'act:absence' && tsAutoAbs[dd.dateStr] != null);
+    var cls = (dd.weekend||dd.ferie?'ts-weekend':'') + (dd.today?' ts-today':'') + (isAutoAbs?' ts-autoabs':'');
+    var ttl = isAutoAbs ? ' title="Absence Lucca (pré-rempli — modifiable)"' : '';
+    var stStyle = '';
+    if (isCmd && (planStart || planEnd)) {
+      var isStart = planStart && dd.dateStr === planStart;
+      var isEnd = planEnd && dd.dateStr === planEnd;
+      if (isStart && isEnd) { stStyle = 'background:linear-gradient(90deg,'+START_COLOR+' 50%,'+_endColor+' 50%);'; if(!isAutoAbs) ttl = ' title="Début planifié + '+_endTitle+'"'; }
+      else if (isStart) { stStyle = 'background:'+START_COLOR+';'; if(!isAutoAbs) ttl = ' title="Début planifié de la commande"'; }
+      else if (isEnd) { stStyle = 'background:'+_endColor+';'; if(!isAutoAbs) ttl = ' title="'+_endTitle+'"'; }
+      else if (planStart && planEnd && dd.dateStr > planStart && dd.dateStr < planEnd) { stStyle = 'background:#ecfdf5;'; if(!isAutoAbs) ttl = ' title="Période planifiée de la commande"'; }
+    }
+    cells += '<td class="'+cls+'"'+(stStyle?(' style="'+stStyle+'"'):'')+ttl+'><input class="ts-cell" type="number" step="0.1" min="0"'+(tsLocked?' readonly':'')+' data-key="'+_esc(key)+'" data-jour="'+dd.dateStr+'" value="'+(val?String(val):'')+'"></td>';
+  });
+  return '<tr class="ts-row">'+labelCell+cells+'<td class="ts-col-tot"><span id="ts-rt-'+_tsIdSafe(key)+'"></span>'+totExtra+'</td></tr>';
+}
+
+function tsRecomputeTotals(){
+  var grand = 0, dayTot = {}, daysWith = 0;
+  var weekTot = {}, weekWork = {}, todo = 0;
+  var todayStr = dateToLocalStr(TODAY);
+  tsDays.forEach(function(dd){ dayTot[dd.dateStr] = 0; });
+  tsRowKeysAll.forEach(function(k){
+    var rt = 0;
+    tsDays.forEach(function(dd){ var h = tsEntries[dd.dateStr+'|'+k]||0; rt += h; dayTot[dd.dateStr] += h; });
+    var prior = tsPriorTotals[k] || 0;
+    var tot = Math.round((rt + prior)*100)/100;
+    var el = document.getElementById('ts-rt-'+_tsIdSafe(k));
+    if(el) el.innerHTML = tot ? (_tsFmt(tot) + (prior>0 ? ' <span style="font-size:0.58rem;color:var(--text-muted);font-weight:600;" title="dont mois précédents">(dont '+_tsFmt(prior)+')</span>' : '')) : '';
+  });
+  _tsDefaultActKeys().forEach(function(pk){
+    var subs = _tsSubKeys(pk); if (!subs.length) return;
+    var el = document.getElementById('ts-rt-'+_tsIdSafe(pk)); if (!el) return;
+    var own = 0, subTot = 0;
+    tsDays.forEach(function(dd){ own += tsEntries[dd.dateStr+'|'+pk]||0; });
+    subs.forEach(function(sk){ tsDays.forEach(function(dd){ subTot += tsEntries[dd.dateStr+'|'+sk]||0; }); });
+    var prior = tsPriorTotals[pk] || 0; subs.forEach(function(sk){ prior += tsPriorTotals[sk] || 0; });
+    var tot = Math.round((own + subTot + prior)*100)/100;
+    var _hints = (subTot ? ' <span style="font-size:0.58rem;color:var(--text-muted);font-weight:600;" title="dont sous-activités">(dont '+_tsFmt(subTot)+' s/act.)</span>' : '') + (prior>0 ? ' <span style="font-size:0.58rem;color:var(--text-muted);font-weight:600;" title="dont mois précédents">(dont '+_tsFmt(prior)+' mois préc.)</span>' : '');
+    el.innerHTML = (tot ? _tsFmt(tot) : '') + _hints;
+  });
+  tsDays.forEach(function(dd){
+    var col = dayTot[dd.dateStr]; grand += col; if (col>0) daysWith++;
+    weekTot[dd.weekKey] = (weekTot[dd.weekKey] || 0) + col;
+    var isWork = !dd.weekend && !dd.ferie;
+    if (isWork) weekWork[dd.weekKey] = (weekWork[dd.weekKey] || 0) + 1;
+    var missing = isWork && col === 0 && dd.dateStr <= todayStr;
+    if (missing) todo++;
+    var el = document.getElementById('ts-dt-'+dd.dateStr);
+    if (el){
+      el.textContent = col ? _tsFmt(col) : '';
+      var colR = Math.round(col*100)/100;
+      el.style.color = colR > TS_TARGET ? '#DC2626' : (colR >= TS_TARGET ? '#16A34A' : (col>0 ? '#D97706' : ''));
+      el.classList.toggle('ts-missing', missing);
+    }
+  });
+  tsDays.forEach(function(dd){
+    if (!dd.lastOfWeek) return;
+    var wel = document.getElementById('ts-wk-'+_tsIdSafe(dd.weekKey)); if (!wel) return;
+    var wt = weekTot[dd.weekKey] || 0;
+    var target = (weekWork[dd.weekKey] || 0) * TS_TARGET;
+    wel.textContent = wt ? _tsFmt(wt) : '';
+    wel.title = 'Semaine du ' + dd.weekKey + (target ? (' — objectif ' + _tsFmt(target) + ' h') : '');
+    wel.style.color = !wt ? '' : (target>0 && Math.round(wt*100)/100 >= Math.round(target*100)/100 ? '#16A34A' : '#D97706');
+  });
+  var g = document.getElementById('ts-grand'); if(g) g.textContent = _tsFmt(grand);
+  var km = document.getElementById('ts-kpi-month'); if(km) km.textContent = _tsFmt(grand) || '0';
+  var kd = document.getElementById('ts-kpi-days'); if(kd) kd.textContent = daysWith;
+  var kt = document.getElementById('ts-kpi-todo'); if(kt){ kt.textContent = todo; kt.style.color = todo>0 ? '#DC2626' : '#16A34A'; }
+}
+
+function _tsOnInput(e){
+  var t = e.target; if (!t.classList || !t.classList.contains('ts-cell')) return;
+  var key = t.getAttribute('data-key'), jour = t.getAttribute('data-jour');
+  var val = _tsParse(t.value); var mk = jour+'|'+key;
+  if (val>0) tsEntries[mk] = val; else delete tsEntries[mk];
+  tsRecomputeTotals();
+}
+function _tsOnChange(e){
+  if (tsLocked) return;
+  var t = e.target; if (!t.classList || !t.classList.contains('ts-cell')) return;
+  var key = t.getAttribute('data-key'), jour = t.getAttribute('data-jour');
+  var val = _tsParse(t.value);
+  t.value = val ? String(val) : '';
+  tsSaveCell(key, jour, val);
+}
+async function tsSaveCell(key, jour, val){
+  var meta = tsRowMeta[key] || {};
+  try {
+    if (val>0) {
+      var res = await sbAuth.from('geoplan_timesheet').upsert({
+        user_id: currentAuthUser.id, email: currentAuthUser.email || null,
+        jour: jour, item_key: key, item_type: meta.type || 'commande',
+        label: meta.label || '', commande_id: meta.commande_id || null,
+        heures: val, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,jour,item_key' });
+      if (res.error) console.warn('[Timesheet] save', res.error.message);
+    } else {
+      await sbAuth.from('geoplan_timesheet').delete().eq('user_id', currentAuthUser.id).eq('jour', jour).eq('item_key', key);
+    }
+  } catch(e){ console.warn('[Timesheet] save exception', e); }
+}
+
+// ─── Minuteur (chrono) ───
+var tsTimer = null;
+var _tsTimerInt = null;
+var _bcTimer = ('BroadcastChannel' in window) ? new BroadcastChannel('geoplan-timer') : null;
+if (_bcTimer) _bcTimer.onmessage = function(e){
+  var d = e.data || {};
+  if (d.type === 'stop') tsTimerStop();
+  else if (d.type === 'cancel') tsTimerCancel();
+  else if (d.type === 'attach') { try { localStorage.setItem('geoplan_timer_detached', '0'); } catch (_) {} if (window._tsPopup) { try { window._tsPopup.close(); } catch (_) {} window._tsPopup = null; } _tsRenderTimerFloat(); }
+};
+function _tsTimerBroadcast(){ if (_bcTimer) { try { _bcTimer.postMessage({ type: 'sync' }); } catch (e) {} } }
+function _tsTimerDetachedPref(){ try { return localStorage.getItem('geoplan_timer_detached') === '1'; } catch (e) { return false; } }
+function tsDetachTimer(){
+  try { localStorage.setItem('geoplan_timer_detached', '1'); } catch (e) {}
+  try {
+    if (window._tsPopup && !window._tsPopup.closed) window._tsPopup.focus();
+    else window._tsPopup = window.open('timer-popup.html', 'geoplanTimer', 'width=250,height=150,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+  } catch (e) {}
+  _tsRenderTimerFloat();
+}
+window.addEventListener('focus', function(){ if (typeof _tsRenderTimerFloat === 'function') _tsRenderTimerFloat(); });
+function _tsTimerLoad(){ try { var s = localStorage.getItem('geoplan_ts_timer'); tsTimer = s ? JSON.parse(s) : null; } catch (e) { tsTimer = null; } }
+function _tsTimerSave(){ try { if (tsTimer) localStorage.setItem('geoplan_ts_timer', JSON.stringify(tsTimer)); else localStorage.removeItem('geoplan_ts_timer'); } catch (e) {} }
+function _tsTimerDayLabel(){ if (!tsTimer) return ''; try { return new Date(tsTimer.jour + 'T12:00:00').toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }); } catch (e) { return tsTimer.jour; } }
+function _tsTimerStopTick(){ if (_tsTimerInt) { clearInterval(_tsTimerInt); _tsTimerInt = null; } }
+function _tsTimerStartTick(){ _tsTimerStopTick(); _tsTimerTick(); _tsTimerInt = setInterval(_tsTimerTick, 1000); }
+function _tsTimerTick(){
+  if (window._tsPopup && window._tsPopup.closed) { window._tsPopup = null; _tsRenderTimerFloat(); }
+  if (!tsTimer) return;
+  var s = Math.max(0, Math.floor((Date.now() - tsTimer.startMs) / 1000));
+  var txt = String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  var a = document.getElementById('tsTimerLive'); if (a) a.textContent = txt;
+  var b = document.getElementById('tsTimerFloatLive'); if (b) b.textContent = txt;
+}
+function _tsRenderTimerFloat(){
+  var f = document.getElementById('tsTimerFloat'); if (!f) return;
+  var popupOpen = !!(window._tsPopup && !window._tsPopup.closed);
+  if (tsTimer && !popupOpen) {
+    f.style.display = 'block';
+    f.innerHTML = '<div style="display:flex;align-items:center;gap:8px;background:#111;color:#fff;border-radius:10px;padding:8px 12px;box-shadow:0 8px 28px rgba(0,0,0,0.35);">'
+      + '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#DC2626;box-shadow:0 0 0 3px #DC262640;animation:tsBlink 1.2s infinite;flex-shrink:0;"></span>'
+      + '<div style="min-width:0;cursor:pointer;" onclick="showView(\'temps\')" title="Aller à Mes temps">'
+        + '<div style="font-weight:700;font-size:0.74rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(tsTimer.label) + '</div>'
+        + '<div id="tsTimerFloatLive" style="font-family:\'DM Mono\',monospace;font-weight:800;color:var(--gph-yellow);font-size:1.05rem;line-height:1.1;">00:00:00</div>'
+      + '</div>'
+      + '<button onclick="tsDetachTimer()" title="Détacher dans une fenêtre déplaçable" style="background:none;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:0.85rem;flex-shrink:0;">⧉</button>'
+      + '<button onclick="tsTimerStop()" title="Arrêter &amp; enregistrer" style="background:#DC2626;color:#fff;border:none;border-radius:6px;padding:6px 9px;cursor:pointer;font-weight:800;font-size:0.78rem;flex-shrink:0;">⏹</button>'
+      + '<button onclick="tsTimerCancel()" title="Annuler sans enregistrer" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem;line-height:1;flex-shrink:0;">✕</button>'
+      + '</div>';
+    _tsTimerStartTick();
+  } else if (tsTimer && popupOpen) {
+    f.style.display = 'none'; f.innerHTML = ''; _tsTimerStartTick();
+  } else {
+    f.style.display = 'none'; f.innerHTML = '';
+    if (!document.getElementById('tsTimerLive')) _tsTimerStopTick();
+  }
+}
+function _tsRenderTimerBar(){
+  var bar = document.getElementById('tsTimerBar'); if (!bar) return;
+  if (tsLocked) { bar.innerHTML = ''; _tsTimerStopTick(); return; }
+  if (tsTimer) {
+    bar.innerHTML = '<div style="display:inline-flex;align-items:center;gap:10px;background:#111;color:#fff;border-radius:8px;padding:6px 12px;">'
+      + '<span style="font-size:1rem;">⏱</span>'
+      + '<span style="font-weight:700;font-size:0.8rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(tsTimer.label) + '</span>'
+      + '<span id="tsTimerLive" style="font-family:\'DM Mono\',monospace;font-weight:800;color:var(--gph-yellow);font-size:0.95rem;">00:00:00</span>'
+      + '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-weight:800;background:#DC2626;color:#fff;border-color:#DC2626;" onclick="tsTimerStop()">⏹ Arrêter &amp; enregistrer</button>'
+      + '<button class="ts-nav-btn" style="width:auto;padding:0 9px;" onclick="tsTimerCancel()" title="Annuler sans enregistrer">✕</button>'
+      + '<span style="font-size:0.66rem;color:#9ca3af;">→ jour ' + _tsTimerDayLabel() + '</span>'
+      + '</div>';
+    _tsTimerStartTick();
+  } else {
+    bar.innerHTML = '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-size:0.72rem;font-weight:700;" onclick="tsOpenTimerDialog()" title="Chronométrer une activité et l\'enregistrer automatiquement">⏱ Démarrer un minuteur</button>';
+    _tsTimerStopTick();
+  }
+}
+function tsTimerStart(key, label, jour){
+  if (tsLocked) { alert('Mois validé : dévalidez pour saisir.'); return; }
+  if (String(key).indexOf('act:absence') === 0) { alert('Le minuteur ne s\'applique pas aux congés / absences.'); return; }
+  if (tsTimer) {
+    if (tsTimer.key === key) return;
+    if (!confirm('Un minuteur tourne déjà (« ' + tsTimer.label +' »).\nL\'arrêter et enregistrer son temps avant de démarrer celui-ci ?')) return;
+    tsTimerStop();
+  }
+  tsTimer = { key: key, label: label, startMs: Date.now(), jour: jour || dateToLocalStr(TODAY) };
+  _tsTimerSave(); _tsTimerBroadcast();
+  if (_tsTimerDetachedPref()) tsDetachTimer(); else _tsRenderTimerFloat();
+  if (currentView === 'temps') renderTimesheet();
+}
+async function tsTimerStop(){
+  if (!tsTimer) return;
+  var ms = Date.now() - tsTimer.startMs;
+  var minutes = Math.max(1, Math.round(ms / 60000));
+  var key = tsTimer.key, label = tsTimer.label, jour = tsTimer.jour;
+  tsTimer = null; _tsTimerSave(); _tsTimerStopTick(); _tsTimerBroadcast(); _tsRenderTimerFloat();
+  if (!tsRowMeta[key]) tsRowMeta[key] = { type: 'activite', label: label, commande_id: null };
+  var mk = jour + '|' + key;
+  var newMin = Math.round((tsEntries[mk] || 0) * 60) + minutes;
+  var nv = Math.round((newMin / 60) * 100) / 100;
+  tsEntries[mk] = nv;
+  try { await tsSaveCell(key, jour, nv); } catch (e) {}
+  if (currentView === 'temps') await loadTimesheet();
+  var hh = Math.floor(minutes / 60), mm = minutes % 60;
+  setTimeout(function(){ alert('⏱ ' + (hh ? hh + ' h ' : '') + mm + ' min ajoutées sur « ' + label + ' » — cumul du jour : ' + _tsFmt(nv) + ' h.'); }, 60);
+}
+function tsTimerCancel(){
+  if (!tsTimer) return;
+  if (!confirm('Annuler le minuteur sans enregistrer le temps écoulé ?')) return;
+  tsTimer = null; _tsTimerSave(); _tsTimerStopTick(); _tsTimerBroadcast(); _tsRenderTimerFloat(); if (currentView === 'temps') renderTimesheet();
+}
+function tsOpenTimerDialog(){
+  if (tsLocked) { alert('Mois validé : dévalidez pour saisir.'); return; }
+  var acts = tsActivities().filter(function(a){ return String(a.key).indexOf('act:absence') !== 0; });
+  if (!acts.length) { alert('Aucune activité paramétrée.'); return; }
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = function(e){ if (e.target === ov) document.body.removeChild(ov); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:430px;max-width:94vw;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><b>⏱ Démarrer un minuteur</b><button id="tmClose" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">&times;</button></div>'
+    + '<div style="padding:14px 16px;">'
+    + '<label style="display:block;font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">Activité</label>'
+    + '<select id="tmAct" style="width:100%;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.82rem;margin-bottom:12px;">' + acts.map(function(a){ return '<option value="' + _esc(a.key) + '">' + _esc(a.label) + '</option>'; }).join('') + '</select>'
+    + '<label style="display:block;font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">Sous-activité <span style="font-weight:400;">(optionnel)</span></label>'
+    + '<input id="tmSub" placeholder="ex : Formation technique 01" style="width:100%;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.82rem;">'
+    + '<div style="font-size:0.66rem;color:var(--text-muted);margin-top:5px;">Laissez vide pour chronométrer l\'activité elle-même. Le temps réel est cumulé à la minute.</div>'
+    + '</div>'
+    + '<div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;"><button id="tmCancel" class="btn btn-ghost" style="padding:7px 14px;">Annuler</button><button id="tmStart" class="btn btn-primary" style="padding:7px 16px;">▶ Démarrer</button></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  var close = function(){ if (ov.parentNode) document.body.removeChild(ov); };
+  box.querySelector('#tmClose').onclick = close;
+  box.querySelector('#tmCancel').onclick = close;
+  setTimeout(function(){ var s = document.getElementById('tmSub'); if (s) s.focus(); }, 40);
+  box.querySelector('#tmStart').onclick = function(){
+    var actKey = document.getElementById('tmAct').value;
+    var act = acts.find(function(a){ return a.key === actKey; }); if (!act) return;
+    var sub = (document.getElementById('tmSub').value || '').trim();
+    var key, label;
+    if (sub) { var slug = _tsSlug(sub) || 'sous'; key = actKey + ':' + slug; label = act.label + ' — ' + sub; }
+    else { key = actKey; label = act.label; }
+    close();
+    tsTimerStart(key, label, dateToLocalStr(TODAY));
+  };
+}
+function tsAddSousCat(){
+  if (tsLocked){ alert('Mois validé : dévalidez pour ajouter.'); return; }
+  var acts = tsActivities(); if (!acts.length){ alert('Aucune activité paramétrée.'); return; }
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = function(e){ if (e.target === ov) document.body.removeChild(ov); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:430px;max-width:94vw;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><b>＋ Ajouter une sous-activité</b><button id="scClose" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">&times;</button></div>'
+    + '<div style="padding:14px 16px;">'
+    + '<label style="display:block;font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">Activité</label>'
+    + '<select id="scAct" style="width:100%;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.82rem;margin-bottom:12px;">' + acts.map(function(a){ return '<option value="'+_esc(a.key)+'">'+_esc(a.label)+'</option>'; }).join('') + '</select>'
+    + '<label style="display:block;font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">Nom de la sous-activité</label>'
+    + '<input id="scSub" placeholder="ex : Formation technique 01" style="width:100%;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.82rem;">'
+    + '</div>'
+    + '<div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;"><button id="scCancel" class="btn btn-ghost" style="padding:7px 14px;">Annuler</button><button id="scStart" class="btn btn-ghost" style="padding:7px 12px;">▶ Créer &amp; démarrer</button><button id="scCreate" class="btn btn-primary" style="padding:7px 16px;">Créer</button></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  var close = function(){ if (ov.parentNode) document.body.removeChild(ov); };
+  box.querySelector('#scClose').onclick = close;
+  box.querySelector('#scCancel').onclick = close;
+  setTimeout(function(){ var s=document.getElementById('scSub'); if(s) s.focus(); }, 40);
+  var make = function(startTimer){
+    var actKey = document.getElementById('scAct').value;
+    var act = acts.find(function(a){ return a.key === actKey; }); if (!act) return;
+    var sub = (document.getElementById('scSub').value || '').trim();
+    if (!sub){ alert('Indiquez un nom de sous-activité.'); return; }
+    var key = actKey + ':' + (_tsSlug(sub) || 'sous');
+    var label = act.label + ' — ' + sub;
+    if (!tsRowMeta[key]) tsRowMeta[key] = { type:'activite', label:label, commande_id:null };
+    close();
+    if (startTimer) tsTimerStart(key, label, dateToLocalStr(TODAY));
+    else renderTimesheet();
+  };
+  box.querySelector('#scCreate').onclick = function(){ make(false); };
+  box.querySelector('#scStart').onclick = function(){ make(true); };
+}
+async function tsRoundMonth(confirmFirst){
+  if (tsLocked) return 0;
+  if (confirmFirst && !confirm('Arrondir toutes les heures du mois au pas de 0,1 h le plus proche ?')) return 0;
+  var ops = [];
+  tsRowKeysAll.forEach(function(k){
+    tsDays.forEach(function(dd){
+      var mk = dd.dateStr + '|' + k; var v = tsEntries[mk]; if (!v) return;
+      var r = Math.round(Math.round(v / TS_STEP) * TS_STEP * 100) / 100;
+      if (r !== v) { ops.push({ key:k, jour:dd.dateStr, val:r }); if (r > 0) tsEntries[mk] = r; else delete tsEntries[mk]; }
+    });
+  });
+  for (var i=0;i<ops.length;i++){ try { await tsSaveCell(ops[i].key, ops[i].jour, ops[i].val); } catch(e){} }
+  if (confirmFirst) { await loadTimesheet(); setTimeout(function(){ alert(ops.length ? (ops.length + ' case(s) arrondie(s).') : 'Toutes les heures étaient déjà au pas de 0,1 h.'); }, 40); }
+  return ops.length;
+}
+function tsShiftMonth(delta){ tsMonth = new Date(tsMonth.getFullYear(), tsMonth.getMonth()+delta, 1); loadTimesheet(); }
+function tsGoToday(){ tsMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1); loadTimesheet(); }
+async function tsCopyPrevWeek(){
+  var monday = getMonday(new Date(dateToLocalStr(TODAY) + 'T12:00:00'));
+  var prevMon = new Date(monday); prevMon.setDate(monday.getDate()-7);
+  var prevSun = new Date(prevMon); prevSun.setDate(prevMon.getDate()+6);
+  var curSun = new Date(monday); curSun.setDate(monday.getDate()+6);
+  if (!confirm('Copier la semaine du ' + dateToLocalStr(prevMon) + ' sur la semaine en cours ?\nLes heures de la semaine en cours seront remplacées.')) return;
+  try {
+    var r = await sbAuth.from('geoplan_timesheet').select('item_key,item_type,label,commande_id,jour,heures')
+      .eq('user_id', currentAuthUser.id).gte('jour', dateToLocalStr(prevMon)).lte('jour', dateToLocalStr(prevSun));
+    if (r.error) throw r.error;
+    var src = r.data || [];
+    await sbAuth.from('geoplan_timesheet').delete().eq('user_id', currentAuthUser.id).gte('jour', dateToLocalStr(monday)).lte('jour', dateToLocalStr(curSun));
+    var rows = src.filter(function(x){ return (parseFloat(x.heures)||0) > 0; }).map(function(x){
+      var dd = new Date(String(x.jour).substring(0,10) + 'T12:00:00'); dd.setDate(dd.getDate()+7);
+      return { user_id: currentAuthUser.id, email: currentAuthUser.email||null, jour: dateToLocalStr(dd), item_key: x.item_key, item_type: x.item_type, label: x.label, commande_id: x.commande_id, heures: x.heures, updated_at: new Date().toISOString() };
+    });
+    if (rows.length) { var ins = await sbAuth.from('geoplan_timesheet').upsert(rows, { onConflict: 'user_id,jour,item_key' }); if (ins.error) throw ins.error; }
+    tsMonth = new Date(monday.getFullYear(), monday.getMonth(), 1);
+    await loadTimesheet();
+    alert('Semaine copiée (' + rows.length + ' saisie(s)).');
+  } catch(e){ alert('Échec de la copie : ' + (e.message || e)); }
+}
+async function tsValidateMonth(){
+  if (!confirm('Valider et figer le mois ' + _tsMoisKey() + ' ?\nLes heures seront arrondies au pas de 0,1 h, les absences pré-remplies enregistrées, et la saisie verrouillée.')) return;
+  try {
+    await tsRoundMonth(false);
+    var toSave = [];
+    Object.keys(tsAutoAbs).forEach(function(ds){
+      var mk = ds + '|act:absence'; var h = tsEntries[mk];
+      if (h > 0) toSave.push({ user_id: currentAuthUser.id, email: currentAuthUser.email||null, jour: ds, item_key: 'act:absence', item_type: 'activite', label: 'Congés / Absence', commande_id: null, heures: h, updated_at: new Date().toISOString() });
+    });
+    if (toSave.length) { var up = await sbAuth.from('geoplan_timesheet').upsert(toSave, { onConflict: 'user_id,jour,item_key' }); if (up.error) throw up.error; }
+    var lk = await sbAuth.from('geoplan_timesheet_locks').insert({ user_id: currentAuthUser.id, mois: _tsMoisKey(), validated_by: currentAuthUser.email||null });
+    if (lk.error) throw lk.error;
+    await loadTimesheet();
+  } catch(e){ alert('Échec de la validation : ' + (e.message || e)); }
+}
+async function tsUnlockMonth(){
+  if (!confirm('Dévalider le mois ' + _tsMoisKey() + ' et rouvrir la saisie ?')) return;
+  try {
+    var d = await sbAuth.from('geoplan_timesheet_locks').delete().eq('user_id', currentAuthUser.id).eq('mois', _tsMoisKey());
+    if (d.error) throw d.error;
+    await loadTimesheet();
+  } catch(e){ alert('Échec : ' + (e.message || e)); }
+}
+function tsAddCommande(){
+  var present = {};
+  Object.keys(tsRowMeta).forEach(function(k){ if(tsRowMeta[k].type==='commande' && tsRowMeta[k].commande_id) present[tsRowMeta[k].commande_id]=1; });
+  _tsOpenPicker((commandesData||[]).filter(function(c){ return !present[c.id]; }));
+}
+function _tsAddCommandeRow(cmdId){
+  var cmd = (commandesData||[]).find(function(c){ return c.id === cmdId; });
+  var lbl = cmd ? (cmd._affaire ? (cmd._affaire.ref+' — '+(cmd._affaire.nom||'').substring(0,30)) : (cmd.ref||cmdId)) : cmdId;
+  tsRowMeta['cmd:'+cmdId] = { type:'commande', label: lbl, commande_id: cmdId };
+  renderTimesheet();
+}
+function tsAddActivite(){
+  var name = (window.prompt('Nom de l\'activité :')||'').trim();
+  if (!name) return;
+  var key = 'act:custom:'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  tsRowMeta[key] = { type:'activite', label:name, commande_id:null };
+  renderTimesheet();
+}
+async function tsRemoveRow(key){
+  var hasData = tsDays.some(function(dd){ return tsEntries[dd.dateStr+'|'+key]; });
+  if (hasData && !confirm('Retirer cette ligne et effacer ses heures du mois ?')) return;
+  var b = _tsMonthBounds();
+  try { await sbAuth.from('geoplan_timesheet').delete().eq('user_id', currentAuthUser.id).eq('item_key', key).gte('jour', b.start).lte('jour', b.end); } catch(e){}
+  tsDays.forEach(function(dd){ delete tsEntries[dd.dateStr+'|'+key]; });
+  if (!tsActivities().some(function(a){return a.key===key;})) delete tsRowMeta[key];
+  renderTimesheet();
+}
+function _tsOpenPicker(list){
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = function(e){ if(e.target===ov) document.body.removeChild(ov); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:520px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><b style="font-size:0.9rem;">Ajouter une commande</b><button id="tsPickClose" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&times;</button></div>'
+    + '<div style="padding:10px 16px;"><input id="tsPickSearch" placeholder="Rechercher (réf, affaire, client)…" style="width:100%;height:34px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-family:inherit;font-size:0.8rem;outline:none;"></div>'
+    + '<div id="tsPickList" style="flex:1;overflow-y:auto;padding:0 8px 12px;"></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  var input = box.querySelector('#tsPickSearch'), listEl = box.querySelector('#tsPickList');
+  box.querySelector('#tsPickClose').onclick = function(){ document.body.removeChild(ov); };
+  function draw(q){
+    q = (q||'').toLowerCase().trim();
+    var items = list.filter(function(c){
+      if(!q) return true;
+      var aff = c._affaire ? (c._affaire.ref+' '+(c._affaire.nom||'')) : '';
+      return ((c.ref||'')+' '+aff+' '+(c.client_name||'')+' '+(c.societe||'')).toLowerCase().indexOf(q)>=0;
+    }).slice(0,100);
+    listEl.innerHTML = items.length ? items.map(function(c){
+      var aff = c._affaire ? (c._affaire.ref+' — '+(c._affaire.nom||'').substring(0,40)) : (c.ref||'');
+      return '<div class="ts-pick-item" data-id="'+_esc(String(c.id))+'" style="padding:8px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;">'
+        + '<div style="font-weight:600;">'+_esc(aff)+'</div>'
+        + '<div style="font-size:0.68rem;color:var(--text-muted);">'+_esc(c.client_name||'')+' · '+_esc(c.societe||'')+'</div></div>';
+    }).join('') : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.78rem;">Aucune commande.</div>';
+    listEl.querySelectorAll('.ts-pick-item').forEach(function(el){
+      el.onmouseenter=function(){ el.style.background='var(--bg-primary)'; };
+      el.onmouseleave=function(){ el.style.background=''; };
+      el.onclick=function(){ _tsAddCommandeRow(el.getAttribute('data-id')); document.body.removeChild(ov); };
+    });
+  }
+  input.oninput = function(){ draw(input.value); };
+  draw(''); input.focus();
+}
+
+// ═══════════════ SUIVI DES TEMPS ÉQUIPE (superviseurs) ═══════════════
+var suiviMonth = null;
+var _suiviRows = [];
+var _suiviSummary = [];
+function _suiviName(email){
+  var m = (settingsTeam||[]).find(function(t){ return (t.email||'').toLowerCase() === (email||'').toLowerCase(); });
+  return m ? ((m.prenom||'')+' '+(m.nom||'')).trim() : (email||'—');
+}
+async function initSuivi(){
+  if (!isSupervisor) { alert('Accès réservé aux superviseurs.'); showView('week'); return; }
+  if (!suiviMonth) suiviMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  if (!commandesLoaded) { try { await loadCommandesFromSupabase(); } catch(e){} }
+  await renderSuivi();
+}
+function suiviShiftMonth(delta){ suiviMonth = new Date(suiviMonth.getFullYear(), suiviMonth.getMonth()+delta, 1); renderSuivi(); }
+async function renderSuivi(){
+  var head = document.getElementById('suiviHeader'), body = document.getElementById('suiviBody');
+  if (!head || !body) return;
+  var y = suiviMonth.getFullYear(), m = suiviMonth.getMonth();
+  var start = dateToLocalStr(new Date(y,m,1)), end = dateToLocalStr(new Date(y,m+1,0));
+  var monthLabel = suiviMonth.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+  head.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+    + '<div style="display:flex;align-items:center;gap:8px;">'
+    +   '<button class="ts-nav-btn" onclick="suiviShiftMonth(-1)">‹</button>'
+    +   '<span style="font-weight:800;font-size:0.95rem;text-transform:capitalize;min-width:150px;text-align:center;display:inline-block;">Suivi équipe — ' + monthLabel + '</span>'
+    +   '<button class="ts-nav-btn" onclick="suiviShiftMonth(1)">›</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;">'
+    +   '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-size:0.72rem;font-weight:700;" onclick="suiviExportCsv()">⤓ CSV synthèse</button>'
+    +   '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-size:0.72rem;font-weight:700;" onclick="suiviExportDetailCsv()">⤓ CSV détaillé</button>'
+    + '</div>'
+    + '</div>';
+  body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Chargement…</div>';
+  var rows = [];
+  try {
+    var r = await sbAuth.from('geoplan_timesheet').select('email,user_id,jour,item_type,item_key,label,heures').gte('jour', start).lte('jour', end);
+    if (r.error) { body.innerHTML = '<div style="padding:20px;color:#DC2626;">Erreur : ' + r.error.message + '</div>'; return; }
+    rows = r.data || [];
+  } catch(e){ body.innerHTML = '<div style="padding:20px;color:#DC2626;">Erreur de chargement.</div>'; return; }
+  _suiviRows = rows;
+  var moisKey = y + '-' + String(m+1).padStart(2,'0');
+  var locks = {};
+  try {
+    var lr = await sbAuth.from('geoplan_timesheet_locks').select('user_id,validated_at,validated_by').eq('mois', moisKey);
+    (lr.data||[]).forEach(function(L){ if (L.validated_by) locks['em:'+String(L.validated_by).toLowerCase()] = L; if (L.user_id) locks['uid:'+L.user_id] = L; });
+  } catch(e){}
+  var todayStr = dateToLocalStr(TODAY);
+  var lastDay = new Date(y, m+1, 0).getDate();
+  var workDays = [];
+  for (var _d=1; _d<=lastDay; _d++){
+    var _dt = new Date(y,m,_d), _ds = dateToLocalStr(_dt), _dow = _dt.getDay();
+    if (_dow===0 || _dow===6) continue;
+    if (isJourFerie(_ds)) continue;
+    if (_ds >= todayStr) continue;
+    workDays.push(_ds);
+  }
+  var byUser = {};
+  rows.forEach(function(row){
+    var em = row.email ? String(row.email).toLowerCase() : (row.user_id || '?');
+    if (!byUser[em]) byUser[em] = { email: row.email || em, uid: row.user_id||null, total:0, cmd:0, act:0, days:{}, dayTot:{} };
+    if (row.user_id && !byUser[em].uid) byUser[em].uid = row.user_id;
+    var h = parseFloat(row.heures) || 0;
+    var jd = String(row.jour).substring(0,10);
+    byUser[em].total += h;
+    if (row.item_type === 'activite') byUser[em].act += h; else byUser[em].cmd += h;
+    byUser[em].dayTot[jd] = (byUser[em].dayTot[jd]||0) + h;
+    if (h>0) byUser[em].days[jd] = 1;
+  });
+  (settingsTeam||[]).forEach(function(t){
+    if (!t.email || (t.statut||'actif') !== 'actif') return;
+    var k = String(t.email).toLowerCase();
+    if (!byUser[k]) byUser[k] = { email: t.email, uid:null, total:0, cmd:0, act:0, days:{}, dayTot:{} };
+  });
+  var list = Object.keys(byUser).map(function(k){ return byUser[k]; });
+  list.forEach(function(u){
+    u.lock = locks['em:'+String(u.email).toLowerCase()] || (u.uid ? locks['uid:'+u.uid] : null) || null;
+    u.missing = []; u.incomplete = [];
+    workDays.forEach(function(ds){
+      var t = Math.round((u.dayTot[ds]||0)*100)/100;
+      if (t <= 0) u.missing.push(ds);
+      else if (t < TS_TARGET) u.incomplete.push(ds);
+    });
+  });
+  list.sort(function(a,b){
+    var pa = (!a.lock && a.missing.length) ? 0 : 1, pb = (!b.lock && b.missing.length) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    if (b.total !== a.total) return b.total - a.total;
+    return _suiviName(a.email).localeCompare(_suiviName(b.email));
+  });
+  _suiviSummary = list;
+  if (!list.length) { body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Aucun collaborateur. Renseignez les e-mails dans Paramétrage → Équipe.</div>'; return; }
+  var totAll = list.reduce(function(s,u){ return s+u.total; }, 0);
+  var nbVal = list.filter(function(u){ return !!u.lock; }).length;
+  var nbManque = list.filter(function(u){ return !u.lock && u.missing.length; }).length;
+  var _fdate = function(ds){ return ds.substring(8,10)+'/'+ds.substring(5,7); };
+  var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:0.72rem;">'
+    + '<span style="padding:4px 12px;border-radius:14px;background:#dcfce7;color:#15803d;font-weight:700;">✅ Feuilles validées : ' + nbVal + ' / ' + list.length + '</span>'
+    + '<span style="padding:4px 12px;border-radius:14px;background:' + (nbManque?'#fee2e2':'#f3f4f6') + ';color:' + (nbManque?'#b91c1c':'#6b7280') + ';font-weight:700;">⚠️ Saisies manquantes (jours passés) : ' + nbManque + ' collab.</span>'
+    + (workDays.length ? '<span style="padding:4px 12px;border-radius:14px;background:#f3f4f6;color:#6b7280;">' + workDays.length + ' jour' + (workDays.length>1?'s':'') + ' ouvré' + (workDays.length>1?'s':'') + ' passé' + (workDays.length>1?'s':'') + ' ce mois</span>' : '')
+    + '</div>';
+  html += '<table class="stg-table"><thead><tr><th>Collaborateur</th><th style="text-align:right;">Total (h)</th><th style="text-align:right;">Cmd</th><th style="text-align:right;">Act.</th><th style="text-align:center;">Jours saisis</th><th style="text-align:center;">Validation</th><th style="text-align:center;">Jours passés manquants</th><th></th></tr></thead><tbody>';
+  list.forEach(function(u){
+    var empty = u.total <= 0;
+    var valBadge;
+    if (u.lock) {
+      var vd = u.lock.validated_at ? new Date(u.lock.validated_at) : null;
+      var vdTxt = vd ? (' le ' + String(vd.getDate()).padStart(2,'0') + '/' + String(vd.getMonth()+1).padStart(2,'0') + '/' + vd.getFullYear()) : '';
+      valBadge = '<span title="Feuille validée (figée)' + vdTxt + '" style="display:inline-block;padding:2px 9px;border-radius:11px;background:#dcfce7;color:#15803d;font-weight:800;font-size:0.66rem;">✅ Validé</span>';
+    } else {
+      valBadge = '<span title="Le mois n\'a pas encore été validé par le collaborateur" style="display:inline-block;padding:2px 9px;border-radius:11px;background:#f3f4f6;color:#6b7280;font-weight:700;font-size:0.66rem;">⏳ Non validé</span>';
+    }
+    var missCell;
+    if (u.lock) { missCell = '<span style="color:var(--text-muted);">—</span>'; }
+    else if (u.missing.length) {
+      missCell = '<span title="Jours ouvrés passés sans aucune saisie : ' + u.missing.map(_fdate).join(', ') + '" style="display:inline-block;padding:2px 9px;border-radius:11px;background:#fee2e2;color:#b91c1c;font-weight:800;font-size:0.66rem;">' + u.missing.length + ' j manquant' + (u.missing.length>1?'s':'') + '</span>'
+        + (u.incomplete.length ? ' <span title="Jours incomplets (< 7,8 h) : ' + u.incomplete.map(_fdate).join(', ') + '" style="font-size:0.62rem;color:#b45309;">+' + u.incomplete.length + ' incompl.</span>' : '');
+    } else if (u.incomplete.length) {
+      missCell = '<span title="Jours ouvrés incomplets (< 7,8 h) : ' + u.incomplete.map(_fdate).join(', ') + '" style="display:inline-block;padding:2px 9px;border-radius:11px;background:#fef3c7;color:#b45309;font-weight:700;font-size:0.66rem;">' + u.incomplete.length + ' j incomplet' + (u.incomplete.length>1?'s':'') + '</span>';
+    } else if (workDays.length) { missCell = '<span title="Tous les jours ouvrés passés sont saisis" style="color:#16A34A;font-weight:800;">✓ à jour</span>'; }
+    else { missCell = '<span style="color:var(--text-muted);">—</span>'; }
+    html += '<tr'+(empty?' style="background:rgba(220,38,38,0.035);"':'')+'>'
+      + '<td><strong>' + _esc(_suiviName(u.email)) + '</strong><br><span style="font-size:0.62rem;color:var(--text-muted);">' + _esc(u.email) + '</span></td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:800;">' + (u.total>0?_tsFmt(u.total):'<span style="color:var(--text-muted);">0</span>') + '</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">' + (u.cmd>0?_tsFmt(u.cmd):'') + '</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">' + (u.act>0?_tsFmt(u.act):'') + '</td>'
+      + '<td style="text-align:center;">' + Object.keys(u.days).length + '</td>'
+      + '<td style="text-align:center;">' + valBadge + '</td>'
+      + '<td style="text-align:center;">' + missCell + '</td>'
+      + '<td style="white-space:nowrap;"><button class="stg-btn-edit" onclick="suiviShowUserGrid(\'' + _esc(u.email) + '\')" title="Voir la feuille jour par jour">📅 Feuille</button>' + (empty ? '' : ' <button class="stg-btn-edit" onclick="suiviShowUser(\'' + _esc(u.email) + '\')">Détail</button>') + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody><tfoot><tr style="font-weight:800;border-top:2px solid var(--gph-dark);"><td>TOTAL ÉQUIPE (' + list.length + ')</td><td style="text-align:right;font-family:\'DM Mono\',monospace;">' + _tsFmt(totAll) + '</td><td colspan="6"></td></tr></tfoot></table>';
+  body.innerHTML = html;
+}
+function suiviShowUser(email){
+  var rows = _suiviRows.filter(function(r){ return (r.email||'').toLowerCase() === (email||'').toLowerCase(); });
+  var byItem = {};
+  rows.forEach(function(r){ var k=r.label||'(sans libellé)'; byItem[k]=(byItem[k]||0)+(parseFloat(r.heures)||0); });
+  var items = Object.keys(byItem).map(function(k){ return {label:k, h:byItem[k]}; }).sort(function(a,b){ return b.h-a.h; });
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = function(e){ if(e.target===ov) document.body.removeChild(ov); };
+  var monthLabel = suiviMonth.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+  var tot = items.reduce(function(s,i){ return s+i.h; }, 0);
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:520px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  var rowsHtml = items.map(function(i){ return '<div style="display:flex;justify-content:space-between;padding:5px 12px;border-bottom:1px solid var(--border);font-size:0.78rem;"><span>'+_esc(i.label)+'</span><span style="font-family:\'DM Mono\',monospace;font-weight:700;">'+_tsFmt(i.h)+' h</span></div>'; }).join('');
+  box.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><b>'+_esc(_suiviName(email))+'</b><div style="font-size:0.66rem;color:var(--text-muted);">'+_esc(email)+' · '+monthLabel+'</div></div><button class="suivi-close" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;">&times;</button></div>'
+    + '<div style="flex:1;overflow-y:auto;">'+(rowsHtml||'<div style="padding:20px;color:#888;">Aucune saisie.</div>')+'</div>'
+    + '<div style="padding:10px 16px;border-top:2px solid var(--gph-dark);display:flex;justify-content:space-between;font-weight:800;"><span>TOTAL</span><span style="font-family:\'DM Mono\',monospace;">'+_tsFmt(tot)+' h</span></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  box.querySelector('.suivi-close').onclick = function(){ document.body.removeChild(ov); };
+}
+function suiviExportCsv(){
+  var y = suiviMonth.getFullYear(), m = suiviMonth.getMonth();
+  var monthLabel = (m+1) + '-' + y;
+  var lines = [['Collaborateur','Email','Total h','Commandes h','Activites h','Jours saisis','Validation','Jours passes manquants','Jours incomplets']];
+  (_suiviSummary||[]).forEach(function(u){ lines.push([_suiviName(u.email), u.email, u.total, u.cmd, u.act, Object.keys(u.days).length, u.lock?'Valide':'Non valide', (u.lock?0:(u.missing?u.missing.length:0)), (u.incomplete?u.incomplete.length:0)]); });
+  var csv = lines.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'suivi-temps-' + monthLabel + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+function suiviExportDetailCsv(){
+  var monthLabel = (suiviMonth.getMonth()+1) + '-' + suiviMonth.getFullYear();
+  var lines = [['Collaborateur','Email','Jour','Type','Libelle','Heures']];
+  (_suiviRows||[]).slice().sort(function(a,b){ return (a.email||'').localeCompare(b.email||'') || String(a.jour).localeCompare(String(b.jour)); }).forEach(function(r){
+    lines.push([_suiviName(r.email), r.email||'', String(r.jour).substring(0,10), r.item_type==='activite'?'Activité':'Commande', r.label||r.item_key||'', parseFloat(r.heures)||0]);
+  });
+  var csv = lines.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'suivi-temps-detail-' + monthLabel + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+function suiviShowUserGrid(email){
+  var rows = (_suiviRows||[]).filter(function(r){ return (r.email||'').toLowerCase() === (email||'').toLowerCase(); });
+  var entries = {}, meta = {}, order = [];
+  rows.forEach(function(r){
+    var k = r.item_key || 'x'; var jour = String(r.jour).substring(0,10);
+    if (!meta[k]) { meta[k] = { type: r.item_type||'commande', label: r.label||k }; order.push(k); }
+    entries[jour+'|'+k] = (entries[jour+'|'+k]||0) + (parseFloat(r.heures)||0);
+  });
+  var y = suiviMonth.getFullYear(), m = suiviMonth.getMonth(), last = new Date(y,m+1,0).getDate();
+  var todayStr = dateToLocalStr(TODAY), dn = ['D','L','M','M','J','V','S'], days = [];
+  for (var d=1; d<=last; d++){ var dt=new Date(y,m,d), ds=dateToLocalStr(dt), dow=dt.getDay();
+    days.push({ dateStr:ds, dnum:d, weekend:(dow===0||dow===6), ferie:isJourFerie(ds), today:ds===todayStr, dname:dn[dow], weekKey:dateToLocalStr(getMonday(new Date(ds+'T12:00:00'))) }); }
+  days.forEach(function(dd,i){ dd.lastOfWeek = (i===days.length-1) || (days[i+1].weekKey !== dd.weekKey); });
+  var acts = order.filter(function(k){return meta[k].type==='activite';}).sort(function(a,b){return (meta[a].label||'').localeCompare(meta[b].label||'');});
+  var cmds = order.filter(function(k){return meta[k].type==='commande';}).sort(function(a,b){return (meta[a].label||'').localeCompare(meta[b].label||'');});
+  var dayTot = {}; days.forEach(function(dd){ dayTot[dd.dateStr]=0; });
+  var thead = '<tr><th class="ts-col-label">Commande / Activité</th>';
+  days.forEach(function(dd){ thead += '<th class="ts-th-day'+((dd.weekend||dd.ferie)?' ts-weekend':'')+(dd.today?' ts-today':'')+'"><div>'+dd.dname+'</div><div class="ts-dnum">'+dd.dnum+'</div></th>'; });
+  thead += '<th class="ts-col-tot">Total</th></tr>';
+  function rowHtml(k){
+    var rt=0, tds='';
+    days.forEach(function(dd){ var v=entries[dd.dateStr+'|'+k]||0; rt+=v; dayTot[dd.dateStr]+=v; tds+='<td class="'+((dd.weekend||dd.ferie)?'ts-weekend':'')+(dd.today?' ts-today':'')+'" style="font-family:\'DM Mono\',monospace;">'+(v?_tsFmt(v):'')+'</td>'; });
+    return '<tr class="ts-row"><td class="ts-col-label" title="'+_esc(meta[k].label)+'"><span style="display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(meta[k].type==='commande'?'📋 ':'🕓 ')+_esc(meta[k].label)+'</span></td>'+tds+'<td class="ts-col-tot">'+(rt?_tsFmt(rt):'')+'</td></tr>';
+  }
+  var tb = '<tr><td class="ts-grp" colspan="'+(days.length+2)+'">Autres temps</td></tr>' + acts.map(rowHtml).join('')
+         + '<tr><td class="ts-grp" colspan="'+(days.length+2)+'">Commandes</td></tr>' + cmds.map(rowHtml).join('');
+  var grand=0, wt={};
+  var totRow = '<tr class="ts-totrow"><td class="ts-col-label">TOTAL / jour</td>';
+  days.forEach(function(dd){ var c=dayTot[dd.dateStr]; grand+=c; wt[dd.weekKey]=(wt[dd.weekKey]||0)+c; var cR=Math.round(c*100)/100; totRow+='<td class="'+((dd.weekend||dd.ferie)?'ts-weekend':'')+'" style="color:'+(cR>TS_TARGET?'#DC2626':cR>=TS_TARGET?'#16A34A':c>0?'#D97706':'')+';">'+(c?_tsFmt(c):'')+'</td>'; });
+  totRow += '<td class="ts-col-tot">'+_tsFmt(grand)+'</td></tr>';
+  var wkRow = '<tr class="ts-wktotrow"><td class="ts-col-label">TOTAL / semaine</td>';
+  days.forEach(function(dd){ wkRow += dd.lastOfWeek ? ('<td>'+(wt[dd.weekKey]?_tsFmt(wt[dd.weekKey]):'')+'</td>') : '<td></td>'; });
+  wkRow += '<td class="ts-col-tot"></td></tr>';
+  var table = '<table class="ts-table"><thead>'+thead+'</thead><tbody>'+tb+totRow+wkRow+'</tbody></table>';
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.onclick = function(e){ if(e.target===ov) document.body.removeChild(ov); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:1150px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  var monthLabel = suiviMonth.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  box.innerHTML = '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><div><b>'+_esc(_suiviName(email))+'</b> <span style="color:var(--text-muted);font-size:0.72rem;">— '+monthLabel+' (lecture seule)</span></div><button class="suivi-close" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;">&times;</button></div>'
+    + '<div class="ts-wrap" style="flex:1;overflow:auto;">'+table+'</div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  box.querySelector('.suivi-close').onclick = function(){ document.body.removeChild(ov); };
+}
 
 function renderCommandesList() {
   var c = document.getElementById('commandesListContainer');
@@ -13597,6 +14563,7 @@ function showApp(user) {
     applyMonEspacePrefs();
     init();
     syncUserPrefsFromSupabase();
+    try { _tsTimerLoad(); _tsRenderTimerFloat(); } catch(e){}
     if (new URLSearchParams(window.location.search).get('map') === 'detached') {
       switchView('map');
     }
@@ -13821,6 +14788,7 @@ sbAuth.auth.onAuthStateChange(async (event, session) => {
 })();
 </script>
 <div id="tlBarTooltip"></div>
+<div id="tsTimerFloat" style="display:none;position:fixed;bottom:18px;right:18px;z-index:11000;"></div>
 <script>
 // PWA : enregistrement du service worker (échec silencieux si indisponible)
 if ('serviceWorker' in navigator) { window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); }); }

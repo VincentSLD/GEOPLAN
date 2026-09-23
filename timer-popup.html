@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minuteur GéoPlan</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Space Grotesk', Arial, Helvetica, sans-serif; background: #111; color: #fff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; user-select: none; -webkit-user-select: none; overflow: hidden; }
+  #lbl { font-weight: 700; font-size: 11px; max-width: 96vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 10px; text-align: center; }
+  #liverow { display: flex; align-items: center; gap: 6px; }
+  #dot { width: 10px; height: 10px; border-radius: 50%; background: #DC2626; box-shadow: 0 0 0 3px #DC262633; animation: b 1.2s infinite; flex-shrink: 0; }
+  @keyframes b { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  #live { font-family: 'DM Mono', ui-monospace, monospace; font-weight: 800; font-size: 26px; color: #f5c518; letter-spacing: 1px; }
+  #jour { font-size: 10px; color: #9ca3af; }
+  .row { display: flex; gap: 5px; margin-top: 3px; flex-wrap: nowrap; justify-content: center; }
+  button { font-family: inherit; font-weight: 700; border: none; border-radius: 7px; padding: 6px 9px; cursor: pointer; font-size: 12px; line-height: 1; }
+  .stop { background: #DC2626; color: #fff; }
+  .cancel { background: #2b2b2b; color: #ccc; }
+  .att { background: #f5c518; color: #111; }
+  #none { color: #9ca3af; font-size: 12px; text-align: center; padding: 0 14px; }
+</style>
+</head>
+<body>
+  <div id="wrap" style="display:none;text-align:center;">
+    <div id="lbl"></div>
+    <div id="liverow"><span id="dot"></span><span id="live">00:00:00</span></div>
+    <div id="jour"></div>
+    <div class="row">
+      <button class="stop" id="bStop" title="Arrêter &amp; enregistrer">⏹ Arrêter</button>
+      <button class="cancel" id="bCancel" title="Annuler sans enregistrer">✕</button>
+      <button class="att" id="bAtt" title="Réattacher dans l'application">📌</button>
+    </div>
+  </div>
+  <div id="none">Aucun minuteur en cours.</div>
+<script>
+  var bc = ('BroadcastChannel' in window) ? new BroadcastChannel('geoplan-timer') : null;
+  function readTimer(){ try { var s = localStorage.getItem('geoplan_ts_timer'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function fmt(ms){ var s = Math.max(0, Math.floor(ms/1000)); return String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+  function render(){
+    var t = readTimer(), w = document.getElementById('wrap'), n = document.getElementById('none');
+    if (t) {
+      var live = fmt(Date.now() - t.startMs);
+      w.style.display = 'block'; n.style.display = 'none';
+      document.getElementById('lbl').textContent = t.label || '';
+      document.getElementById('jour').textContent = 'jour ' + (t.jour || '');
+      document.getElementById('live').textContent = live;
+      document.title = '⏱ ' + live;
+    } else {
+      w.style.display = 'none'; n.style.display = 'block';
+      document.title = 'Minuteur GéoPlan';
+    }
+  }
+  setInterval(render, 1000); render();
+  if (bc) bc.onmessage = function(e){ var d = e.data || {}; if (d.type === 'sync') { if (!readTimer()) { window.close(); } render(); } };
+  document.getElementById('bStop').onclick = function(){ if (bc) bc.postMessage({ type: 'stop' }); else window.close(); };
+  document.getElementById('bCancel').onclick = function(){ if (bc) bc.postMessage({ type: 'cancel' }); else window.close(); };
+  document.getElementById('bAtt').onclick = function(){ if (bc) bc.postMessage({ type: 'attach' }); window.close(); };
+</script>
+</body>
+</html>
