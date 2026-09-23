@@ -13437,6 +13437,7 @@ function renderSettingsGeneral() {
       <div class="stg-general-grid">
         <div class="stg-general-field"><label>Rayon d'intervention max (km)</label><input type="number" id="stg-rayon" value="${g.rayonMax}"></div>
         <div class="stg-general-field"><label>Vitesse moyenne (km/h)</label><input type="number" id="stg-vitesse" value="${g.vitesseMoyenne}"></div>
+        <div class="stg-general-field"><label>Coût horaire chargé (€/h)</label><input type="number" id="stg-cout-horaire" value="${g.coutHoraire || 0}" min="0" step="1" title="Utilisé pour la rentabilité, le suivi qualité (coût de non-qualité) et le temps estimé des modifications"></div>
       </div>
     </div>
     <div class="stg-general-section">
@@ -13844,6 +13845,7 @@ function saveGeneralSettings() {
     gpsApp: document.getElementById('stg-gps-app').value,
     rayonMax: parseInt(document.getElementById('stg-rayon').value) || 150,
     vitesseMoyenne: parseInt(document.getElementById('stg-vitesse').value) || 60,
+    coutHoraire: parseFloat(document.getElementById('stg-cout-horaire').value) || 0,
     adminPassword: document.getElementById('stg-admin-pwd').value.trim(),
     dossierPath1: document.getElementById('stg-dossier-path1').value.trim(),
     dossierPath2: document.getElementById('stg-dossier-path2').value.trim(),
