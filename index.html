@@ -1862,6 +1862,10 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
         Plan de charge
       </div>
+      <div class="nav-item" data-nav="qualite" onclick="showView('qualite')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Erreurs / Modifs
+      </div>
       <div class="nav-item" onclick="alert('Module clients — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Clients
@@ -1997,6 +2001,11 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
     </div>
   </div>
 
+  <div class="view-content" id="qualiteView">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="qualiteHeader"></div>
+    <div style="flex:1;overflow:auto;padding:16px 20px;" id="qualiteBody"></div>
+  </div>
+
   <div class="view-content" id="geosoliaView">
     <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--bg-secondary);flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:10px;">
@@ -2120,6 +2129,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <button class="settings-tab" onclick="switchSettingsTab('flags',this)">Drapeaux</button>
         <button class="settings-tab" onclick="switchSettingsTab('groups',this)">Groupes</button>
         <button class="settings-tab" onclick="switchSettingsTab('general',this)">Général</button>
+        <button class="settings-tab" onclick="switchSettingsTab('qualite',this)">Erreurs / Modifs</button>
       </div>
       <div class="settings-body" id="settingsBodyInline">
         <div class="settings-content active" id="settingsTeam"></div>
@@ -2129,6 +2139,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <div class="settings-content" id="settingsFlags"></div>
         <div class="settings-content" id="settingsGroups"></div>
         <div class="settings-content" id="settingsGeneral"></div>
+        <div class="settings-content" id="settingsQualite"></div>
       </div>
       <!-- Sub-form area (replaces popup) -->
       <div class="settings-subform" id="settingsSubform" style="display:none;">
@@ -2281,7 +2292,7 @@ body.mob-active div[style*="display:flex"][style*="gap:12px"][style*="flex-wrap:
         <summary>📋 Plus d'informations</summary>
         <div class="int-accordion-content">
           <div class="form-row" style="margin-bottom:4px;">
-            <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo</label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
+            <div class="form-group" style="flex:1;"><label class="form-label">Commande Akuiteo <button type="button" onclick="openQualiteModalFromFiche()" title="Signaler une erreur / modification pour cette commande" style="float:right;font-size:0.6rem;padding:1px 6px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;font-family:inherit;color:#DC2626;font-weight:700;">⚠ Signaler</button></label><select class="form-select" id="intCommande" onchange="onCommandeSelect()"><option value="">— Aucune commande —</option></select></div>
             <div class="form-group" id="intTypeGroup" style="flex:0 0 160px;"><label class="form-label">Type</label><div style="display:flex;gap:4px;align-items:center;"><select class="form-select" id="intType" onchange="onTypeChange()" style="flex:1;"></select><div id="intTypeColorBar" style="width:16px;height:32px;border-radius:4px;border:2px solid #888;flex-shrink:0;"></div></div></div>
           </div>
           <div class="form-row">
@@ -4338,6 +4349,7 @@ function switchView(v,tab) {
   else if (v === 'commandes') { initCommandes(); }
   else if (v === 'geosolia') { initGeosoliaView(); }
   else if (v === 'plancharge') { initPlanCharge(); }
+  else if (v === 'qualite') { initQualite(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -7348,6 +7360,471 @@ function _cmdClearAllFilters(){
   filterCommandes();
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  ERREURS & MODIFICATIONS (Qualité)
+// ═══════════════════════════════════════════════════════════════════
+var qualiteData = [];
+var qualiteLoaded = false;
+var _qualFrom = null, _qualTo = null;   // bornes du tableau de bord
+var _qmEditId = null;                    // id en cours d'édition dans la modale
+
+var QUAL_GRAV = { mineure:{label:'Mineure',color:'#16A34A'}, majeure:{label:'Majeure',color:'#D97706'}, critique:{label:'Critique',color:'#DC2626'} };
+var QUAL_STATUT = { ouvert:{label:'Ouvert',color:'#DC2626'}, en_cours:{label:'En cours',color:'#D97706'}, cloture:{label:'Clôturé',color:'#16A34A'} };
+
+function _qualEur(n){ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0); }
+function _qualCoutH(){ return parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0; }
+function _qualDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'; }
+function _qualTypeLabel(nature, code){ var t = qualTypes(nature).find(function(x){return x.code===code;}); return t?t.label:(code||''); }
+function _qualSousLabel(nature, code, scode){ var t = qualTypes(nature).find(function(x){return x.code===code;}); if(!t)return scode||''; var s=(t.sous||[]).find(function(x){return x.code===scode;}); return s?s.label:(scode||''); }
+function _qualPersonName(email){ var m=(settingsTeam||[]).find(function(t){return (t.email||'').toLowerCase()===(email||'').toLowerCase();}); if(m)return ((m.prenom||'')+' '+(m.nom||'')).trim(); var c=(luccaCollabs||[]).find(function(x){return (x.email||'').toLowerCase()===(email||'').toLowerCase();}); return c?((c.prenom||'')+' '+(c.nom||'')).trim():(email||'—'); }
+
+async function initQualite(){
+  if (!commandesLoaded){ try{ await loadCommandesFromSupabase(); }catch(e){} }
+  if ((luccaCollabs||[]).length === 0 && typeof loadLuccaCollabs === 'function'){ try{ await loadLuccaCollabs(); }catch(e){} }
+  await loadQualiteData();
+  renderQualite();
+}
+async function loadQualiteData(){
+  try {
+    var r = await sbAuth.from('geoplan_qualite').select('*').order('date_evenement', { ascending:false, nullsFirst:false });
+    if (r.error){ console.warn('[Qualité] select:', r.error); qualiteData = []; }
+    else qualiteData = r.data || [];
+    qualiteLoaded = true;
+  } catch(e){ console.warn('[Qualité] load:', e); qualiteData = []; }
+}
+
+function renderQualite(){
+  var head = document.getElementById('qualiteHeader'), body = document.getElementById('qualiteBody');
+  if (!head || !body) return;
+  var sup = isSupervisor;
+  if (!_qualFrom || !_qualTo){
+    var now = (typeof TODAY !== 'undefined' && TODAY) ? TODAY : new Date();
+    _qualTo = dateToLocalStr(now);
+    _qualFrom = dateToLocalStr(new Date(now.getFullYear(), 0, 1));
+  }
+  head.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+    + '<b style="font-size:0.95rem;">⚠ Erreurs &amp; Modifications</b>'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    + (sup ? ('<label style="font-size:0.72rem;color:var(--text-secondary);">Du <input type="date" id="qualFrom" value="'+_qualFrom+'" onchange="_qualSetRange()" style="height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-family:inherit;font-size:0.72rem;"></label>'
+        + '<label style="font-size:0.72rem;color:var(--text-secondary);">au <input type="date" id="qualTo" value="'+_qualTo+'" onchange="_qualSetRange()" style="height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-family:inherit;font-size:0.72rem;"></label>'
+        + '<button class="btn btn-ghost" style="padding:0 12px;height:28px;font-size:0.72rem;font-weight:700;" onclick="qualExportCsv()">⤓ CSV</button>') : '')
+    + '<button class="btn btn-primary" style="padding:6px 12px;font-size:0.75rem;" onclick="openQualiteModal()">+ Signaler</button>'
+    + '</div></div>';
+  var html = '';
+  if (sup) html += _qualDashboardHtml();
+  html += _qualListHtml(sup);
+  body.innerHTML = html;
+}
+function _qualSetRange(){
+  var f = document.getElementById('qualFrom'), t = document.getElementById('qualTo');
+  if (f) _qualFrom = f.value; if (t) _qualTo = t.value;
+  renderQualite();
+}
+function _qualInRange(e){
+  var d = e.date_evenement || (e.created_at ? String(e.created_at).substring(0,10) : '');
+  if (!d) return false;
+  if (_qualFrom && d < _qualFrom) return false;
+  if (_qualTo && d > _qualTo) return false;
+  return true;
+}
+
+// ── Tableau de bord (superviseurs) : indicateurs entre deux dates ──
+function _qualDashboardHtml(){
+  var rows = qualiteData.filter(_qualInRange);
+  var coutH = _qualCoutH();
+  var errs = rows.filter(function(e){return e.nature==='erreur';});
+  var mods = rows.filter(function(e){return e.nature==='modification';});
+  var sumH = function(a){ return a.reduce(function(s,e){return s+(parseFloat(e.temps_passe)||0);},0); };
+  var tempsErr = sumH(errs), tempsMod = sumH(mods);
+  var factErr = errs.filter(function(e){return e.facture_liee;}).reduce(function(s,e){return s+(parseFloat(e.montant_facture)||0);},0);
+  var modPay = mods.filter(function(e){return e.payante;});
+  var modGrat = mods.filter(function(e){return !e.payante;});
+  var caModPay = modPay.reduce(function(s,e){return s+(parseFloat(e.montant_facture)||0);},0);
+  var coutNQ = tempsErr*coutH + factErr;
+  var kpi = function(val, label, sub, color){ return '<div style="flex:1;min-width:135px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;"><div style="font-size:1.25rem;font-weight:800;color:'+(color||'var(--gph-dark)')+';">'+val+'</div><div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);font-weight:700;">'+label+'</div>'+(sub?'<div style="font-size:0.66rem;color:var(--text-secondary);margin-top:2px;">'+sub+'</div>':'')+'</div>'; };
+  var cards = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'
+    + kpi(errs.length, 'Erreurs', _hFmt(tempsErr)+' passées', '#DC2626')
+    + kpi(mods.length, 'Modifications', _hFmt(tempsMod)+' passées', '#2563EB')
+    + kpi(_qualEur(coutNQ), 'Coût non-qualité', _hFmt(tempsErr)+' × '+_qualEur(coutH)+(factErr?(' + '+_qualEur(factErr)+' factures'):''), '#DC2626')
+    + kpi(modPay.length+' / '+mods.length, 'Modifs payantes', 'CA add. '+_qualEur(caModPay), '#16A34A')
+    + kpi(modGrat.length, 'Modifs gratuites', 'geste commercial', '#D97706')
+    + '</div>';
+  var mapCount = function(list, keyFn){ var m={}; list.forEach(function(e){ var k=keyFn(e)||'—'; if(!m[k])m[k]={n:0,h:0}; m[k].n++; m[k].h+=(parseFloat(e.temps_passe)||0); }); return m; };
+  var tbl = function(title, m){
+    var keys=Object.keys(m).sort(function(a,b){return m[b].n-m[a].n;});
+    var col = title.split(' ').pop();
+    var r = keys.length
+      ? keys.map(function(k){return '<tr><td>'+_esc(k)+'</td><td style="text-align:right;">'+m[k].n+'</td><td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_hFmt(m[k].h)+'</td></tr>';}).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);font-style:italic;padding:10px;">Aucune donnée</td></tr>';
+    return '<div style="min-width:0;border:1px solid var(--border);border-radius:10px;background:#fff;padding:9px 11px;">'
+      + '<div style="font-size:0.66rem;font-weight:800;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-muted);margin:0 0 6px;">'+title+'</div>'
+      + '<table class="stg-table" style="font-size:0.72rem;width:100%;"><thead><tr><th>'+col+'</th><th style="text-align:right;">Nb</th><th style="text-align:right;">Temps</th></tr></thead><tbody>'+r+'</tbody></table></div>';
+  };
+  var errType = tbl('Erreurs par type', mapCount(errs, function(e){return e.type_label;}));
+  var modType = tbl('Modifs par type', mapCount(mods, function(e){return e.type_label;}));
+  var byGrav = tbl('Erreurs par gravité', mapCount(errs, function(e){return (QUAL_GRAV[e.gravite]||{}).label;}));
+  var _qcmd = function(e){ return e.commande_id ? (commandesData||[]).find(function(c){ return c.id===e.commande_id; }) : null; };
+  var byPers = tbl('Par déclarant', mapCount(rows, function(e){return _qualPersonName(e.created_by);}));
+  var byClient = tbl('Par client facturé', mapCount(rows, function(e){return e.client_name;}));
+  var byApp = tbl('Par apporteur', mapCount(rows, function(e){ var c=_qcmd(e); return c?_rentaApporteur(c):''; }));
+  var byGO = tbl('Par gros-œuvre', mapCount(rows, function(e){ var c=_qcmd(e); return c?_rentaGrosOeuvre(c):''; }));
+  var byArch = tbl('Par architecte', mapCount(rows, function(e){ var c=_qcmd(e); return c?_rentaArchitecte(c):''; }));
+  var _grp = 'display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px;';
+  var _gh = 'font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:var(--gph-dark);margin:2px 0 6px;';
+  var breaks = '<div style="'+_gh+'">Analyse des signalements</div>'
+    + '<div style="'+_grp+'">'+errType+modType+byGrav+byPers+'</div>'
+    + '<div style="'+_gh+'">Par compte &amp; partenaire</div>'
+    + '<div style="'+_grp+'">'+byClient+byApp+byGO+byArch+'</div>';
+  return '<div style="margin-bottom:6px;">'+cards+breaks+'</div>';
+}
+
+// ── Liste des signalements ──
+function _qualListHtml(sup){
+  var mine = ((currentAuthUser&&currentAuthUser.email)||'').toLowerCase();
+  var rows = qualiteData.slice();
+  if (sup) rows = rows.filter(_qualInRange);
+  else rows = rows.filter(function(e){ return (e.created_by||'').toLowerCase() === mine; });
+  if (!rows.length) return '<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:0.82rem;">'+(sup?'Aucun signalement sur la période.':'Vous n\'avez pas encore de signalement. Cliquez sur « + Signaler ».')+'</div>';
+  var coutH = _qualCoutH();
+  var head = '<table class="stg-table" style="font-size:0.73rem;"><thead><tr><th>Date</th><th>Nature</th><th>Type / sous-type</th><th>Affaire / commande</th><th>Client</th><th>Gravité</th><th style="text-align:right;">Temps</th><th style="text-align:right;">€</th><th>Statut</th><th>Déclarant</th><th></th></tr></thead><tbody>';
+  var body = rows.map(function(e){
+    var nat = e.nature==='modification'
+      ? '<span style="padding:1px 7px;border-radius:8px;font-size:0.6rem;font-weight:800;background:#2563EB18;color:#2563EB;">MODIF'+(e.payante?' • payante':' • gratuite')+'</span>'
+      : '<span style="padding:1px 7px;border-radius:8px;font-size:0.6rem;font-weight:800;background:#DC262618;color:#DC2626;">ERREUR</span>';
+    var grav = e.gravite ? '<span style="color:'+(QUAL_GRAV[e.gravite]||{}).color+';font-weight:700;">'+(QUAL_GRAV[e.gravite]||{}).label+'</span>' : '—';
+    var st = e.statut ? '<span style="padding:1px 7px;border-radius:8px;font-size:0.6rem;font-weight:700;background:'+(QUAL_STATUT[e.statut]||{color:'#64748B'}).color+'18;color:'+(QUAL_STATUT[e.statut]||{color:'#64748B'}).color+';">'+(QUAL_STATUT[e.statut]||{label:e.statut}).label+'</span>' : '—';
+    var euro = (e.nature==='erreur') ? ((parseFloat(e.temps_passe)||0)*coutH + (e.facture_liee?(parseFloat(e.montant_facture)||0):0)) : (e.payante?(parseFloat(e.montant_facture)||0):0);
+    var euroTxt = euro ? ('<span style="color:'+(e.nature==='erreur'?'#DC2626':'#16A34A')+';font-weight:700;">'+(e.nature==='erreur'?'-':'+')+_qualEur(euro)+'</span>') : '—';
+    var typ = _esc(e.type_label||'—') + (e.sous_type_label?('<span style="color:var(--text-muted);"> / '+_esc(e.sous_type_label)+'</span>'):'');
+    var _qc = e.commande_id ? (commandesData||[]).find(function(x){ return x.id===e.commande_id; }) : null;
+    var affNom = (_qc && _qc._affaire && _qc._affaire.nom) || '';
+    var aff = _esc(affNom || e.affaire_ref || '') + (affNom && e.affaire_ref ? ('<div style="font-size:0.6rem;color:var(--text-muted);">'+_esc(e.affaire_ref)+'</div>') : '');
+    return '<tr>'
+      + '<td style="white-space:nowrap;">'+_qualDate(e.date_evenement||e.created_at)+'</td>'
+      + '<td style="white-space:nowrap;">'+nat+'</td>'
+      + '<td>'+typ+'</td>'
+      + '<td style="font-family:\'DM Mono\',monospace;font-size:0.68rem;">'+(aff||'—')+'</td>'
+      + '<td>'+_esc(e.client_name||'—')+'</td>'
+      + '<td>'+grav+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+(e.temps_passe?_hFmt(e.temps_passe):'—')+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+euroTxt+'</td>'
+      + '<td>'+st+'</td>'
+      + '<td style="font-size:0.66rem;">'+_esc(_qualPersonName(e.created_by))+'</td>'
+      + '<td style="white-space:nowrap;"><button onclick="openQualiteModal(null,\''+e.id+'\')" title="Modifier" style="padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">✏️</button> '
+        + '<button onclick="deleteQualiteEntry(\''+e.id+'\')" title="Supprimer" style="padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">🗑️</button></td>'
+      + '</tr>';
+  }).join('');
+  return head + body + '</tbody></table>';
+}
+
+// ── Recherche de commande (modale) ──
+function _qualCmdSource(){ return (window._rawCommandes && window._rawCommandes.length) ? window._rawCommandes : (typeof commandesData!=='undefined'?commandesData:[]); }
+function _qualCmdMeta(c){
+  var aff = c._affaire || (c.affaire_id && typeof affairesMap!=='undefined' && affairesMap[c.affaire_id]) || (c.marche_id && typeof marchesMap!=='undefined' && marchesMap[c.marche_id]) || null;
+  return {
+    affRef: aff ? (aff.ref||'') : '',
+    affNom: aff ? (aff.nom||'') : (c.nom||''),
+    client: c.client_name || (aff && aff.client_name) || '',
+    mission: (c.custom_data && c.custom_data['1-alpha06'] && c.custom_data['1-alpha06'].value) || '',
+    statut: (c.custom_data && c.custom_data['1-alpha17'] && c.custom_data['1-alpha17'].value) || ''
+  };
+}
+function _qualCmdLabel(c){
+  var m = _qualCmdMeta(c);
+  var main = (m.affRef ? m.affRef+' — ' : (c.ref?c.ref+' — ':'')) + (m.affNom||'');
+  return { main: main || (c.ref||String(c.id||'')), extra: [m.client, m.mission, m.statut].filter(Boolean).join(' · ') };
+}
+function _qualCmdInitLabel(id){
+  if(!id) return '';
+  var c = _qualCmdSource().find(function(x){ return String(x.id)===String(id); });
+  if(!c) return '';
+  var L=_qualCmdLabel(c); return L.main + (L.extra?(' · '+L.extra):'');
+}
+function qmCmdSearch(){
+  var inp=document.getElementById('qmCmdSearch'), box=document.getElementById('qmCmdResults'); if(!inp||!box) return;
+  var q=(inp.value||'').toLowerCase().trim();
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+  var toks=q.split(/\s+/), src=_qualCmdSource(), res=[];
+  for(var i=0;i<src.length && res.length<60;i++){
+    var c=src[i], m=_qualCmdMeta(c);
+    var hay=((c.ref||'')+' '+m.affRef+' '+m.affNom+' '+m.client+' '+m.mission+' '+m.statut).toLowerCase();
+    if(toks.every(function(t){ return hay.indexOf(t)>=0; })) res.push(c);
+  }
+  if(!res.length){ box.innerHTML='<div style="padding:8px 10px;color:#888;font-size:0.75rem;">Aucune commande trouvée.</div>'; box.style.display='block'; return; }
+  box.innerHTML = res.map(function(c){
+    var L=_qualCmdLabel(c);
+    return '<div onclick="qmCmdPick(\''+_esc(String(c.id))+'\')" style="padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.76rem;" onmouseover="this.style.background=\'var(--bg-secondary)\'" onmouseout="this.style.background=\'#fff\'">'
+      + '<div style="font-weight:600;">'+_esc(L.main)+'</div>'
+      + (L.extra?'<div style="font-size:0.66rem;color:var(--text-muted);">'+_esc(L.extra)+'</div>':'')
+      + '</div>';
+  }).join('');
+  box.style.display='block';
+}
+function qmCmdPick(id){
+  var c=_qualCmdSource().find(function(x){ return String(x.id)===String(id); });
+  var h=document.getElementById('qmCmd'); if(h) h.value=id;
+  var inp=document.getElementById('qmCmdSearch'); if(inp && c){ var L=_qualCmdLabel(c); inp.value=L.main+(L.extra?(' · '+L.extra):''); }
+  var box=document.getElementById('qmCmdResults'); if(box){ box.style.display='none'; box.innerHTML=''; }
+}
+function qmCmdClear(){ var h=document.getElementById('qmCmd'); if(h)h.value=''; var inp=document.getElementById('qmCmdSearch'); if(inp)inp.value=''; var box=document.getElementById('qmCmdResults'); if(box){box.style.display='none';box.innerHTML='';} }
+function _qualTypeOptions(nature, sel){ return '<option value="">— Type —</option>' + qualTypes(nature).map(function(t){ return '<option value="'+_esc(t.code)+'"'+(t.code===sel?' selected':'')+'>'+_esc(t.label)+'</option>'; }).join(''); }
+function _qualSousOptions(nature, code, sel){ var t=qualTypes(nature).find(function(x){return x.code===code;}); var sous=t?(t.sous||[]):[]; if(!sous.length)return '<option value="">— (aucun sous-type) —</option>'; return '<option value="">— Sous-type —</option>'+sous.map(function(s){return '<option value="'+_esc(s.code)+'"'+(s.code===sel?' selected':'')+'>'+_esc(s.label)+'</option>';}).join(''); }
+function _qualPeopleOptions(sel){ var list=(luccaCollabs||[]).filter(function(c){return c.email;}).slice().sort(function(a,b){return (a.nom||'').localeCompare(b.nom||'');}); return '<option value="">— Responsable —</option>'+list.map(function(c){return '<option value="'+_esc(c.email)+'"'+((c.email||'').toLowerCase()===(sel||'').toLowerCase()?' selected':'')+'>'+_esc((c.prenom||'')+' '+(c.nom||''))+'</option>';}).join(''); }
+function _qualNotifNames(){ return (settingsQualNotif||[]).map(function(em){ return _qualPersonName(em); }).join(', '); }
+function _qmNatureChange(){ var n=document.getElementById('qmNature').value; document.getElementById('qmType').innerHTML=_qualTypeOptions(n,''); document.getElementById('qmSous').innerHTML=_qualSousOptions(n,'',''); document.getElementById('qmModifBlock').style.display = n==='modification'?'':'none'; document.getElementById('qmErreurBlock').style.display = n==='erreur'?'':'none'; _qmToggleMontant(); }
+function _qmTypeChange(){ var n=document.getElementById('qmNature').value; document.getElementById('qmSous').innerHTML=_qualSousOptions(n, document.getElementById('qmType').value, ''); }
+function _qmToggleMontant(){ var n=document.getElementById('qmNature').value; var show=false; if(n==='erreur'){ show=document.getElementById('qmFacture').checked; } else if(n==='modification'){ show=(document.getElementById('qmPayante').value==='payante'); } document.getElementById('qmMontantBlock').style.display = show?'':'none'; }
+
+function openQualiteModal(cmdId, entryId){
+  _qmEditId = entryId || null;
+  var e = entryId ? (qualiteData.find(function(x){return x.id===entryId;})||{}) : {};
+  var nature = e.nature || 'erreur';
+  var cmdSel = cmdId || e.commande_id || '';
+  var today = dateToLocalStr((typeof TODAY!=='undefined'&&TODAY)?TODAY:new Date());
+  var ov = document.createElement('div');
+  ov.id = 'qualiteModalOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:12000;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;';
+  ov.onclick = function(ev){ if(ev.target===ov) document.body.removeChild(ov); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;width:720px;max-width:96vw;box-shadow:0 16px 64px rgba(0,0,0,0.3);overflow:hidden;';
+  var lbl = function(t){ return '<label style="display:block;font-size:0.62rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;">'+t+'</label>'; };
+  var inputCss = 'width:100%;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.8rem;background:#fff;';
+  var taCss = 'width:100%;min-height:52px;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:0.8rem;background:#fff;resize:vertical;';
+  box.innerHTML = '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><b style="font-size:0.95rem;">'+(entryId?'Modifier le signalement':'Signaler une erreur / modification')+'</b><button id="qmClose" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">&times;</button></div>'
+    + '<div id="qmForm" style="padding:14px 18px;max-height:75vh;overflow:auto;">'
+      + '<div style="margin-bottom:10px;position:relative;">'+lbl('Commande liée (recherche — tout l\'historique)')
+        + '<input type="hidden" id="qmCmd" value="'+_esc(String(cmdSel||''))+'">'
+        + '<input id="qmCmdSearch" autocomplete="off" oninput="qmCmdSearch()" onfocus="this.select();" placeholder="🔍 N° affaire, client, intitulé, type de mission, statut…" value="'+_esc(_qualCmdInitLabel(cmdSel))+'" style="'+inputCss+'">'
+        + '<div id="qmCmdResults" style="display:none;position:absolute;z-index:20;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:300px;overflow:auto;margin-top:2px;"></div>'
+        + '<div style="font-size:0.62rem;color:var(--text-muted);margin-top:3px;">Tapez pour rechercher dans toutes les commandes · <a href="#" onclick="qmCmdClear();return false;" style="color:#2563EB;">aucune commande</a></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1;">'+lbl('Nature')+'<select id="qmNature" onchange="_qmNatureChange()" style="'+inputCss+'"><option value="erreur"'+(nature==='erreur'?' selected':'')+'>Erreur (de notre part)</option><option value="modification"'+(nature==='modification'?' selected':'')+'>Modification (demande)</option></select></div>'
+        + '<div style="flex:1;">'+lbl('Type')+'<select id="qmType" onchange="_qmTypeChange()" style="'+inputCss+'">'+_qualTypeOptions(nature, e.type_code||'')+'</select></div>'
+        + '<div style="flex:1;">'+lbl('Sous-type')+'<select id="qmSous" style="'+inputCss+'">'+_qualSousOptions(nature, e.type_code||'', e.sous_type_code||'')+'</select></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1;">'+lbl('Gravité')+'<select id="qmGravite" style="'+inputCss+'"><option value="">—</option>'+Object.keys(QUAL_GRAV).map(function(k){return '<option value="'+k+'"'+(e.gravite===k?' selected':'')+'>'+QUAL_GRAV[k].label+'</option>';}).join('')+'</select></div>'
+        + '<div style="flex:1;">'+lbl('Temps passé (h)')+'<input id="qmTemps" type="number" step="0.25" min="0" value="'+(e.temps_passe!=null?e.temps_passe:'')+'" style="'+inputCss+'"></div>'
+        + '<div style="flex:1;">'+lbl('Date de l\'événement')+'<input id="qmDate" type="date" value="'+(e.date_evenement||today)+'" style="'+inputCss+'"></div>'
+      + '</div>'
+      + '<div id="qmModifBlock" style="display:'+(nature==='modification'?'':'none')+';margin-bottom:10px;">'+lbl('Modification')+'<select id="qmPayante" onchange="_qmToggleMontant()" style="'+inputCss+'"><option value="gratuite"'+(e.payante?'':' selected')+'>Gratuite (geste commercial)</option><option value="payante"'+(e.payante?' selected':'')+'>Payante (avenant / facturée)</option></select></div>'
+      + '<div id="qmErreurBlock" style="display:'+(nature==='erreur'?'':'none')+';margin-bottom:10px;"><label style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer;"><input id="qmFacture" type="checkbox" onchange="_qmToggleMontant()"'+(e.facture_liee?' checked':'')+'> Une facture est liée à cette erreur (avoir / refacturation)</label></div>'
+      + '<div id="qmMontantBlock" style="display:none;gap:10px;margin-bottom:10px;">'
+        + '<div style="display:flex;gap:10px;"><div style="flex:1;">'+lbl('Référence facture')+'<input id="qmFactureRef" value="'+_esc(e.facture_ref||'')+'" style="'+inputCss+'"></div>'
+        + '<div style="flex:1;">'+lbl('Montant (€ HT)')+'<input id="qmMontant" type="number" step="1" value="'+(e.montant_facture!=null?e.montant_facture:'')+'" style="'+inputCss+'"></div></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1;">'+lbl('Statut de traitement')+'<select id="qmStatut" style="'+inputCss+'">'+Object.keys(QUAL_STATUT).map(function(k){return '<option value="'+k+'"'+((e.statut||'ouvert')===k?' selected':'')+'>'+QUAL_STATUT[k].label+'</option>';}).join('')+'</select></div>'
+        + '<div style="flex:2;">'+lbl('Responsable du traitement')+'<select id="qmResp" style="'+inputCss+'">'+_qualPeopleOptions(e.responsable_email||'')+'</select></div>'
+      + '</div>'
+      + '<div style="margin-bottom:10px;">'+lbl('Description')+'<textarea id="qmDesc" style="'+taCss+'" placeholder="Décrire l\'erreur ou la modification...">'+_esc(e.description||'')+'</textarea></div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1;">'+lbl('Cause racine')+'<textarea id="qmCause" style="'+taCss+'" placeholder="Pourquoi est-ce arrivé ?">'+_esc(e.cause_racine||'')+'</textarea></div>'
+        + '<div style="flex:1;">'+lbl('Action corrective')+'<textarea id="qmAction" style="'+taCss+'" placeholder="Que faire pour éviter la récurrence ?">'+_esc(e.action_corrective||'')+'</textarea></div>'
+      + '</div>'
+      + '<div style="margin-bottom:6px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:var(--bg-primary);font-size:0.72rem;color:var(--text-secondary);">'
+        + ((settingsQualNotif||[]).length
+            ? (entryId
+                ? ('<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input id="qmResend" type="checkbox" checked style="width:15px;height:15px;"> 📧 Renvoyer la notification de mise à jour à : <b>' + _esc(_qualNotifNames()) + '</b></label>')
+                : ('📧 Notification automatique envoyée à : <b>' + _esc(_qualNotifNames()) + '</b>'))
+            : '📧 Aucun destinataire — à configurer dans Paramétrage → Erreurs / Modifs')
+      + '</div>'
+    + '</div>'
+    + '<div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;"><button id="qmCancel" class="btn btn-ghost" style="padding:7px 14px;">Annuler</button><button id="qmSave" class="btn btn-primary" style="padding:7px 16px;">'+(entryId?'Enregistrer':'Enregistrer &amp; notifier')+'</button></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  box.querySelector('#qmClose').onclick = function(){ document.body.removeChild(ov); };
+  box.querySelector('#qmCancel').onclick = function(){ document.body.removeChild(ov); };
+  box.querySelector('#qmSave').onclick = saveQualiteEntry;
+  _qmToggleMontant();
+}
+
+async function saveQualiteEntry(){
+  var natureEl = document.getElementById('qmNature'); if (!natureEl) return;
+  var nature = natureEl.value;
+  var cmdId = document.getElementById('qmCmd').value || null;
+  var cmd = cmdId ? ((commandesData||[]).find(function(c){return c.id===cmdId;}) || (window._rawCommandes||[]).find(function(c){return c.id===cmdId;})) : null;
+  var _cAff = cmd ? (cmd._affaire || (cmd.affaire_id && typeof affairesMap!=='undefined' && affairesMap[cmd.affaire_id]) || (cmd.marche_id && typeof marchesMap!=='undefined' && marchesMap[cmd.marche_id]) || null) : null;
+  var typeCode = document.getElementById('qmType').value;
+  var sousCode = document.getElementById('qmSous').value;
+  var payante = nature==='modification' ? (document.getElementById('qmPayante').value==='payante') : null;
+  var facture = nature==='erreur' ? !!document.getElementById('qmFacture').checked : (payante===true);
+  var payload = {
+    created_by: (currentAuthUser&&currentAuthUser.email)||null,
+    commande_id: cmdId, commande_ref: cmd?cmd.ref:null,
+    affaire_ref: _cAff ? (_cAff.ref||null) : null,
+    client_name: cmd?(cmd.client_name || (_cAff&&_cAff.client_name) || null):null, societe: cmd?(cmd.societe||null):null,
+    nature: nature,
+    type_code: typeCode||null, type_label: typeCode?_qualTypeLabel(nature,typeCode):null,
+    sous_type_code: sousCode||null, sous_type_label: sousCode?_qualSousLabel(nature,typeCode,sousCode):null,
+    gravite: document.getElementById('qmGravite').value||null,
+    payante: payante,
+    temps_passe: parseFloat(document.getElementById('qmTemps').value)||null,
+    facture_liee: facture,
+    facture_ref: document.getElementById('qmFactureRef').value||null,
+    montant_facture: parseFloat(document.getElementById('qmMontant').value)||null,
+    cause_racine: document.getElementById('qmCause').value||null,
+    action_corrective: document.getElementById('qmAction').value||null,
+    statut: document.getElementById('qmStatut').value||'ouvert',
+    responsable_email: document.getElementById('qmResp').value||null,
+    description: document.getElementById('qmDesc').value||null,
+    date_evenement: document.getElementById('qmDate').value||null,
+  };
+  var notify = (settingsQualNotif||[]).slice();
+  payload.notified = notify;
+  var _isEdit = !!_qmEditId;
+  var _doResend = _isEdit ? !!((document.getElementById('qmResend')||{}).checked) : true;
+  var btn = document.getElementById('qmSave'); if (btn){ btn.disabled=true; btn.textContent='Enregistrement...'; }
+  try {
+    var res;
+    if (_qmEditId){ payload.updated_at = new Date().toISOString(); res = await sbAuth.from('geoplan_qualite').update(payload).eq('id', _qmEditId).select(); }
+    else { res = await sbAuth.from('geoplan_qualite').insert(payload).select(); }
+    if (res.error) throw res.error;
+    var saved = (res.data && res.data[0]) || payload;
+    var ov = document.getElementById('qualiteModalOverlay'); if (ov) document.body.removeChild(ov);
+    await loadQualiteData(); renderQualite();
+    if (notify.length && _doResend) _qualNotify(saved, notify, _isEdit);
+  } catch(e){
+    if (btn){ btn.disabled=false; btn.textContent='Enregistrer'; }
+    alert('Erreur à l\'enregistrement :\n' + ((e&&e.message)||e) + '\n\n(La table geoplan_qualite est-elle bien créée dans Supabase ?)');
+  }
+}
+
+async function deleteQualiteEntry(id){
+  var e = qualiteData.find(function(x){return x.id===id;});
+  if (!e) return;
+  if (!confirm('Supprimer ce signalement ?')) return;
+  try {
+    var r = await sbAuth.from('geoplan_qualite').delete().eq('id', id);
+    if (r.error) throw r.error;
+    await loadQualiteData(); renderQualite();
+  } catch(err){ alert('Suppression impossible :\n' + ((err&&err.message)||err)); }
+}
+
+async function _qualNotify(entry, emails, isUpdate){
+  try {
+    var natLbl = entry.nature==='modification' ? ('Modification'+(entry.payante?' payante':' gratuite')) : 'Erreur';
+    var cmdLbl = [entry.affaire_ref, entry.commande_ref].filter(Boolean).join(' / ') || '—';
+    var by = _qualPersonName((currentAuthUser&&currentAuthUser.email)||'');
+    var subject = '[GéoPlan] ' + (isUpdate?'[MAJ] ':'') + natLbl + ' — ' + cmdLbl + (entry.client_name?(' ('+entry.client_name+')'):'');
+    var row = function(k,v){ return v ? ('<tr><td style="padding:3px 8px;color:#666;">'+k+'</td><td style="padding:3px 8px;font-weight:600;">'+String(v)+'</td></tr>') : ''; };
+    var coutH = _qualCoutH();
+    var euro = (entry.nature==='erreur') ? ((parseFloat(entry.temps_passe)||0)*coutH + (entry.facture_liee?(parseFloat(entry.montant_facture)||0):0)) : (entry.payante?(parseFloat(entry.montant_facture)||0):0);
+    var html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">'
+      + '<h2 style="margin:0 0 8px;">⚠ ' + natLbl + (isUpdate?' — <span style="color:#D97706;">mise à jour</span>':'') + '</h2>'
+      + '<table style="border-collapse:collapse;">'
+      + row('Affaire / commande', cmdLbl)
+      + row('Client', entry.client_name)
+      + row('Type', (entry.type_label||'') + (entry.sous_type_label?(' / '+entry.sous_type_label):''))
+      + row('Gravité', (QUAL_GRAV[entry.gravite]||{}).label)
+      + row('Temps passé', entry.temps_passe?(entry.temps_passe+' h'):'')
+      + row(entry.nature==='erreur'?'Coût estimé':'CA additionnel', euro?_qualEur(euro):'')
+      + row('Statut', (QUAL_STATUT[entry.statut]||{}).label)
+      + row('Responsable', entry.responsable_email?_qualPersonName(entry.responsable_email):'')
+      + row('Description', entry.description)
+      + row('Cause racine', entry.cause_racine)
+      + row('Action corrective', entry.action_corrective)
+      + row('Déclaré par', by)
+      + '</table>'
+      + '<p style="color:#888;font-size:12px;margin-top:12px;">Notification automatique GéoPlan — outil Erreurs &amp; Modifications.</p></div>';
+    var r = await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ to: emails, subject: subject, html: html, from: (currentAuthUser&&currentAuthUser.email)||'' }) });
+    if (!r.ok){ var d = await r.json().catch(function(){return {};}); console.warn('[Qualité] notify échec:', d); alert('Signalement enregistré, mais l\'e-mail n\'a pas pu être envoyé.\n(' + (d.error||('HTTP '+r.status)) + ')\nVérifiez la configuration Microsoft Graph.'); }
+  } catch(e){ console.warn('[Qualité] notify:', e); }
+}
+
+function qualExportCsv(){
+  var coutH = _qualCoutH();
+  var rows = qualiteData.filter(_qualInRange);
+  var lines = [['Date','Nature','Type','Sous-type','Gravite','Affaire','Commande','Client','Societe','Temps h','Cout/CA','Payante','Facture liee','Ref facture','Montant','Statut','Responsable','Cause racine','Action corrective','Declarant','Description']];
+  rows.forEach(function(e){
+    var euro = (e.nature==='erreur') ? ((parseFloat(e.temps_passe)||0)*coutH + (e.facture_liee?(parseFloat(e.montant_facture)||0):0)) : (e.payante?(parseFloat(e.montant_facture)||0):0);
+    lines.push([_qualDate(e.date_evenement||e.created_at), e.nature||'', e.type_label||'', e.sous_type_label||'', (QUAL_GRAV[e.gravite]||{}).label||'', e.affaire_ref||'', e.commande_ref||'', e.client_name||'', e.societe||'', e.temps_passe||'', Math.round(euro)||'', e.payante?'oui':'', e.facture_liee?'oui':'', e.facture_ref||'', e.montant_facture||'', (QUAL_STATUT[e.statut]||{}).label||'', e.responsable_email?_qualPersonName(e.responsable_email):'', (e.cause_racine||'').replace(/\r?\n/g,' '), (e.action_corrective||'').replace(/\r?\n/g,' '), _qualPersonName(e.created_by), (e.description||'').replace(/\r?\n/g,' ')]);
+  });
+  var csv = lines.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'erreurs_modifications.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+
+function openQualiteModalFromFiche(){
+  var cmdId = (document.getElementById('intCommande')||{}).value || null;
+  openQualiteModal(cmdId, null);
+}
+
+// ── Paramétrage : types d'erreur / de modification (listes + sous-listes) ──
+function renderSettingsQualite(){
+  var c = document.getElementById('settingsQualite'); if (!c) return;
+  c.innerHTML = '<p style="font-size:0.72rem;color:var(--text-muted);margin:0 0 12px;">Listes et sous-listes utilisées par l\'outil « Erreurs / Modifs ». Partagées par tous les collaborateurs.</p>'
+    + _qualNotifEditor()
+    + _qualTypesEditor('erreur', 'Types d\'erreur')
+    + _qualTypesEditor('modification', 'Types de modification');
+}
+function _qualNotifEditor(){
+  var sel = (settingsQualNotif||[]).map(function(x){return String(x).toLowerCase();});
+  var list = (luccaCollabs||[]).filter(function(c){return c.email;}).slice().sort(function(a,b){return (a.nom||'').localeCompare(b.nom||'');});
+  var html = '<div style="margin-bottom:18px;"><div class="stg-toolbar"><h3>Diffusion automatique par e-mail (' + sel.length + ')</h3></div>'
+    + '<p style="font-size:0.72rem;color:var(--text-muted);margin:0 0 8px;">Les personnes cochées reçoivent automatiquement un e-mail à chaque nouveau signalement (erreur ou modification).</p>';
+  if (!list.length){
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);">Liste LUCCA indisponible (rechargez la page une fois les collaborateurs chargés).</div></div>';
+    return html;
+  }
+  html += '<input id="qualNotifSearch" oninput="_qualNotifFilter(this.value)" placeholder="🔍 filtrer un collaborateur..." style="width:100%;height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.8rem;margin-bottom:8px;">';
+  html += '<div id="qualNotifBox" style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff;">';
+  html += list.map(function(c){
+    var checked = sel.indexOf((c.email||'').toLowerCase())>=0 ? ' checked' : '';
+    return '<label class="qual-notif-lbl" style="display:inline-flex;align-items:center;gap:5px;font-size:0.74rem;padding:4px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg-primary);margin:0 5px 5px 0;">'
+      + '<input type="checkbox" onchange="_qualNotifToggle(\''+_esc(c.email)+'\',this.checked)"'+checked+'>'
+      + _esc((c.prenom||'')+' '+(c.nom||''))+'<span style="color:var(--text-muted);font-size:0.62rem;">'+_esc(c.etablissement||'')+'</span></label>';
+  }).join('');
+  html += '</div></div>';
+  return html;
+}
+function _qualNotifFilter(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#qualNotifBox .qual-notif-lbl').forEach(function(l){ l.style.display = (!q || l.textContent.toLowerCase().indexOf(q)>=0) ? 'inline-flex' : 'none'; }); }
+function _qualNotifToggle(email, on){
+  email = String(email||'').trim(); if (!email) return;
+  var arr = (settingsQualNotif||[]).filter(function(x){ return String(x).toLowerCase() !== email.toLowerCase(); });
+  if (on) arr.push(email);
+  settingsQualNotif = arr;
+  saveSettings(SETTINGS_KEYS.qualNotifEmails, settingsQualNotif);
+  var tb = document.querySelector('#settingsQualite .stg-toolbar h3'); if (tb) tb.textContent = 'Diffusion automatique par e-mail (' + arr.length + ')';
+}
+function _qualTypesEditor(nature, title){
+  var list = qualTypes(nature);
+  var html = '<div style="margin-bottom:18px;"><div class="stg-toolbar"><h3>'+title+' ('+list.length+')</h3><button class="stg-add-btn" onclick="qualTypeAdd(\''+nature+'\')">+ Ajouter un type</button></div>';
+  list.forEach(function(t, i){
+    html += '<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fff;">'
+      + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">'
+      + '<input value="'+_esc(t.label||'')+'" oninput="qualTypeRename(\''+nature+'\','+i+',this.value)" style="flex:1;height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-family:inherit;font-size:0.82rem;font-weight:700;">'
+      + '<button class="stg-btn-edit" onclick="qualSousAdd(\''+nature+'\','+i+')">+ sous-type</button>'
+      + '<button class="stg-btn-edit" style="color:#DC2626;" onclick="qualTypeDelete(\''+nature+'\','+i+')">Supprimer</button>'
+      + '</div>';
+    var sous = t.sous || [];
+    if (sous.length){
+      html += '<div style="display:flex;flex-direction:column;gap:4px;padding-left:14px;">';
+      sous.forEach(function(s, j){
+        html += '<div style="display:flex;gap:6px;align-items:center;"><span style="color:var(--text-muted);">↳</span>'
+          + '<input value="'+_esc(s.label||'')+'" oninput="qualSousRename(\''+nature+'\','+i+','+j+',this.value)" style="flex:1;height:26px;border:1px solid var(--border);border-radius:5px;padding:0 8px;font-family:inherit;font-size:0.76rem;">'
+          + '<button class="stg-btn-edit" style="color:#DC2626;" onclick="qualSousDelete(\''+nature+'\','+i+','+j+')">✕</button></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="padding-left:14px;font-size:0.68rem;color:var(--text-muted);">Aucun sous-type.</div>';
+    }
+    html += '</div>';
+  });
+  return html + '</div>';
+}
+function _qualSlug(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+function _qualStore(nature){ return nature==='modification' ? settingsQualModifTypes : settingsQualErrTypes; }
+function _qualSaveTypes(nature){ if (nature==='modification') saveSettings(SETTINGS_KEYS.qualModifTypes, settingsQualModifTypes); else saveSettings(SETTINGS_KEYS.qualErrTypes, settingsQualErrTypes); }
+function _qualUniqCode(arr, base){ var code = base || 'type'; var n = 1; var codes = arr.map(function(x){return x.code;}); while (!code || codes.indexOf(code) >= 0){ code = (base||'type') + '-' + (n++); } return code; }
+function qualTypeAdd(nature){ var name=(window.prompt('Nom du type :')||'').trim(); if(!name)return; var arr=_qualStore(nature); arr.push({ code:_qualUniqCode(arr,_qualSlug(name)), label:name, sous:[] }); _qualSaveTypes(nature); renderSettingsQualite(); }
+function qualTypeRename(nature,i,val){ var arr=_qualStore(nature); if(arr[i]){ arr[i].label=val; _qualSaveTypes(nature); } }
+function qualTypeDelete(nature,i){ var arr=_qualStore(nature); if(!arr[i])return; if(!confirm('Supprimer le type « '+(arr[i].label||'')+' » et ses sous-types ?'))return; arr.splice(i,1); _qualSaveTypes(nature); renderSettingsQualite(); }
+function qualSousAdd(nature,i){ var name=(window.prompt('Nom du sous-type :')||'').trim(); if(!name)return; var arr=_qualStore(nature); if(!arr[i])return; arr[i].sous=arr[i].sous||[]; arr[i].sous.push({ code:_qualUniqCode(arr[i].sous,_qualSlug(name)), label:name }); _qualSaveTypes(nature); renderSettingsQualite(); }
+function qualSousRename(nature,i,j,val){ var arr=_qualStore(nature); if(arr[i]&&arr[i].sous&&arr[i].sous[j]){ arr[i].sous[j].label=val; _qualSaveTypes(nature); } }
+function qualSousDelete(nature,i,j){ var arr=_qualStore(nature); if(!arr[i]||!arr[i].sous||!arr[i].sous[j])return; arr[i].sous.splice(j,1); _qualSaveTypes(nature); renderSettingsQualite(); }
+
 function renderCommandesList() {
   var c = document.getElementById('commandesListContainer');
   if (!c) return;
@@ -9248,7 +9725,37 @@ const SETTINGS_KEYS = {
   geoOptions: 'geoplan_options_pct',
   geoFields: 'geoplan_fields_map',
   geoExtraTypes: 'geoplan_extra_mission_types',
+  qualErrTypes: 'geoplan_qualite_err_types',
+  qualModifTypes: 'geoplan_qualite_modif_types',
+  qualNotifEmails: 'geoplan_qualite_notif_emails',
 };
+
+// ═══ Qualité : types d'erreur / de modification (listes + sous-listes paramétrables) ═══
+var DEFAULT_QUAL_ERR_TYPES = [
+  { code:'calcul',  label:'Erreur de calcul / dimensionnement', sous:[{code:'ferraillage',label:'Ferraillage'},{code:'descente',label:'Descente de charges'},{code:'section',label:'Section insuffisante'}] },
+  { code:'plan',    label:'Erreur de plan / dessin',            sous:[{code:'cotation',label:'Cotation'},{code:'reperage',label:'Repérage / nomenclature'},{code:'niveau',label:'Niveau / altimétrie'}] },
+  { code:'oubli',   label:'Oubli / élément manquant',           sous:[{code:'structurel',label:'Élément structurel'},{code:'reservation',label:'Réservation / trémie'}] },
+  { code:'saisie',  label:'Erreur de saisie / donnée d\'entrée', sous:[{code:'hypothese',label:'Hypothèse erronée'},{code:'transcription',label:'Transcription'}] },
+  { code:'autre',   label:'Autre',                              sous:[] },
+];
+var DEFAULT_QUAL_MODIF_TYPES = [
+  { code:'client',        label:'Demande client',            sous:[{code:'archi',label:'Modification architecturale'},{code:'implantation',label:'Implantation'},{code:'materiau',label:'Changement de matériau'}] },
+  { code:'go',            label:'Demande gros œuvre',        sous:[{code:'methode',label:'Méthode / phasage'},{code:'optim',label:'Optimisation chantier'}] },
+  { code:'archi',         label:'Demande architecte / MOE',  sous:[] },
+  { code:'reglementaire', label:'Évolution réglementaire',   sous:[] },
+  { code:'optimisation',  label:'Optimisation interne',      sous:[] },
+  { code:'autre',         label:'Autre',                     sous:[] },
+];
+var settingsQualErrTypes = loadSettings(SETTINGS_KEYS.qualErrTypes, DEFAULT_QUAL_ERR_TYPES);
+var settingsQualModifTypes = loadSettings(SETTINGS_KEYS.qualModifTypes, DEFAULT_QUAL_MODIF_TYPES);
+var settingsQualNotif = loadSettings(SETTINGS_KEYS.qualNotifEmails, []); // liste de diffusion e-mail (toujours notifiés)
+function qualTypes(nature){ return nature === 'modification' ? (settingsQualModifTypes||[]) : (settingsQualErrTypes||[]); }
+// Helpers partagés Qualité / Rentabilité
+function _hFmt(h){ h = Math.round((h||0)*100)/100; return (h.toString().replace('.',',')) + ' h'; }
+function _rentaMissionType(cmd){ return _cmdCdVal(cmd,'1-alpha06') || ''; }
+function _rentaApporteur(cmd){ return (cmd && (cmd.apporteur_affaire || cmd._apporteur || _cmdCdVal(cmd,'1-alpha10'))) || ''; }
+function _rentaGrosOeuvre(cmd){ return (cmd && (cmd.gros_oeuvre || _cmdCdVal(cmd,'1-alpha12'))) || ''; }
+function _rentaArchitecte(cmd){ return (cmd && (cmd.architecte || cmd._architecte)) || ''; }
 
 // Load from localStorage cache (synchronous, fast)
 function loadSettings(key, defaults) {
@@ -9325,6 +9832,9 @@ async function loadAllSettingsFromSupabase() {
       settingsGeoOptionsPct = loadSettings(SETTINGS_KEYS.geoOptions, []);
       settingsGeoLongrineRules = loadSettings(SETTINGS_KEYS.geoLongrineRules, []);
       settingsGeoExtraTypes = loadSettings(SETTINGS_KEYS.geoExtraTypes, []);
+      settingsQualErrTypes = loadSettings(SETTINGS_KEYS.qualErrTypes, DEFAULT_QUAL_ERR_TYPES);
+      settingsQualModifTypes = loadSettings(SETTINGS_KEYS.qualModifTypes, DEFAULT_QUAL_MODIF_TYPES);
+      settingsQualNotif = loadSettings(SETTINGS_KEYS.qualNotifEmails, []);
       syncTeamToTechnicians();
       syncTypesToApp();
       console.log('[Settings] Paramètres synchronisés depuis Supabase');
@@ -10009,9 +10519,9 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('#settingsTabsInline .settings-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#settingsBodyInline .settings-content').forEach(c => c.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', statuts: 'settingsStatuts', flags: 'settingsFlags', groups: 'settingsGroups', general: 'settingsGeneral' };
+  const map = { team: 'settingsTeam', vehicles: 'settingsVehicles', types: 'settingsTypes', statuts: 'settingsStatuts', flags: 'settingsFlags', groups: 'settingsGroups', general: 'settingsGeneral', qualite: 'settingsQualite' };
   document.getElementById(map[tab]).classList.add('active');
-  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, statuts: renderSettingsStatuts, flags: renderSettingsFlags, groups: renderSettingsGroups, general: renderSettingsGeneral })[tab]();
+  ({ team: renderSettingsTeam, vehicles: renderSettingsVehicles, types: renderSettingsTypes, statuts: renderSettingsStatuts, flags: renderSettingsFlags, groups: renderSettingsGroups, general: renderSettingsGeneral, qualite: renderSettingsQualite })[tab]();
 }
 
 // --- Sub-form (inline, replaces list with form + back button) ---
@@ -13145,8 +13655,10 @@ async function loadSupervisors(){
   _applyRoleUI();
 }
 function _applyRoleUI(){
-  // Masque les vues réservées superviseur (créées aux étapes suivantes) pour les non-superviseurs.
-  ['suivi','renta','qualite'].forEach(function(v){
+  // Masque les vues réservées superviseur (Suivi, Rentabilité) pour les non-superviseurs.
+  // NB : « Erreurs / Modifs » (qualite) reste visible par tous — chacun signale ;
+  // seul le tableau de bord interne est réservé aux superviseurs.
+  ['suivi','renta'].forEach(function(v){
     var el = document.querySelector('.nav-item[data-nav="'+v+'"]');
     if (el) el.style.display = isSupervisor ? '' : 'none';
   });
