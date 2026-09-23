@@ -1913,14 +1913,6 @@ td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Rentabilité
       </div>
-      <div class="nav-item" onclick="alert('Module clients — à venir')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clients
-      </div>
-      <div class="nav-item" onclick="alert('Module matériel — à venir')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        Matériel / Engins
-      </div>
       <div class="nav-item" data-nav="ai" onclick="openAIPanel()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.9 2-2 2h-4a2 2 0 0 1-2-2 4 4 0 0 1 4-4z"/><path d="M8 8v2a4 4 0 0 0 8 0V8"/><path d="M12 14v4"/><path d="M8 18h8"/><circle cx="9" cy="6" r="0.5" fill="currentColor"/><circle cx="15" cy="6" r="0.5" fill="currentColor"/></svg>
         Assistant IA
@@ -1952,14 +1944,14 @@ td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
     </div>
     <div class="view-tabs">
       <button class="view-tab active" onclick="switchView('week',this)">Semaine</button>
-      <button class="view-tab" onclick="switchView('day',this)">Jour</button>
-      <button class="view-tab" onclick="switchView('month',this)">Mois</button>
-      <button class="view-tab" onclick="switchView('list',this)">Liste</button>
-      <button class="view-tab" onclick="switchView('commandes',this)">Commandes</button>
-      <button class="view-tab" onclick="switchView('geosolia',this)">Géosolia</button>
+      <button class="view-tab" onclick="switchView('day',this)" style="display:none;">Jour</button>
+      <button class="view-tab" onclick="switchView('month',this)" style="display:none;">Mois</button>
+      <button class="view-tab" onclick="switchView('list',this)" style="display:none;">Liste</button>
+      <button class="view-tab" onclick="switchView('commandes',this)" style="display:none;">Commandes</button>
+      <button class="view-tab" onclick="switchView('geosolia',this)" style="display:none;">Géosolia</button>
       <button class="view-tab" onclick="toggleAPlanifierPanel()" id="aPlanifierTabBtn">A planifier</button>
-      <button class="view-tab" onclick="switchView('map',this)">Carte</button>
-      <button class="view-tab" onclick="switchView('plancharge',this)">Plan de charge</button>
+      <button class="view-tab" onclick="switchView('map',this)" style="display:none;">Carte</button>
+      <button class="view-tab" onclick="switchView('plancharge',this)" style="display:none;">Plan de charge</button>
     </div>
     <div class="topbar-center">
       <button class="nav-btn" onclick="navigate(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -1968,10 +1960,6 @@ td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
       <button class="today-btn" onclick="goToday()">Aujourd'hui</button>
     </div>
     <div class="topbar-right">
-      <button class="btn btn-ghost" onclick="openFilterModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        Filtres
-      </button>
       <button class="btn btn-primary" onclick="openModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span class="btn-label-desktop">Nouvelle intervention</span><span class="btn-label-compact">Nouveau</span>
