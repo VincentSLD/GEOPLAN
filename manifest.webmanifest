@@ -1,0 +1,18 @@
+{
+  "name": "GéoPlan — Planification géotechnique",
+  "short_name": "GéoPlan",
+  "description": "Planification des interventions géotechniques — bureau d'études GPH",
+  "lang": "fr",
+  "start_url": ".",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
