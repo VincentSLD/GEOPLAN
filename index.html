@@ -1909,6 +1909,10 @@ td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Suivi équipe
       </div>
+      <div class="nav-item" data-nav="renta" onclick="showView('renta')" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Rentabilité
+      </div>
       <div class="nav-item" onclick="alert('Module clients — à venir')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Clients
@@ -2057,6 +2061,11 @@ td.ts-autoabs .ts-cell { color: #4338ca; font-weight: 700; }
   <div class="view-content" id="suiviView">
     <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="suiviHeader"></div>
     <div id="suiviBody" style="flex:1;overflow:auto;padding:16px 20px;"></div>
+  </div>
+
+  <div class="view-content" id="rentaView">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);" id="rentaHeader"></div>
+    <div id="rentaBody" style="flex:1;overflow:auto;padding:16px 20px;"></div>
   </div>
 
   <div class="view-content" id="geosoliaView">
@@ -4405,6 +4414,7 @@ function switchView(v,tab) {
   else if (v === 'qualite') { initQualite(); }
   else if (v === 'temps') { initTimesheet(); }
   else if (v === 'suivi') { initSuivi(); }
+  else if (v === 'renta') { initRenta(); }
   else { updateTopbarDate(); renderCurrentView(); }
 }
 // Sidebar mobile toggle
@@ -8789,6 +8799,388 @@ function suiviShowUserGrid(email){
     + '<div class="ts-wrap" style="flex:1;overflow:auto;">'+table+'</div>';
   ov.appendChild(box); document.body.appendChild(ov);
   box.querySelector('.suivi-close').onclick = function(){ document.body.removeChild(ov); };
+}
+
+// ═══════════════ RENTABILITÉ (superviseurs) — par commande / technicien / groupe ═══════════════
+var _rentaHours = {};      // commande_id -> heures cumulées (toute l'équipe)
+var _rentaRawRows = [];
+var _rentaView = 'commande';
+var _RENTA_VIEWS = [['commande','Par commande'],['technicien','Par technicien'],['client','Par client'],['apporteur','Par apporteur'],['gooeuvre','Par gros-œuvre'],['architecte','Par architecte']];
+var _rentaDateFrom = '', _rentaDateTo = '';
+var _rentaFilters = { mission:[], statut:[], apporteur:[], gooeuvre:[], architecte:[] };
+var _rentaFilterLists = {};
+var _rentaOpenMenu = null;
+function _eurFmt(n){ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0); }
+async function initRenta(){
+  if (!isSupervisor){ alert('Accès réservé aux superviseurs.'); showView('week'); return; }
+  if (!commandesLoaded){ try{ await loadCommandesFromSupabase(); }catch(e){} }
+  if (typeof _rebuildIntsByCmd === 'function') _rebuildIntsByCmd();
+  await renderRenta();
+}
+function setRentaView(v){ _rentaView = v; _rentaDraw(); }
+async function renderRenta(){
+  var head = document.getElementById('rentaHeader'), body = document.getElementById('rentaBody');
+  if (!head || !body) return;
+  var coutH = parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0;
+  var tab = function(v, lbl){ var on = _rentaView === v; return '<button id="rentaTab-'+v+'" onclick="setRentaView(\''+v+'\')" style="width:auto;padding:5px 12px;font-size:0.72rem;font-weight:700;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;'+(on?'background:var(--gph-dark);color:#fff;border-color:var(--gph-dark);':'background:var(--bg-primary);color:var(--text-secondary);')+'">'+lbl+'</button>'; };
+  head.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+    + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><b style="font-size:0.95rem;margin-right:6px;">Rentabilité</b>' + _RENTA_VIEWS.map(function(v){ return tab(v[0],v[1]); }).join('') + '</div>'
+    + '<div style="display:flex;align-items:center;gap:12px;">'
+    +   '<span style="font-size:0.75rem;color:var(--text-secondary);">Coût horaire : <b>' + _eurFmt(coutH) + ' /h</b></span>'
+    +   '<button class="ts-nav-btn" style="width:auto;padding:0 12px;font-size:0.72rem;font-weight:700;" onclick="rentaExportCsv()">⤓ CSV</button>'
+    + '</div></div>'
+    + '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.73rem;">'
+    +   '<span style="font-weight:600;color:var(--text-secondary);">📅 Livraison de l\'étude entre :</span>'
+    +   '<input type="date" id="rentaDateFrom" value="'+(_rentaDateFrom||'')+'" onchange="setRentaDate(\'from\',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.73rem;">'
+    +   '<span style="color:var(--text-muted);">et</span>'
+    +   '<input type="date" id="rentaDateTo" value="'+(_rentaDateTo||'')+'" onchange="setRentaDate(\'to\',this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.73rem;">'
+    +   '<button onclick="clearRentaDates()" style="padding:3px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-secondary);font-family:inherit;font-size:0.68rem;font-weight:700;cursor:pointer;">✕ Effacer</button>'
+    +   '<span style="color:var(--text-muted);font-size:0.68rem;">(filtre l\'ensemble de l\'analyse — commandes & techniciens)</span>'
+    + '</div>'
+    + (coutH<=0 ? '<div style="margin-top:6px;font-size:0.72rem;color:#DC2626;">⚠ Renseignez le coût horaire dans Paramétrage → Général pour calculer coûts et marges.</div>' : '');
+  body.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Chargement…</div>';
+  var rows = [];
+  try {
+    var r = await sbAuth.from('geoplan_timesheet').select('email,user_id,commande_id,heures').eq('item_type','commande');
+    if (r.error){ body.innerHTML = '<div style="padding:20px;color:#DC2626;">Erreur : ' + r.error.message + '</div>'; return; }
+    rows = r.data || [];
+  } catch(e){ body.innerHTML = '<div style="padding:20px;color:#DC2626;">Erreur de chargement.</div>'; return; }
+  _rentaRawRows = rows;
+  _rentaHours = {};
+  rows.forEach(function(x){ if (x.commande_id) _rentaHours[x.commande_id] = (_rentaHours[x.commande_id]||0) + (parseFloat(x.heures)||0); });
+  _rentaDraw();
+}
+function _rentaDraw(){
+  var body = document.getElementById('rentaBody'); if (!body) return;
+  _RENTA_VIEWS.forEach(function(v){
+    var b = document.getElementById('rentaTab-'+v[0]); if (!b) return;
+    var on = _rentaView === v[0];
+    b.style.background = on ? 'var(--gph-dark)' : 'var(--bg-primary)';
+    b.style.color = on ? '#fff' : 'var(--text-secondary)';
+    b.style.borderColor = on ? 'var(--gph-dark)' : 'var(--border)';
+  });
+  body.innerHTML = _rentaView==='technicien' ? _rentaTechHtml()
+    : (_rentaView==='commande' ? _rentaCmdHtml() : _rentaGroupHtml(_rentaView));
+}
+function _rentaToggleVal(key, v){ var a=_rentaFilters[key]; if(!a) return; var i=a.indexOf(v); if(i>=0)a.splice(i,1); else a.push(v); _rentaDraw(); }
+function rentaToggleFilterByIdx(key, i){ var l=_rentaFilterLists[key]; if(l && l[i]!==undefined) _rentaToggleVal(key, l[i]); }
+function rentaToggleFilterNone(key){ _rentaToggleVal(key, '__NONE__'); }
+function rentaClearFilter(key){ if(_rentaFilters[key]){ _rentaFilters[key]=[]; _rentaDraw(); } }
+function rentaClearAllFilters(){ Object.keys(_rentaFilters).forEach(function(k){ _rentaFilters[k]=[]; }); _rentaDraw(); }
+function rentaToggleMenu(key){ _rentaOpenMenu = (_rentaOpenMenu===key?null:key); _rentaDraw(); }
+function rentaCloseMenu(){ _rentaOpenMenu=null; _rentaDraw(); }
+var _RENTA_STATUT_ORDER = ['a planifier','a faire','en cours','en attente','terminee'];
+function _rentaStatutRank(s){ var k=String(s||'').toLowerCase().normalize('NFD').replace(new RegExp('[̀-ͯ]','g'),'').trim(); var i=_RENTA_STATUT_ORDER.indexOf(k); return i<0?999:i; }
+function _rentaStatutSort(a,b){ var ra=_rentaStatutRank(a), rb=_rentaStatutRank(b); return ra!==rb ? ra-rb : a.localeCompare(b); }
+function _rentaFmtDate(ds){ if(!ds) return '—'; var p=String(ds).substring(0,10).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):ds; }
+function _rentaAllowedMap(){
+  var noDate = !_rentaDateFrom && !_rentaDateTo, map={};
+  (commandesData||[]).forEach(function(c){
+    if (noDate){ map[c.id]=true; return; }
+    var d=_cmdPlanEndDate(c);
+    map[c.id] = !!d && (!_rentaDateFrom || d>=_rentaDateFrom) && (!_rentaDateTo || d<=_rentaDateTo);
+  });
+  map.__noDate = noDate;
+  return map;
+}
+function _rentaDateNote(){
+  if(!_rentaDateFrom && !_rentaDateTo) return '';
+  return '<div style="margin-bottom:10px;padding:6px 12px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:0.72rem;font-weight:600;display:inline-block;">📅 Livraison de l\'étude entre '+(_rentaDateFrom?_rentaFmtDate(_rentaDateFrom):'…')+' et '+(_rentaDateTo?_rentaFmtDate(_rentaDateTo):'…')+'</div>';
+}
+function setRentaDate(which,val){ if(which==='from') _rentaDateFrom=val||''; else _rentaDateTo=val||''; _rentaDraw(); }
+function clearRentaDates(){ _rentaDateFrom=''; _rentaDateTo=''; var f=document.getElementById('rentaDateFrom'),t=document.getElementById('rentaDateTo'); if(f)f.value=''; if(t)t.value=''; _rentaDraw(); }
+function _rentaAllItems(coutH){
+  var _amap = _rentaAllowedMap();
+  var _allow = function(id){ return _amap.__noDate ? true : _amap[id]===true; };
+  return Object.keys(_rentaHours).filter(_allow).map(function(id){
+    var cmd = (commandesData||[]).find(function(c){ return c.id === id; });
+    var real = _rentaHours[id];
+    var M = cmd ? (cmd.montant||0) : 0;
+    var estH = cmd ? ((computeGeoDuration(cmd)||0)/60) : 0;
+    var cost = real * coutH, marge = M - cost;
+    var label = cmd ? (cmd._affaire ? (cmd._affaire.ref+' — '+(cmd._affaire.nom||'')) : (cmd.ref||id)) : id;
+    var tauxVendu = estH>0 ? M/estH : null;
+    var tauxRealise = real>0 ? M/real : null;
+    var ecartTaux = (tauxVendu!=null && tauxRealise!=null) ? (tauxRealise - tauxVendu) : null;
+    var benefPerte = tauxVendu!=null ? tauxVendu * (estH - real) : null;
+    var benefCost = (estH>0 && coutH>0) ? coutH * (estH - real) : null;
+    return { id:id, label:label, client: cmd?(cmd.client_name||''):'', mission: cmd?_rentaMissionType(cmd):'', statut: cmd?_cmdStatutLabel(cmd):'', apporteur: cmd?_rentaApporteur(cmd):'', gooeuvre: cmd?_rentaGrosOeuvre(cmd):'', architecte: cmd?_rentaArchitecte(cmd):'', livraison: cmd?_cmdPlanEndDate(cmd):'', M:M, estH:estH, real:real, cost:cost, marge:marge, margePct: M>0?marge/M*100:null, tauxVendu:tauxVendu, tauxRealise:tauxRealise, ecartTaux:ecartTaux, benefPerte:benefPerte, benefCost:benefCost };
+  }).filter(function(it){ return it.real > 0; }).sort(function(a,b){ return (a.benefPerte==null?Infinity:a.benefPerte) - (b.benefPerte==null?Infinity:b.benefPerte); });
+}
+function _rentaApplyFilters(allItems){
+  var FILTERS = [
+    { key:'mission',    icon:'🛠️', label:'Type de mission', allLabel:'Tous les types',      get:function(it){return it.mission;},    sort:function(a,b){return a.localeCompare(b);} },
+    { key:'statut',     icon:'🏷️', label:'Statut',          allLabel:'Tous les statuts',    get:function(it){return it.statut;},     sort:_rentaStatutSort },
+    { key:'apporteur',  icon:'🤝', label:'Apporteur',       allLabel:'Tous les apporteurs', get:function(it){return it.apporteur;},  sort:function(a,b){return a.localeCompare(b);} },
+    { key:'gooeuvre',   icon:'🏗️', label:'Gros-œuvre',      allLabel:'Tous',                get:function(it){return it.gooeuvre;},   sort:function(a,b){return a.localeCompare(b);} },
+    { key:'architecte', icon:'📐', label:'Architecte',      allLabel:'Tous',                get:function(it){return it.architecte;}, sort:function(a,b){return a.localeCompare(b);} }
+  ];
+  FILTERS.forEach(function(f){
+    var set = {}; allItems.forEach(function(it){ set[f.get(it)||' '] = 1; });
+    f.vals = Object.keys(set).filter(function(t){ return t!==' '; }).sort(f.sort);
+    f.hasNone = !!set[' '];
+    _rentaFilterLists[f.key] = f.vals.slice();
+    _rentaFilters[f.key] = (_rentaFilters[f.key]||[]).filter(function(v){ return v==='__NONE__' ? f.hasNone : (f.vals.indexOf(v)>=0); });
+  });
+  var anyActive = FILTERS.some(function(f){ return _rentaFilters[f.key].length>0; });
+  var items = allItems.filter(function(it){
+    return FILTERS.every(function(f){ var sel = _rentaFilters[f.key]; return sel.length===0 || sel.indexOf(f.get(it)||'__NONE__')>=0; });
+  });
+  var _optRow = function(checked, onchange, txt){ return '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:0.72rem;" onmouseover="this.style.background=\'var(--bg-secondary)\'" onmouseout="this.style.background=\'transparent\'"><input type="checkbox" '+(checked?'checked':'')+' onchange="'+onchange+'" style="cursor:pointer;width:15px;height:15px;"> <span>'+txt+'</span></label>'; };
+  var _menuPanel = function(rowsHtml, closeFn){ return '<div onclick="'+closeFn+'" style="position:fixed;inset:0;z-index:40;"></div><div style="position:absolute;z-index:50;top:calc(100% + 4px);left:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);min-width:260px;max-width:440px;max-height:340px;overflow:auto;padding:6px;">'+rowsHtml+'</div>'; };
+  var _ddBtn = function(icon, lbl, sel, onclick){ return '<button onclick="'+onclick+'" style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;border:1px solid '+(sel?'var(--gph-dark)':'var(--border)')+';background:var(--bg-primary);color:var(--text-primary);font-family:inherit;font-size:0.74rem;font-weight:700;cursor:pointer;">'+icon+' '+lbl+' <span style="opacity:0.6;">▾</span></button>'; };
+  var ddHtml = FILTERS.map(function(f){
+    var sel = _rentaFilters[f.key], nSel = sel.length;
+    var lbl = f.label + ' : <span style="color:'+(nSel?'var(--gph-dark)':'var(--text-muted)')+';">'+(nSel===0?('Tous ('+allItems.length+')'):(nSel+' sélectionné'+(nSel>1?'s':'')))+'</span>';
+    var panel = '';
+    if (_rentaOpenMenu===f.key){
+      var rows = _optRow(nSel===0, 'rentaClearFilter(\''+f.key+'\')', '<b>'+f.allLabel+'</b> <span style="color:var(--text-muted);">('+allItems.length+')</span>')
+        + '<div style="height:1px;background:var(--border);margin:4px 2px;"></div>'
+        + f.vals.map(function(t,i){ var n=allItems.filter(function(x){return (f.get(x)||'')===t;}).length; return _optRow(sel.indexOf(t)>=0, 'rentaToggleFilterByIdx(\''+f.key+'\','+i+')', _esc(t)+' <span style="color:var(--text-muted);">('+n+')</span>'); }).join('')
+        + (f.hasNone ? _optRow(sel.indexOf('__NONE__')>=0, 'rentaToggleFilterNone(\''+f.key+'\')', '(Non renseigné) <span style="color:var(--text-muted);">('+allItems.filter(function(x){return !f.get(x);}).length+')</span>') : '');
+      panel = _menuPanel(rows, 'rentaCloseMenu()');
+    }
+    return '<div style="position:relative;">' + _ddBtn(f.icon, lbl, nSel, 'rentaToggleMenu(\''+f.key+'\')') + panel + '</div>';
+  }).join('');
+  var filterHtml = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    + ddHtml
+    + (anyActive ? '<button onclick="rentaClearAllFilters()" style="padding:4px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-secondary);font-family:inherit;font-size:0.68rem;font-weight:700;cursor:pointer;">✕ Tout effacer</button>' : '')
+    + (anyActive ? '<span style="color:var(--text-muted);font-size:0.72rem;">'+items.length+' commande'+(items.length>1?'s':'')+' filtrée'+(items.length>1?'s':'')+'</span>' : '')
+    + '</div>';
+  return { items: items, filterHtml: filterHtml };
+}
+function _rentaCmdHtml(){
+  var coutH = parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0;
+  var allItems = _rentaAllItems(coutH);
+  if (!allItems.length){ return _rentaDateNote() + '<div style="padding:20px;color:var(--text-muted);">' + ((_rentaDateFrom||_rentaDateTo)?'Aucune commande livrée sur cette période.':'Aucun temps passé sur des commandes pour le moment.') + '</div>'; }
+  var ff = _rentaApplyFilters(allItems); var items = ff.items, filterHtml = ff.filterHtml;
+  if (!items.length){ return _rentaDateNote() + filterHtml + '<div style="padding:20px;color:var(--text-muted);">Aucune commande pour ce filtre.</div>'; }
+  var T = { M:0, est:0, real:0, cost:0, marge:0, benef:0, benefC:0 };
+  items.forEach(function(it){ T.M+=it.M; T.est+=it.estH; T.real+=it.real; T.cost+=it.cost; T.marge+=it.marge; if (it.benefPerte!=null) T.benef+=it.benefPerte; if (it.benefCost!=null) T.benefC+=it.benefCost; });
+  var _rate = function(r){ return r==null ? '—' : (_eurFmt(r)+'/h'); };
+  var _signEur = function(n){ return (n>=0?'+':'') + _eurFmt(n); };
+  var html = _rentaDateNote() + filterHtml + '<table class="stg-table" style="font-size:0.74rem;"><thead><tr><th>Commande</th><th>Client facturé</th><th>Type mission</th><th>Statut</th><th>Apporteur</th><th>Gros-œuvre</th><th>Architecte</th><th style="text-align:center;">Livraison</th><th style="text-align:right;">€ HT</th><th style="text-align:right;">Tps Prévu</th><th style="text-align:right;">Tps Passé</th><th style="text-align:right;" title="Montant HT ÷ temps estimé">Taux vendu</th><th style="text-align:right;" title="Montant HT ÷ temps passé">Taux réalisé</th><th style="text-align:right;" title="Taux réalisé − Taux vendu">Écart taux</th><th style="text-align:right;" title="Taux vendu × (heures prévues − passées)">Bénéf./Perte € (vendu)</th><th style="text-align:right;" title="Coût horaire × (heures prévues − passées)">Bénéf./Perte € (coût)</th></tr></thead><tbody>';
+  items.forEach(function(it){
+    var ec = it.ecartTaux==null ? '' : (it.ecartTaux>=0 ? '#16A34A' : '#DC2626');
+    var bc = it.benefPerte==null ? '' : (it.benefPerte>=0 ? '#16A34A' : '#DC2626');
+    var bcc = it.benefCost==null ? '' : (it.benefCost>=0 ? '#16A34A' : '#DC2626');
+    html += '<tr>'
+      + '<td>'+_esc(it.label)+'</td>'
+      + '<td>'+_esc(it.client)+'</td>'
+      + '<td>'+(it.mission?_esc(it.mission):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td>'+(it.statut?_esc(it.statut):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td>'+(it.apporteur?_esc(it.apporteur):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td>'+(it.gooeuvre?_esc(it.gooeuvre):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td>'+(it.architecte?_esc(it.architecte):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td style="text-align:center;font-family:\'DM Mono\',monospace;white-space:nowrap;">'+(it.livraison?_rentaFmtDate(it.livraison):'<span style="color:var(--text-muted);">—</span>')+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_eurFmt(it.M)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_hFmt(it.estH)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;">'+_hFmt(it.real)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_rate(it.tauxVendu)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;'+(ec?'color:'+ec+';':'')+'">'+_rate(it.tauxRealise)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(ec||'inherit')+';font-weight:700;">'+(it.ecartTaux==null?'—':(_signEur(it.ecartTaux)+'/h'))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bc||'inherit')+';font-weight:800;">'+(it.benefPerte==null?'—':_signEur(it.benefPerte))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bcc||'inherit')+';font-weight:800;">'+(it.benefCost==null?'—':_signEur(it.benefCost))+'</td>'
+      + '</tr>';
+  });
+  var tvTot = T.est>0 ? T.M/T.est : null, trTot = T.real>0 ? T.M/T.real : null;
+  var ecTot = (tvTot!=null && trTot!=null) ? (trTot - tvTot) : null;
+  var ecTc = ecTot==null ? '' : (ecTot>=0?'#16A34A':'#DC2626'), bfTc = T.benef>=0?'#16A34A':'#DC2626', bfCc = T.benefC>=0?'#16A34A':'#DC2626';
+  html += '</tbody><tfoot><tr style="font-weight:800;border-top:2px solid var(--gph-dark);"><td colspan="8">TOTAL ('+items.length+')</td>'
+    + '<td style="text-align:right;">'+_eurFmt(T.M)+'</td><td style="text-align:right;">'+_hFmt(T.est)+'</td><td style="text-align:right;">'+_hFmt(T.real)+'</td>'
+    + '<td style="text-align:right;">'+_rate(tvTot)+'</td><td style="text-align:right;'+(ecTc?'color:'+ecTc+';':'')+'">'+_rate(trTot)+'</td>'
+    + '<td style="text-align:right;color:'+(ecTc||'inherit')+';">'+(ecTot==null?'—':(_signEur(ecTot)+'/h'))+'</td>'
+    + '<td style="text-align:right;color:'+bfTc+';">'+_signEur(T.benef)+'</td>'
+    + '<td style="text-align:right;color:'+bfCc+';">'+_signEur(T.benefC)+'</td></tr></tfoot></table>'
+    + '<div style="font-size:0.66rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">'
+    +   '<b>Taux vendu</b> = € HT ÷ temps <b>prévu</b> · <b>Taux réalisé</b> = € HT ÷ temps <b>passé</b>. '
+    +   'Écart = Taux réalisé − Taux vendu (<span style="color:#16A34A;">vert</span> = on gagne plus/h que vendu, <span style="color:#DC2626;">rouge</span> = moins). '
+    +   '<b>Bénéf./Perte € (vendu)</b> = Taux vendu × (heures prévues − passées) · <b>(coût)</b> = coût horaire × (heures prévues − passées). '
+    +   '<span style="color:#16A34A;">vert</span> = gain (moins de temps que prévu), <span style="color:#DC2626;">rouge</span> = perte. '
+    +   '(Cumulé sur la période filtrée ; trié par bénéfice/perte croissant.)'
+    + '</div>';
+  return html;
+}
+function _rentaTechHtml(){
+  var coutH = parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0;
+  var _amap = _rentaAllowedMap();
+  var _allow = function(id){ return _amap.__noDate ? true : _amap[id]===true; };
+  var byTech = {};
+  _rentaRawRows.forEach(function(x){
+    if (!x.commande_id || !_allow(x.commande_id)) return;
+    var em = x.email ? String(x.email).toLowerCase() : (x.user_id || '?');
+    if (!byTech[em]) byTech[em] = { hoursByCmd:{}, realH:0 };
+    var h = parseFloat(x.heures) || 0;
+    byTech[em].hoursByCmd[x.commande_id] = (byTech[em].hoursByCmd[x.commande_id]||0) + h;
+    byTech[em].realH += h;
+  });
+  var _signEur = function(n){ return (n>=0?'+':'') + _eurFmt(n); };
+  var items = Object.keys(byTech).map(function(em){
+    var t = byTech[em], CA = 0, estHTech = 0, benefVendu = 0, benefCost = 0, hasEst = false;
+    Object.keys(t.hoursByCmd).forEach(function(cid){
+      var cmd = (commandesData||[]).find(function(c){ return c.id === cid; });
+      var M = cmd ? (cmd.montant||0) : 0;
+      var estH = cmd ? ((computeGeoDuration(cmd)||0)/60) : 0;
+      var totalReal = _rentaHours[cid] || 0;
+      if (totalReal > 0){
+        var share = t.hoursByCmd[cid] / totalReal;
+        CA += share * M;
+        if (estH > 0){
+          hasEst = true;
+          estHTech += estH * share;
+          var diffH = estH - totalReal;
+          benefVendu += (M/estH) * diffH * share;
+          if (coutH > 0) benefCost += coutH * diffH * share;
+        }
+      }
+    });
+    return { email: em, name: _suiviName(em), nbCmd: Object.keys(t.hoursByCmd).length, realH: t.realH, estHTech: estHTech, CA: CA, benefVendu: hasEst?benefVendu:null, benefCost: (hasEst&&coutH>0)?benefCost:null, parHPrevu: estHTech>0?CA/estHTech:null, parHPasse: t.realH>0?CA/t.realH:null };
+  }).filter(function(it){ return it.realH > 0; }).sort(function(a,b){ return (a.benefVendu==null?Infinity:a.benefVendu) - (b.benefVendu==null?Infinity:b.benefVendu); });
+  if (!items.length){ return _rentaDateNote() + '<div style="padding:20px;color:var(--text-muted);">' + ((_rentaDateFrom||_rentaDateTo)?'Aucun temps sur des commandes livrées sur cette période.':'Aucun temps passé sur des commandes pour le moment.') + '</div>'; }
+  var T = { real:0, estH:0, CA:0, benef:0, benefC:0 };
+  items.forEach(function(it){ T.real+=it.realH; T.estH+=it.estHTech; T.CA+=it.CA; if(it.benefVendu!=null)T.benef+=it.benefVendu; if(it.benefCost!=null)T.benefC+=it.benefCost; });
+  var html = _rentaDateNote() + '<table class="stg-table" style="font-size:0.74rem;"><thead><tr><th>Technicien</th><th style="text-align:right;">Cmd</th><th style="text-align:right;">Tps Prévu</th><th style="text-align:right;">Tps Passé</th><th style="text-align:right;">CA réalisé</th><th style="text-align:right;" title="Taux vendu × (heures prévues − passées), part du technicien">Bénéf./Perte € (vendu)</th><th style="text-align:right;" title="Coût horaire × (heures prévues − passées), part du technicien">Bénéf./Perte € (coût)</th><th style="text-align:right;" title="CA réalisé ÷ temps prévu">€/h prévu</th><th style="text-align:right;" title="CA réalisé ÷ temps passé">€/h passé</th></tr></thead><tbody>';
+  items.forEach(function(it){
+    var bv = it.benefVendu==null ? '' : (it.benefVendu>=0?'#16A34A':'#DC2626');
+    var bcc = it.benefCost==null ? '' : (it.benefCost>=0?'#16A34A':'#DC2626');
+    html += '<tr>'
+      + '<td><strong>'+_esc(it.name)+'</strong><br><span style="font-size:0.62rem;color:var(--text-muted);">'+_esc(it.email)+'</span></td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+it.nbCmd+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_hFmt(it.estHTech)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;">'+_hFmt(it.realH)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_eurFmt(it.CA)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bv||'inherit')+';font-weight:800;">'+(it.benefVendu==null?'—':_signEur(it.benefVendu))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bcc||'inherit')+';font-weight:800;">'+(it.benefCost==null?'—':_signEur(it.benefCost))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+(it.parHPrevu==null?'—':(_eurFmt(it.parHPrevu)+'/h'))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;">'+(it.parHPasse==null?'—':(_eurFmt(it.parHPasse)+'/h'))+'</td>'
+      + '</tr>';
+  });
+  var bfTc = T.benef>=0?'#16A34A':'#DC2626', bfCc = T.benefC>=0?'#16A34A':'#DC2626';
+  var tPrevuH = T.estH>0?T.CA/T.estH:null, tPasseH = T.real>0?T.CA/T.real:null;
+  html += '</tbody><tfoot><tr style="font-weight:800;border-top:2px solid var(--gph-dark);"><td>TOTAL ('+items.length+')</td><td></td>'
+    + '<td style="text-align:right;">'+_hFmt(T.estH)+'</td><td style="text-align:right;">'+_hFmt(T.real)+'</td><td style="text-align:right;">'+_eurFmt(T.CA)+'</td>'
+    + '<td style="text-align:right;color:'+bfTc+';">'+_signEur(T.benef)+'</td>'
+    + '<td style="text-align:right;color:'+bfCc+';">'+_signEur(T.benefC)+'</td>'
+    + '<td style="text-align:right;">'+(tPrevuH==null?'—':(_eurFmt(tPrevuH)+'/h'))+'</td>'
+    + '<td style="text-align:right;">'+(tPasseH==null?'—':(_eurFmt(tPasseH)+'/h'))+'</td></tr></tfoot></table>'
+    + '<div style="font-size:0.66rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">'
+    +   'Tps Prévu = heures prévues attribuées au technicien (au prorata de ses heures sur chaque commande). CA réalisé = part du montant HT au prorata des heures. '
+    +   '<b>Bénéf./Perte € (vendu)</b> = taux vendu × (heures prévues − passées) · <b>(coût)</b> = coût horaire × (heures prévues − passées), part du technicien. '
+    +   '<b>€/h prévu</b> = CA réalisé ÷ temps prévu · <b>€/h passé</b> = CA réalisé ÷ temps passé. (Cumulé sur la période filtrée ; trié par bénéfice/perte croissant.)'
+    + '</div>';
+  return html;
+}
+function _rentaGroupHtml(dim){
+  var coutH = parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0;
+  var allItems = _rentaAllItems(coutH);
+  if (!allItems.length){ return _rentaDateNote() + '<div style="padding:20px;color:var(--text-muted);">' + ((_rentaDateFrom||_rentaDateTo)?'Aucune commande livrée sur cette période.':'Aucun temps passé sur des commandes pour le moment.') + '</div>'; }
+  var ff = _rentaApplyFilters(allItems); var items = ff.items, filterHtml = ff.filterHtml;
+  if (!items.length){ return _rentaDateNote() + filterHtml + '<div style="padding:20px;color:var(--text-muted);">Aucune commande pour ce filtre.</div>'; }
+  var LBL = { client:'Client facturé', apporteur:"Apporteur d'affaire", gooeuvre:'Gros-œuvre', architecte:'Architecte' };
+  var groups = {};
+  items.forEach(function(it){
+    var k = (String(it[dim]||'').trim()) || '— Non renseigné —';
+    if (!groups[k]) groups[k] = { key:k, n:0, M:0, estH:0, real:0, benef:0, benefC:0, hasEst:false, hasCost:false };
+    var g = groups[k];
+    g.n++; g.M+=it.M; g.estH+=it.estH; g.real+=it.real;
+    if (it.benefPerte!=null){ g.benef+=it.benefPerte; g.hasEst=true; }
+    if (it.benefCost!=null){ g.benefC+=it.benefCost; g.hasCost=true; }
+  });
+  var arr = Object.keys(groups).map(function(k){ return groups[k]; }).sort(function(a,b){ return a.benef - b.benef; });
+  var _rate = function(r){ return r==null ? '—' : (_eurFmt(r)+'/h'); };
+  var _signEur = function(n){ return (n>=0?'+':'') + _eurFmt(n); };
+  var T = { n:0, M:0, estH:0, real:0, benef:0, benefC:0 };
+  arr.forEach(function(g){ T.n+=g.n; T.M+=g.M; T.estH+=g.estH; T.real+=g.real; T.benef+=g.benef; T.benefC+=g.benefC; });
+  var html = _rentaDateNote() + filterHtml + '<table class="stg-table" style="font-size:0.74rem;"><thead><tr>'
+    + '<th>'+LBL[dim]+'</th><th style="text-align:right;">Nb cmd</th><th style="text-align:right;">€ HT</th><th style="text-align:right;">Tps Prévu</th><th style="text-align:right;">Tps Passé</th>'
+    + '<th style="text-align:right;" title="€ HT ÷ temps prévu">Taux vendu</th><th style="text-align:right;" title="€ HT ÷ temps passé">Taux réalisé</th><th style="text-align:right;">Écart taux</th>'
+    + '<th style="text-align:right;">Bénéf./Perte € (vendu)</th><th style="text-align:right;">Bénéf./Perte € (coût)</th></tr></thead><tbody>';
+  arr.forEach(function(g){
+    var tv = g.estH>0 ? g.M/g.estH : null, tr = g.real>0 ? g.M/g.real : null, ecc = (tv!=null&&tr!=null)?(tr-tv):null;
+    var ec = ecc==null?'':(ecc>=0?'#16A34A':'#DC2626');
+    var bv = g.hasEst?(g.benef>=0?'#16A34A':'#DC2626'):'';
+    var bc = g.hasCost?(g.benefC>=0?'#16A34A':'#DC2626'):'';
+    html += '<tr>'
+      + '<td><strong>'+_esc(g.key)+'</strong></td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+g.n+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_eurFmt(g.M)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_hFmt(g.estH)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;">'+_hFmt(g.real)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;">'+_rate(tv)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;'+(ec?'color:'+ec+';':'')+'">'+_rate(tr)+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(ec||'inherit')+';">'+(ecc==null?'—':(_signEur(ecc)+'/h'))+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bv||'inherit')+';font-weight:800;">'+(g.hasEst?_signEur(g.benef):'—')+'</td>'
+      + '<td style="text-align:right;font-family:\'DM Mono\',monospace;color:'+(bc||'inherit')+';font-weight:800;">'+(g.hasCost?_signEur(g.benefC):'—')+'</td>'
+      + '</tr>';
+  });
+  var tvT = T.estH>0?T.M/T.estH:null, trT = T.real>0?T.M/T.real:null, ecT = (tvT!=null&&trT!=null)?(trT-tvT):null;
+  var ecTc = ecT==null?'':(ecT>=0?'#16A34A':'#DC2626'), bfTc=T.benef>=0?'#16A34A':'#DC2626', bfCc=T.benefC>=0?'#16A34A':'#DC2626';
+  html += '</tbody><tfoot><tr style="font-weight:800;border-top:2px solid var(--gph-dark);"><td>TOTAL ('+arr.length+')</td>'
+    + '<td style="text-align:right;">'+T.n+'</td><td style="text-align:right;">'+_eurFmt(T.M)+'</td><td style="text-align:right;">'+_hFmt(T.estH)+'</td><td style="text-align:right;">'+_hFmt(T.real)+'</td>'
+    + '<td style="text-align:right;">'+_rate(tvT)+'</td><td style="text-align:right;'+(ecTc?'color:'+ecTc+';':'')+'">'+_rate(trT)+'</td>'
+    + '<td style="text-align:right;color:'+(ecTc||'inherit')+';">'+(ecT==null?'—':(_signEur(ecT)+'/h'))+'</td>'
+    + '<td style="text-align:right;color:'+bfTc+';">'+_signEur(T.benef)+'</td>'
+    + '<td style="text-align:right;color:'+(coutH>0?bfCc:'inherit')+';">'+(coutH>0?_signEur(T.benefC):'—')+'</td></tr></tfoot></table>'
+    + '<div style="font-size:0.66rem;color:var(--text-muted);margin-top:8px;line-height:1.5;">Indicateurs agrégés par '+LBL[dim]+'. <b>Bénéf./Perte (vendu)</b> = Σ taux vendu × (prévu − passé) · <b>(coût)</b> = coût horaire × (prévu − passé). (Trié par bénéfice/perte croissant ; respecte les filtres et la période.)</div>';
+  return html;
+}
+function rentaExportCsv(){
+  var coutH = parseFloat((settingsGeneral && settingsGeneral.coutHoraire) || 0) || 0;
+  var _amap = _rentaAllowedMap();
+  var _allow = function(id){ return _amap.__noDate ? true : _amap[id]===true; };
+  var lines, fname;
+  if (_rentaView!=='commande' && _rentaView!=='technicien'){
+    var dim = _rentaView;
+    var gAllItems = _rentaAllItems(coutH), gItems = _rentaApplyFilters(gAllItems).items, groups = {};
+    gItems.forEach(function(it){ var k=(String(it[dim]||'').trim())||'(Non renseigne)'; if(!groups[k])groups[k]={n:0,M:0,estH:0,real:0,benef:0,benefC:0,hasCost:false}; var g=groups[k]; g.n++; g.M+=it.M; g.estH+=it.estH; g.real+=it.real; if(it.benefPerte!=null)g.benef+=it.benefPerte; if(it.benefCost!=null){g.benefC+=it.benefCost;g.hasCost=true;} });
+    var gLbl = { client:'Client facture', apporteur:'Apporteur', gooeuvre:'Gros-oeuvre', architecte:'Architecte' }[dim] || dim;
+    lines = [[gLbl,'Nb cmd','€ HT','Tps prevu h','Tps passe h','Taux vendu','Taux realise','Ecart taux','Benefice/Perte (vendu)','Benefice/Perte (cout)']];
+    Object.keys(groups).forEach(function(k){ var g=groups[k]; var tv=g.estH>0?g.M/g.estH:'', tr=g.real>0?g.M/g.real:'', ec=(tv!==''&&tr!=='')?(tr-tv):''; lines.push([k, g.n, Math.round(g.M), Math.round(g.estH*10)/10, g.real, tv===''?'':Math.round(tv), tr===''?'':Math.round(tr), ec===''?'':Math.round(ec), Math.round(g.benef), g.hasCost?Math.round(g.benefC):'']); });
+    fname = 'rentabilite_par_'+dim+'.csv';
+  } else if (_rentaView === 'technicien'){
+    var byTech = {};
+    _rentaRawRows.forEach(function(x){
+      if (!x.commande_id || !_allow(x.commande_id)) return;
+      var em = x.email ? String(x.email).toLowerCase() : (x.user_id || '?');
+      if (!byTech[em]) byTech[em] = { hoursByCmd:{}, realH:0 };
+      var h = parseFloat(x.heures)||0;
+      byTech[em].hoursByCmd[x.commande_id] = (byTech[em].hoursByCmd[x.commande_id]||0) + h;
+      byTech[em].realH += h;
+    });
+    lines = [['Technicien','Email','Nb commandes','Tps prevu h','Tps passe h','CA realise','Benefice/Perte (vendu)','Benefice/Perte (cout)','EUR/h prevu','EUR/h passe']];
+    Object.keys(byTech).forEach(function(em){
+      var t = byTech[em]; if (t.realH <= 0) return;
+      var CA = 0, estHTech = 0, benefVendu = 0, benefCost = 0, hasEst = false;
+      Object.keys(t.hoursByCmd).forEach(function(cid){
+        var cmd = (commandesData||[]).find(function(c){ return c.id === cid; });
+        var M = cmd ? (cmd.montant||0) : 0; var tot = _rentaHours[cid]||0;
+        var estH = cmd ? ((computeGeoDuration(cmd)||0)/60) : 0;
+        if (tot > 0){
+          var share = t.hoursByCmd[cid]/tot;
+          CA += share * M;
+          if (estH > 0){ hasEst = true; estHTech += estH*share; var diffH = estH - tot; benefVendu += (M/estH)*diffH*share; if (coutH>0) benefCost += coutH*diffH*share; }
+        }
+      });
+      lines.push([_suiviName(em), em, Object.keys(t.hoursByCmd).length, Math.round(estHTech*10)/10, t.realH, Math.round(CA), hasEst?Math.round(benefVendu):'', (hasEst&&coutH>0)?Math.round(benefCost):'', estHTech>0?Math.round(CA/estHTech):'', t.realH>0?Math.round(CA/t.realH):'']);
+    });
+    fname = 'rentabilite_par_technicien.csv';
+  } else {
+    lines = [['Commande','Client facture','Type mission','Statut','Apporteur','Gros-oeuvre','Architecte','Livraison','€ HT','Tps prevu h','Tps passe h','Taux vendu','Taux realise','Ecart taux','Benefice/Perte (vendu)','Benefice/Perte (cout)']];
+    Object.keys(_rentaHours).forEach(function(id){
+      if (!_allow(id)) return;
+      var cmd = (commandesData||[]).find(function(c){ return c.id === id; }); if (!cmd) return;
+      var real = _rentaHours[id]; if (real <= 0) return;
+      var M = cmd.montant||0; var estH = (computeGeoDuration(cmd)||0)/60;
+      var tv = estH>0?M/estH:'', tr = real>0?M/real:'', ec = (tv!==''&&tr!=='')?(tr-tv):'', bp = (tv!=='')?tv*(estH-real):'', bpc = (estH>0&&coutH>0)?coutH*(estH-real):'';
+      var label = cmd._affaire ? (cmd._affaire.ref+' — '+(cmd._affaire.nom||'')) : (cmd.ref||id);
+      lines.push([label, cmd.client_name||'', _rentaMissionType(cmd), _cmdStatutLabel(cmd), _rentaApporteur(cmd), _rentaGrosOeuvre(cmd), _rentaArchitecte(cmd), _rentaFmtDate(_cmdPlanEndDate(cmd)), M, estH, real, tv===''?'':Math.round(tv), tr===''?'':Math.round(tr), ec===''?'':Math.round(ec), bp===''?'':Math.round(bp), bpc===''?'':Math.round(bpc)]);
+    });
+    fname = 'rentabilite_par_commande.csv';
+  }
+  var csv = lines.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
 }
 
 function renderCommandesList() {
