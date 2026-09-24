@@ -7781,7 +7781,7 @@ async function _qualNotify(entry, emails, isUpdate){
       + '</table>'
       + '<p style="color:#888;font-size:12px;margin-top:12px;">Notification automatique GéoPlan — outil Erreurs &amp; Modifications.</p></div>';
     var r = await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ to: emails, subject: subject, html: html, from: (currentAuthUser&&currentAuthUser.email)||'' }) });
-    if (!r.ok){ var d = await r.json().catch(function(){return {};}); console.warn('[Qualité] notify échec:', d); alert('Signalement enregistré, mais l\'e-mail n\'a pas pu être envoyé.\n(' + (d.error||('HTTP '+r.status)) + ')\nVérifiez la configuration Microsoft Graph.'); }
+    if (!r.ok){ var d = await r.json().catch(function(){return {};}); console.warn('[Qualité] notify échec:', d); alert('Signalement enregistré, mais l\'e-mail n\'a pas pu être envoyé.\n(' + (d.error||('HTTP '+r.status)) + ')' + (d.detail?('\n\nDétail Microsoft : '+d.detail):'') + '\n\nVérifiez la configuration Microsoft Graph.'); }
   } catch(e){ console.warn('[Qualité] notify:', e); }
 }
 
